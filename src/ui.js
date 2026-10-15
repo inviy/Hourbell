@@ -74,6 +74,7 @@
 
   HB.dialog = {
     get active() { return dlg.open; },
+    close() { dlg.open = false; dlg.onClose = null; },
     open(texts, opts) {
       opts = opts || {};
       const pages = [];

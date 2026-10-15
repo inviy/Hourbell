@@ -26,7 +26,7 @@
 
   // ---------- scene ----------
   const World = {
-    map: null, def: null, player: null, npcs: [], cam: { x: 0, y: 0 },
+    map: null, def: null, player: null, npcs: [], cam: { x: 0, y: 0 }, flags: {},
     motes: [], clouds: [], visited: {}, tower: null, glow: null, hintT: 0,
 
     load(id, spawn) {
@@ -48,8 +48,7 @@
       this.snapCamera();
       if (HB.music) HB.music.play(def.music);
       HB.showBanner(def.name, def.sub);
-      if (this.onLoad) this.onLoad(def);
-      if (HB.worldHooks && HB.worldHooks.onLoad) HB.worldHooks.onLoad(this, def);
+      this.plugins('onLoad', def);
     },
 
     enter(arg) {
@@ -64,6 +63,14 @@
       }
     },
 
+    // call a hook on every registered plugin; true if any returns truthy
+    plugins(hook) {
+      const args = Array.prototype.slice.call(arguments, 1);
+      let res = false;
+      for (const p of HB.worldPlugins) if (p[hook] && p[hook].apply(p, [this].concat(args))) res = true;
+      return res;
+    },
+
     // ---------- collision ----------
     blocked(x, y, self) {
       const hw = 5, top = 5;
@@ -76,8 +83,7 @@
         if (a === self) continue;
         if (Math.abs(a.x - x) < 10 && Math.abs(a.y - y) < 6) return true;
       }
-      if (this.extraBlock && this.extraBlock(x, y, self)) return true;
-      return false;
+      return !!this.plugins('blocks', x, y, self);
     },
     tryMove(a, dx, dy) {
       // move per axis so walls slide nicely
@@ -90,12 +96,11 @@
       HB.updateBanner(dt);
       if (this.hintT > 0 && !HB.dialog.active) this.hintT -= dt;
       if (HB.dialog.active) { HB.dialog.update(dt); this.player.moving = false; this.updateFx(dt); return; }
-      if (this.overlayUpdate && this.overlayUpdate(dt)) { this.updateFx(dt); return; }
+      if (this.plugins('update', dt, fading)) { this.updateFx(dt); return; }
       if (!fading) this.updatePlayer(dt);
       this.updateNpcs(dt);
       this.updateFx(dt);
       this.updateCamera(dt);
-      if (HB.worldHooks && HB.worldHooks.update) HB.worldHooks.update(this, dt, fading);
     },
 
     updatePlayer(dt) {
@@ -143,12 +148,13 @@
         if (Math.abs(n.x - qx) < 10 && Math.abs(n.y - 3 - qy) < 10) {
           n.dir = { up: 'down', down: 'up', left: 'right', right: 'left' }[p.dir];
           n.moving = false; n.target = null; n.wait = 2.5;
+          if (this.plugins('talk', n)) return;
           HB.dialog.open(n.def.lines, { name: n.def.name });
           return;
         }
       }
       const tx = Math.floor(qx / T), ty = Math.floor(qy / T);
-      if (HB.worldHooks && HB.worldHooks.interact && HB.worldHooks.interact(this, tx, ty)) return;
+      if (this.plugins('interact', tx, ty)) return;
       const t = this.map.at(tx, ty);
       const find = (list) => (list || []).find((s) => s.tx === tx && s.ty === ty);
       const sign = find(this.def.signs), door = find(this.def.doors);
@@ -288,14 +294,14 @@
       this.map.drawGround(g, cam);
       const list = [this.player].concat(this.npcs);
       if (this.tower) list.push({ y: this.tower.y, draw: (gg) => gg.drawImage(this.tower.img, Math.round(this.tower.x - 24 - cam.x), Math.round(this.tower.y + 4 - 96 - cam.y)) });
-      if (this.extraDrawables) this.extraDrawables(list);
+      this.plugins('drawables', list, cam);
       list.sort((a, b) => a.y - b.y);
       for (const a of list) a.draw(g, cam);
       this.map.drawTops(g, cam);
       this.drawMood(g);
-      if (this.overlayDraw) this.overlayDraw(g, cam);
       HB.drawBanner(g);
-      if (this.hintT > 0 && !HB.dialog.active) {
+      this.plugins('drawOverlay', g, cam);
+      if (this.hintT > 0 && !HB.dialog.active && !(HB.Battle && HB.Battle.active)) {
         g.save();
         g.globalAlpha = Math.min(1, this.hintT);
         HB.text(g, '이동: 방향키   조사 / 대화: Z, Enter', HB.W / 2, HB.H - 14, '#fff4d8', { align: 'center', font: 'g9' });
@@ -306,5 +312,6 @@
   };
 
   HB.World = World;
+  HB.worldPlugins = HB.worldPlugins || [];
   HB.Actor = Actor;
 })(window.HB);

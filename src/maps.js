@@ -138,7 +138,73 @@
     };
   }
 
-  HB.MAPS = { town: buildTown };
+
+  // ---------- Field: 바람결 들판 ----------
+  function buildField() {
+    const W = 48, H = 32;
+    const m = new Grid(W, H, '.');
+    sprinkle(m, ',', 0.1, 21);
+    forestBorder(m, 9, [{ x0: 20, x1: 21, y0: 0, y1: 2 }]);
+
+    // tree groves
+    const r = HB.rng(77);
+    [[8, 6, 3], [38, 6, 3], [6, 22, 3], [40, 22, 3], [14, 18, 2], [35, 17, 2]].forEach(([cx, cy, rad]) => {
+      for (let y = -rad; y <= rad; y++) for (let x = -rad; x <= rad; x++) {
+        if (x * x + y * y <= rad * rad && r() < 0.75) m.set(cx + x, cy + y, 'T');
+      }
+    });
+
+    // the river and its bridge
+    const river = [];
+    let prev = null;
+    for (let x = 1; x < W - 1; x++) {
+      const y = 13 + Math.round(Math.sin(x * 0.25) * 1.2);
+      const y0 = prev === null ? y : Math.min(y, prev), y1 = (prev === null ? y : Math.max(y, prev)) + 1;
+      for (let yy = y0; yy <= y1; yy++) { m.set(x, yy, '~'); river.push([x, yy]); }
+      prev = y;
+    }
+
+    // winding path from the town gate to the shrine
+    m.vline(20, 0, 8, '='); m.vline(21, 0, 8, '=');
+    m.hline(20, 31, 8, '='); m.hline(20, 31, 9, '=');
+    m.vline(30, 8, 20, '='); m.vline(31, 8, 20, '=');
+    m.hline(23, 31, 20, '='); m.hline(23, 31, 21, '=');
+    m.vline(23, 20, 26, '='); m.vline(24, 20, 26, '=');
+
+    // shrine clearing: the path curls around so you face the shrine's steps
+    m.rect(18, 22, 12, 7, '.');
+    m.rect(22, 24, 4, 2, 'X');
+    m.vline(23, 22, 22, '='); m.vline(24, 22, 22, '=');
+    m.hline(23, 27, 22, '='); m.hline(23, 27, 23, '=');
+    m.vline(26, 22, 27, '='); m.vline(27, 22, 27, '=');
+    m.rect(21, 26, 6, 2, '_');
+    // a bridge wherever the path meets the river
+    river.forEach(([x, y]) => { if (m.get(x, y) === '=') m.set(x, y, 'b'); });
+
+    sprinkle(m, 'r', 0.012, 5);
+    m.set(22, 3, 's');
+
+    return {
+      id: 'field',
+      name: '바람결 들판',
+      sub: '바람이 노래처럼 들리던 곳',
+      theme: 'field',
+      mood: 'day',
+      music: 'field',
+      rows: m.rows(),
+      spawn: { x: 20.5, y: 1.5, dir: 'down' },
+      shrine: { tx: 22, ty: 24 },
+      exits: [{ x0: 20, x1: 21, y0: 0, y1: 0, to: 'town', spawn: { x: 16.5, y: 22.4, dir: 'up' } }],
+      signs: [{ tx: 22, ty: 3, text: '바람결 들판\n※ 소리먹이 출몰 주의. 혼자 다니지 마시오.' }],
+      enemies: [
+        { x: 26, y: 5 }, { x: 12, y: 10 }, { x: 36, y: 11 },
+        { x: 27, y: 17 }, { x: 16, y: 22 }, { x: 33, y: 24 }, { x: 20, y: 27, guard: true }
+      ],
+      npcs: []
+    };
+  }
+
+  HB.MAPS = { town: buildTown, field: buildField };
   HB.Grid = Grid;
   HB.mapTools = { sprinkle, forestBorder };
 })(window.HB);
