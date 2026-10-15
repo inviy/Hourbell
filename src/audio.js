@@ -226,6 +226,15 @@
       s.hits('hat', 'o.x.o.x.o.x.o.x.', 16);
       return s.finalize();
     },
+    // the field theme once the first bell fragment is back: bells answer the melody
+    fieldBell() {
+      const s = SONGS.field();
+      chordsTo(s, CH_A.concat(CH_B), 0, (c, at) => {
+        s.events.push({ inst: 'bell', step: at * 2, len: 4, midi: c[0] + 24, vel: 0.55 });
+        s.events.push({ inst: 'bell', step: (at + 6) * 2, len: 2, midi: c[2] + 24, vel: 0.3 });
+      });
+      return s.finalize();
+    },
     battle() {
       const intro = 16; // one bar of pickup, played once
       const s = new Song({ bpm: 156, loop: true, loopFrom: intro, steps: intro + 16 * 16 });
