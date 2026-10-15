@@ -25,11 +25,18 @@
 
 ## 실행
 
-빌드 과정 없이 `index.html`을 브라우저로 열면 됩니다.
+빌드 과정은 없습니다. 글꼴 로딩 때문에 로컬 서버로 여는 것을 권장합니다.
 
 ```bash
-npx serve .   # 또는 python3 -m http.server
+python3 -m http.server 8000   # 또는 npx serve .
+# http://localhost:8000 접속
 ```
+
+| 조작 | 키 |
+|---|---|
+| 이동 | 방향키 또는 WASD |
+| 조사, 대화, 결정 | Z, Enter, Space |
+| 취소 | X, Esc |
 
 ## 원칙
 
