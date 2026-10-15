@@ -304,7 +304,7 @@
       if (this.hintT > 0 && !HB.dialog.active && !(HB.Battle && HB.Battle.active)) {
         g.save();
         g.globalAlpha = Math.min(1, this.hintT);
-        HB.text(g, '이동: 방향키   조사 / 대화: Z, Enter', HB.W / 2, HB.H - 14, '#fff4d8', { align: 'center', font: 'g9' });
+        HB.text(g, HB.touchControls ? '이동: 패드   조사 / 대화: A' : '이동: 방향키   조사 / 대화: Z, Enter', HB.W / 2, HB.H - 14, '#fff4d8', { align: 'center', font: 'g9' });
         g.restore();
       }
       HB.dialog.draw(g);

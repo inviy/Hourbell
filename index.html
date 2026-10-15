@@ -9,6 +9,7 @@
     @font-face { font-family: 'Galmuri9'; src: url('assets/fonts/Galmuri9.woff2') format('woff2'); font-display: block; }
     html, body { margin: 0; height: 100%; background: #0a0814; overflow: hidden; }
     body { display: flex; align-items: center; justify-content: center; }
+    @media (orientation: portrait) and (pointer: coarse) { body { align-items: flex-start; padding-top: 12vh; box-sizing: border-box; } }
     canvas { image-rendering: pixelated; image-rendering: crisp-edges; display: block; }
     /* keep the font warm so canvas text renders on first use */
     .preload { position: absolute; left: -999px; font-family: 'Galmuri11'; }
@@ -30,6 +31,7 @@
   <script src="src/creatures.js"></script>
   <script src="src/battle.js"></script>
   <script src="src/field.js"></script>
+  <script src="src/touch.js"></script>
   <script src="src/main.js"></script>
 </body>
 </html>
