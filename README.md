@@ -37,6 +37,7 @@ python3 -m http.server 8000   # 또는 npx serve .
 | 이동 | 방향키 또는 WASD |
 | 조사, 대화, 결정 | Z, Enter, Space |
 | 취소 | X, Esc |
+| 소리 켜기, 끄기 | M |
 
 ## 원칙
 

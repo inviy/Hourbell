@@ -155,8 +155,9 @@
       if (sign) HB.dialog.open(sign.text);
       else if (door) HB.dialog.open(door.text);
       else if (t === 'B') {
-        HB.sfx && HB.sfx('bell');
+        HB.sfx && HB.sfx('thud');
         HB.dialog.open([
+          '탑을 두드려 보았지만, 둔탁한 소리만 돌아올 뿐이다.',
           '거대한 종이 미동도 없이 매달려 있다.',
           '시계탑의 바늘은 일곱 시 십 분 전에 멈춰 있다.'
         ]);

@@ -26,14 +26,21 @@
       for (let x = 0; x <= HB.W; x++) {
         this.hills.push(118 + Math.sin(x * 0.021) * 7 + Math.sin(x * 0.057 + 1) * 4);
       }
-      if (HB.music) HB.music.play('title');
+      this.awake = false; // first key wakes the audio, second starts the game
     },
     update(dt) {
       this.t += dt;
       if (this.leaving) return;
-      if (this.t > 0.6 && (HB.input.hit('ok') || HB.input.hit('cancel') || HB.input.any && Object.keys(HB.input.pressed).length)) {
+      const pressed = Object.keys(HB.input.pressed).length > 0;
+      if (!this.awake && pressed && this.t > 0.3) {
+        this.awake = true; this.awakeT = this.t;
+        HB.music.play('title', { fadeIn: 1.2 });
+        return;
+      }
+      if (this.awake && this.t - this.awakeT > 0.4 && (HB.input.hit('ok') || HB.input.hit('cancel'))) {
         this.leaving = true;
         HB.sfx && HB.sfx('start');
+        HB.music.stop(0.9);
         HB.fadeTo(() => HB.setScene(HB.World, { map: 'town' }), { dur: 0.9 });
       }
     },
@@ -79,8 +86,10 @@
       HB.text(g, '잊힌 종소리를 찾아서', W / 2, ly + 40, '#f4d8e8', { align: 'center', font: 'g9' });
       g.restore();
       if (this.t > 1.4 && Math.floor(this.t * 2) % 2 === 0) {
-        HB.text(g, '아무 키나 누르세요', W / 2, 160, '#fff4d8', { align: 'center' });
+        const msg = this.awake ? 'Z / Enter  모험 시작' : '아무 키나 누르세요';
+        HB.text(g, msg, W / 2, 160, '#fff4d8', { align: 'center' });
       }
+      if (this.awake) HB.text(g, 'M  소리 켜기 / 끄기', 4, H - 11, '#8a7aa8', { font: 'g9', shadow: null });
       HB.text(g, 'prototype v0.1', W - 4, H - 11, '#8a7aa8', { align: 'right', font: 'g9', shadow: null });
     }
   };
