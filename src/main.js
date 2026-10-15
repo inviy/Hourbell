@@ -86,10 +86,11 @@
       HB.text(g, '잊힌 종소리를 찾아서', W / 2, ly + 40, '#f4d8e8', { align: 'center', font: 'g9' });
       g.restore();
       if (this.t > 1.4 && Math.floor(this.t * 2) % 2 === 0) {
-        const msg = this.awake ? 'Z / Enter  모험 시작' : '아무 키나 누르세요';
+        const msg = HB.touchControls ? (this.awake ? '한 번 더 터치하면 모험 시작' : '화면을 터치하세요')
+          : (this.awake ? 'Z / Enter  모험 시작' : '아무 키나 누르세요');
         HB.text(g, msg, W / 2, 160, '#fff4d8', { align: 'center' });
       }
-      if (this.awake) HB.text(g, 'M  소리 켜기 / 끄기', 4, H - 11, '#8a7aa8', { font: 'g9', shadow: null });
+      if (this.awake && !HB.touchControls) HB.text(g, 'M  소리 켜기 / 끄기', 4, H - 11, '#8a7aa8', { font: 'g9', shadow: null });
       HB.text(g, 'prototype v0.1', W - 4, H - 11, '#8a7aa8', { align: 'right', font: 'g9', shadow: null });
     }
   };
