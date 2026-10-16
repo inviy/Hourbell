@@ -68,7 +68,8 @@
   }
 
   // ---------- dialogue ----------
-  const BOX = { x: 8, y: 122, w: 304, h: 52 };
+  const BOX = { w: 400, h: 52 };
+  BOX.x = Math.floor((HB.W - BOX.w) / 2); BOX.y = HB.H - BOX.h - 6;
   const MAX_LINES = 3;
   const dlg = { open: false, pages: [], page: 0, shown: 0, name: null, onClose: null };
 

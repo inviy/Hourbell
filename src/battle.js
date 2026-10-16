@@ -23,7 +23,9 @@
     { id: 'heal', label: '회복', cost: 3 },
     { id: 'flee', label: '도망' }
   ];
-  const SLOTS = [[216, 94], [240, 68], [244, 118]];
+  // offsets from the screen centre
+  const SLOTS = [[56, 4], [80, -22], [84, 28]];
+  const HERO = [-64, 14];
   const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
 
   const Battle = {
@@ -45,13 +47,13 @@
         e.maxHp = e.guard ? 30 : 18; e.hp = e.maxHp;
         e.atk = e.guard ? [5, 8] : [3, 6];
         e.flash = 0; e.hitShake = 0; e.dying = 0; e.dead = false;
-        e.slot = { x: this.cam.x + SLOTS[i][0], y: this.cam.y + SLOTS[i][1] };
+        e.slot = { x: this.cam.x + HB.W / 2 + SLOTS[i][0], y: this.cam.y + HB.H / 2 + SLOTS[i][1] };
         return e;
       });
       const p = w.player;
       p.moving = false;
       this.heroOrigin = { x: p.x, y: p.y };
-      this.heroSlot = { x: this.cam.x + 96, y: this.cam.y + 104 };
+      this.heroSlot = { x: this.cam.x + HB.W / 2 + HERO[0], y: this.cam.y + HB.H / 2 + HERO[1] };
       this.run(this.introSeq());
     },
 
@@ -392,7 +394,7 @@
         }
       }
       // soft vignette to focus the fight
-      const grd = g.createRadialGradient(HB.W / 2, 92, 60, HB.W / 2, 92, 200);
+      const grd = g.createRadialGradient(HB.W / 2, HB.H / 2 + 2, 90, HB.W / 2, HB.H / 2 + 2, 300);
       grd.addColorStop(0, 'rgba(10,0,30,0)');
       grd.addColorStop(1, 'rgba(10,0,30,0.45)');
       g.fillStyle = grd; g.fillRect(0, 0, HB.W, HB.H);
@@ -423,6 +425,9 @@
 
     drawPanel(g) {
       const P = HB.party;
+      const ox = Math.floor((HB.W - 308) / 2) - 6, oy = HB.H - 52 - 128;
+      g.save();
+      g.translate(ox, oy);
       // commands
       HB.drawWindow(g, 6, 128, 116, 46);
       const active = this.phase === 'menu';
@@ -440,6 +445,7 @@
       HB.text(g, 'Lv ' + P.lvl, 300, 135, '#c8c0e0', { align: 'right', font: 'g9' });
       bar(g, 136, 151, 'HP', P.hp, P.maxHp, P.hp / P.maxHp < 0.3 ? '#ff7a6a' : '#7ae08a');
       bar(g, 136, 165, '울림', P.mp, P.maxMp, '#7ab0ff');
+      g.restore();
     }
   };
 
