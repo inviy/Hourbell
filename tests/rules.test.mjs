@@ -16,30 +16,48 @@ function partyAt(lvl, herbs, bare) {
   return P;
 }
 
-// a sensible player: heal when low, chime groups, otherwise attack
+// a sensible player: heal when low, cure silence, buff for the boss,
+// use the element a foe is weak to, otherwise attack. Mirrors battle.js:
+// turn order by speed, 침묵 and 맑은울림 count down on the hero's own turns.
 function fight(P, kinds) {
   const foes = kinds.map((k) => Object.assign(HB.makeFoe(k), { hp: HB.FOES[k].hp }));
-  let silenced = 0;
-  for (let turn = 1; turn < 80; turn++) {
+  let silenced = 0, buff = 0;
+  const can = (id) => HB.skillsFor(P.lvl).includes(id) && !silenced && P.mp >= HB.SKILLS[id].cost;
+  const cast = (id) => { P.mp -= HB.SKILLS[id].cost; };
+  function heroAct() {
     const alive = foes.filter((f) => f.hp > 0);
-    let guarding = false;
-    if (P.hp < P.maxHp * 0.45 && P.mp >= HB.SKILLS.heal) { P.mp -= HB.SKILLS.heal; P.hp = Math.min(P.maxHp, P.hp + HB.healAmt(P)); }
-    else if (P.hp < P.maxHp * 0.45 && P.items.herb) HB.useItem(P, 'herb');
-    else if (alive.length > 1 && !silenced && P.mp >= HB.SKILLS.chime) { P.mp -= HB.SKILLS.chime; alive.forEach((f) => { f.hp -= HB.chimeDmg(P); }); }
-    else {
-      let d = HB.hitDmg(P.atk, alive[0].def);
-      if (Math.random() < HB.critChance) d = Math.round(d * 1.8);
-      alive[0].hp -= d;
+    const low = P.hp < P.maxHp * 0.45;
+    let cast_ring = false;
+    if (low && can('heal')) { cast('heal'); P.hp = Math.min(P.maxHp, P.hp + HB.healAmt(P)); }
+    else if (low && P.items.herb) HB.useItem(P, 'herb');
+    else if (silenced && P.items.water) { HB.useItem(P, 'water'); silenced = 0; return; }
+    else if (can('ring') && !buff && alive.some((f) => f.boss)) { cast('ring'); buff = HB.SKILLS.ring.buff; cast_ring = true; }
+    else if (alive.length > 1 && can('chime') && alive.filter((f) => f.resist !== 'sound').length > 1) {
+      cast('chime'); alive.forEach((f) => { f.hp -= HB.chimeDmg(P, f); });
+    } else {
+      const t = alive.find((f) => f.weak === 'wind') || alive[0];
+      if (can('gust') && t.resist !== 'wind') { cast('gust'); t.hp -= HB.gustDmg(P, t, buff > 0); }
+      else {
+        let d = HB.hitDmg(HB.effAtk(P, buff > 0), t.def);
+        if (Math.random() < HB.critChance) d = Math.round(d * 1.8);
+        t.hp -= d;
+      }
     }
-    silenced = Math.max(0, silenced - 1);
-    for (const f of foes.filter((x) => x.hp > 0)) {
-      const intent = HB.foeIntent(f, turn, P, silenced > 0);
-      if (intent === 'silence') silenced = 2;
-      else if (intent === 'swallow') P.mp = Math.max(0, P.mp - 2);
-      else P.hp -= HB.foeDmg(f, P, intent, guarding);
-      if (P.hp <= 0) return false;
+    if (silenced) silenced--;
+    if (buff && !cast_ring) buff--;
+  }
+  for (let turn = 1; turn < 80; turn++) {
+    for (const who of HB.turnOrder(P, foes.filter((f) => f.hp > 0))) {
+      if (who === 'hero') heroAct();
+      else if (who.hp > 0) {
+        const intent = HB.foeIntent(who, turn, P, silenced > 0);
+        if (intent === 'silence') silenced = 2;
+        else if (intent === 'swallow') P.mp = Math.max(0, P.mp - 2);
+        else P.hp -= HB.foeDmg(who, P, intent, false);
+        if (P.hp <= 0) return false;
+      }
+      if (foes.every((f) => f.hp <= 0)) return true;
     }
-    if (foes.every((f) => f.hp <= 0)) return true;
   }
   return false;
 }
@@ -55,13 +73,36 @@ test('exp curve and growth rise every level', () => {
   const gain = HB.levelUp(P);
   assert.equal(P.lvl, 2);
   assert.equal(P.atk, atk + gain.atk);
+  assert.ok(gain.spd > 0);
   assert.equal(P.maxHp, hp + gain.maxHp);
+});
+
+test('skills unlock by level', () => {
+  assert.deepEqual([...HB.skillsFor(1)], ['chime', 'heal']);
+  assert.ok(HB.skillsFor(3).includes('gust') && !HB.skillsFor(3).includes('ring'));
+  assert.deepEqual([...HB.learnedAt(5)], ['ring']);
+});
+
+test('elements: weak x1.5, resist x0.5', () => {
+  const boss = HB.makeFoe('boss');
+  assert.equal(HB.elemMul(boss, 'wind'), 1.5);
+  assert.equal(HB.elemMul(boss, 'sound'), 0.5);
+  assert.equal(HB.elemMul(HB.makeFoe('guard'), 'sound'), 1);
+  assert.equal(HB.effAtk({ atk: 10 }, true), 15);
+});
+
+test('turn order: faster acts first more often', () => {
+  let first = 0;
+  for (let i = 0; i < 2000; i++) if (HB.turnOrder({ spd: 6 }, [HB.makeFoe('flicker')])[0] !== 'hero') first++;
+  assert.ok(first / 2000 > 0.7, 'flicker (spd 9) usually beats a level 1 hero');
+  for (let i = 0; i < 200; i++) assert.equal(HB.turnOrder({ spd: 6 }, [HB.makeFoe('wisp'), HB.makeFoe('guard')]).length, 3);
 });
 
 test('damage is never below 1', () => {
   for (let i = 0; i < 500; i++) assert.ok(HB.hitDmg(1, 99) >= 1);
   const boss = HB.makeFoe('boss');
   for (let i = 0; i < 500; i++) assert.ok(HB.foeDmg(boss, { def: 99 }, 'attack', true) >= 1);
+  for (let i = 0; i < 500; i++) assert.ok(HB.chimeDmg({ atk: 1 }, boss) >= 1 && HB.gustDmg({ atk: 1 }, { def: 99 }) >= 1);
 });
 
 test('items: use, buy and run out', () => {
@@ -105,6 +146,15 @@ test('balance: the boss asks for a few levels', () => {
   assert.ok(r[1] < 0.1, 'level 2 should almost never win');
   assert.ok(r[2] > 0.05 && r[2] < 0.6, 'level 3 is a gamble');
   assert.ok(r[3] > 0.85, 'level 4 should usually win');
+});
+
+test('balance: hitting the boss weakness matters', () => {
+  const withWeak = winRate(3, 3, ['boss']);
+  const weak = HB.FOES.boss.weak;
+  delete HB.FOES.boss.weak;
+  const without = winRate(3, 3, ['boss']);
+  HB.FOES.boss.weak = weak;
+  assert.ok(withWeak > without + 0.1, 'weak ' + withWeak + ' vs none ' + without);
 });
 
 test('pacing: reaching level 4 takes about two field clears', () => {

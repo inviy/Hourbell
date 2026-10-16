@@ -97,7 +97,7 @@
         return true;
       }
       if (id === 'florist') {
-        HB.dialog.open('바람결에 나갈 거야? 약초랑 울림방울 챙겨 가!', { name: npc.def.name, onClose: () => HB.Menu.openShop(['herb', 'drop']) });
+        HB.dialog.open('바람결에 나갈 거야? 약초랑 울림방울, 맑은물도 챙겨 가!', { name: npc.def.name, onClose: () => HB.Menu.openShop(['herb', 'drop', 'water']) });
         return true;
       }
       if (id === 'keeper' && w.flags.fragment1) {

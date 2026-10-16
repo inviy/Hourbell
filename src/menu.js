@@ -58,6 +58,7 @@
         } else this.close();
       } else if (this.mode === 'items') {
         const id = list[this.cur], it = HB.ITEMS[id];
+        if (it.cure) { HB.sfx('cancel'); this.note = '전투 중에만 쓸 수 있다.'; return true; }
         if ((it.hp && P.hp >= P.maxHp) || (it.mp && P.mp >= P.maxMp)) { HB.sfx('cancel'); this.note = '지금은 쓸 필요가 없다.'; return true; }
         const got = HB.useItem(P, id);
         HB.sfx('heal');
@@ -112,13 +113,14 @@
       }
       // right: status
       const x = 136, y = 8, wdt = 200;
-      HB.drawWindow(g, x, y, wdt, 150);
+      HB.drawWindow(g, x, y, wdt, 178);
       HB.text(g, P.name, x + 12, y + 6, '#ffe08a');
       HB.text(g, 'Lv ' + P.lvl, x + wdt - 12, y + 7, '#c8c0e0', { font: 'g9', align: 'right' });
       HB.drawBar(g, x + 12, y + 30, 'HP', P.hp, P.maxHp, P.hp / P.maxHp < 0.3 ? '#ff7a6a' : '#7ae08a');
       HB.drawBar(g, x + 12, y + 44, '울림', P.mp, P.maxMp, '#7ab0ff');
       const rows = [
-        ['공격', P.atk], ['방어', P.def],
+        ['공격', P.atk], ['방어', P.def], ['속도', P.spd],
+        ['기술', HB.skillsFor(P.lvl).map((id) => HB.SKILLS[id].name).join(' ')],
         ['다음 레벨까지', HB.expToNext(P.lvl) - P.exp],
         ['골드', P.gold],
         ['종소리 조각', (w.flags.fragment1 ? 1 : 0) + ' / 7'],

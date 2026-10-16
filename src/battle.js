@@ -14,8 +14,7 @@
 
   const COMMANDS = [
     { id: 'attack', label: '공격' },
-    { id: 'chime', label: '종소리', cost: HB.SKILLS.chime },
-    { id: 'heal', label: '회복', cost: HB.SKILLS.heal },
+    { id: 'skill', label: '기술' },
     { id: 'item', label: '도구' },
     { id: 'guard', label: '방어' },
     { id: 'flee', label: '도망' }
@@ -38,7 +37,7 @@
       this.cursor = 0; this.target = 0;
       this.shake = 0; this.distort = 0; this.flash = 0;
       this.co = null; this.wait = 0;
-      this.turn = 0; this.guarding = false; this.silenced = 0;
+      this.turn = 0; this.guarding = false; this.silenced = 0; this.buff = 0;
       this.isBoss = foes.some((e) => e.kind === 'boss');
       HB.party.battles++;
       const count = {}, seen = {};
@@ -59,7 +58,7 @@
       this.run(this.introSeq());
     },
 
-    run(gen) { this.co = gen; this.wait = 0; },
+    run(gen) { this.co = gen; this.wait = 0; this.phase = 'busy'; },
 
     // ---------- helpers for sequences ----------
     *moveTo(a, x, y, dur, face) {
@@ -79,6 +78,7 @@
     },
     *waitOk() {
       this.waitingOk = true;
+      yield 0; // the press that closed the previous message must not close this one too
       while (!HB.input.hit('ok') && !HB.input.hit('cancel')) yield 0;
       this.waitingOk = false;
       HB.sfx('tick');
@@ -121,45 +121,79 @@
       const home = { x: p.x, y: p.y };
       yield* this.moveTo(p, t.x - 22, t.y, 0.16, 'right');
       const crit = Math.random() < HB.critChance;
-      let dmg = HB.hitDmg(P.atk, t.def);
+      let dmg = HB.hitDmg(HB.effAtk(P, this.buff > 0), t.def);
       if (crit) dmg = Math.round(dmg * 1.8);
       HB.sfx('hit');
       this.fx.push({ kind: 'slash', x: t.x, y: t.y - 14, t: 0 });
       t.hp -= dmg; t.flash = 0.2; t.hitShake = 0.3;
       if (crit) { this.shake = 0.3; this.msg = '회심의 일격!'; }
-      this.num(t.x, t.y - 26, dmg, crit ? '#ffb040' : '#fff4c0');
+      this.num(t.x, t.y - (t.boss ? 36 : 26), dmg, crit ? '#ffb040' : '#fff4c0');
       yield 0.35;
       yield* this.moveTo(p, home.x, home.y, 0.2, 'right');
       if (t.hp <= 0) yield* this.kill(t);
       yield 0.15;
-      yield* this.resolveRound();
+    },
+
+    // x1.5 / x0.5 feedback above the target
+    elemNote(f, el) {
+      const m = HB.elemMul(f, el);
+      if (m > 1) this.num(f.x, f.y - (f.boss ? 74 : 40), '약점!', '#ffd060');
+      else if (m < 1) this.num(f.x, f.y - (f.boss ? 74 : 40), '내성', '#a8a0c8');
     },
 
     *heroChime() {
       const P = HB.party, p = this.w.player;
-      P.mp -= HB.SKILLS.chime;
+      P.mp -= HB.SKILLS.chime.cost;
       this.msg = HB.josa(P.name, '은는') + ' 종소리를 울렸다!';
       HB.sfx('chime');
       this.fx.push({ kind: 'rings', x: p.x, y: p.y - 8, t: 0 });
       yield 0.55;
       const targets = this.alive();
       for (const f of targets) {
-        const dmg = HB.chimeDmg(P);
+        const dmg = HB.chimeDmg(P, f);
         f.hp -= dmg; f.flash = 0.25; f.hitShake = 0.25;
         this.fx.push({ kind: 'sparkle', x: f.x, y: f.y - 14, t: 0 });
-        this.num(f.x, f.y - 26, dmg, '#ffe680');
+        this.num(f.x, f.y - (f.boss ? 36 : 26), dmg, '#ffe680');
+        this.elemNote(f, 'sound');
         HB.sfx('hit');
         yield 0.16;
       }
       yield 0.35;
       for (const f of targets) if (f.hp <= 0) yield* this.kill(f);
       yield 0.15;
-      yield* this.resolveRound();
+    },
+
+    *heroGust(t) {
+      const P = HB.party;
+      P.mp -= HB.SKILLS.gust.cost;
+      this.msg = HB.josa(P.name, '은는') + ' 바람결을 일으켰다!';
+      HB.sfx('run');
+      for (let i = 0; i < 3; i++) this.fx.push({ kind: 'slash', x: t.x - 6 + i * 6, y: t.y - 18 + i * 4, t: -i * 0.08 });
+      yield 0.4;
+      const dmg = HB.gustDmg(P, t, this.buff > 0);
+      t.hp -= dmg; t.flash = 0.25; t.hitShake = 0.35;
+      HB.sfx('hit');
+      this.num(t.x, t.y - (t.boss ? 36 : 26), dmg, '#b8f0d0');
+      this.elemNote(t, 'wind');
+      yield 0.6;
+      if (t.hp <= 0) yield* this.kill(t);
+      yield 0.15;
+    },
+
+    *heroRing() {
+      const P = HB.party, p = this.w.player;
+      P.mp -= HB.SKILLS.ring.cost;
+      this.buff = HB.SKILLS.ring.buff; this.castRing = true;
+      this.msg = '맑은울림이 ' + HB.josa(P.name, '을를') + ' 감쌌다! 공격이 오른다!';
+      HB.sfx('chime');
+      this.fx.push({ kind: 'rings', x: p.x, y: p.y - 8, t: 0 });
+      this.fx.push({ kind: 'sparkle', x: p.x, y: p.y - 10, t: 0, color: '#ffd890' });
+      yield 0.9;
     },
 
     *heroHeal() {
       const P = HB.party, p = this.w.player;
-      P.mp -= HB.SKILLS.heal;
+      P.mp -= HB.SKILLS.heal.cost;
       const amt = Math.min(P.maxHp - P.hp, HB.healAmt(P));
       this.msg = HB.josa(P.name, '은는') + ' 맑은 종소리로 몸을 감쌌다.';
       HB.sfx('heal');
@@ -169,7 +203,6 @@
       this.num(p.x, p.y - 22, amt, '#88f0a0');
       this.msg = 'HP가 ' + amt + ' 회복되었다.';
       yield 0.7;
-      yield* this.resolveRound();
     },
 
     *heroItem(id) {
@@ -181,20 +214,19 @@
       yield 0.4;
       if (got.hp) this.num(p.x, p.y - 22, got.hp, '#88f0a0');
       if (got.mp) this.num(p.x, p.y - 34, '울림 +' + got.mp, '#9ab8ff');
+      if (HB.ITEMS[id].cure && this.silenced) { this.silenced = 0; yield 0.3; this.msg = '목소리가 돌아왔다!'; }
       yield 0.6;
-      yield* this.resolveRound();
     },
 
+    // guarding is set when the command is chosen, so it covers faster foes too
     *heroGuard() {
       const P = HB.party, p = this.w.player;
-      this.guarding = true;
       this.msg = HB.josa(P.name, '은는') + ' 몸을 낮추고 숨을 골랐다.';
       const gain = Math.min(2, P.maxMp - P.mp);
       P.mp += gain;
       HB.sfx('move');
       if (gain) this.num(p.x, p.y - 22, '울림 +' + gain, '#9ab8ff');
       yield 0.7;
-      yield* this.resolveRound();
     },
 
     *flee() {
@@ -203,7 +235,6 @@
         this.msg = '정적이 발을 붙잡는다. 도망칠 수 없다!';
         HB.sfx('cancel');
         yield 0.9;
-        yield* this.resolveRound();
         return;
       }
       if (Math.random() < 0.7) {
@@ -219,7 +250,6 @@
       this.msg = '도망칠 수 없었다!';
       HB.sfx('cancel');
       yield 0.7;
-      yield* this.resolveRound();
     },
 
     *kill(f) {
@@ -235,7 +265,7 @@
       const P = HB.party, p = this.w.player;
       const intent = HB.foeIntent(f, this.turn, P, this.silenced > 0);
       if (intent === 'silence') {
-        this.msg = HB.josa(f.name, '이가') + ' 정적을 내리깔았다! 종소리를 낼 수 없다!';
+        this.msg = HB.josa(f.name, '이가') + ' 정적을 내리깔았다! 기술을 쓸 수 없다!';
         HB.sfx('vanish');
         f.hitShake = 0.4; this.distort = 0.3;
         this.silenced = 2;
@@ -276,12 +306,22 @@
       yield 0.2;
     },
 
-    *resolveRound() {
-      if (!this.alive().length) { yield* this.win(); return; }
-      if (this.silenced > 0 && --this.silenced === 0) { this.msg = '목소리가 돌아왔다.'; yield 0.7; }
-      for (const f of this.alive()) {
-        yield* this.foeAct(f);
-        if (HB.party.hp <= 0) { yield* this.lose(); return; }
+    // one round: everyone acts in speed order (HB.turnOrder); the hero's
+    // turn runs the chosen action. 침묵 and 맑은울림 tick down on the hero's turn.
+    *round(action) {
+      this.castRing = false;
+      for (const who of HB.turnOrder(HB.party, this.alive())) {
+        if (who === 'hero') {
+          const wasSilenced = this.silenced > 0;
+          yield* action;
+          if (!this.active) return; // fled
+          if (wasSilenced && this.silenced > 0 && --this.silenced === 0) { this.msg = '목소리가 돌아왔다.'; yield 0.7; }
+          if (this.buff > 0 && !this.castRing && --this.buff === 0) { this.msg = '맑은울림이 잦아들었다.'; yield 0.6; }
+        } else if (!who.dead && who.hp > 0) {
+          yield* this.foeAct(who);
+          if (HB.party.hp <= 0) { yield* this.lose(); return; }
+        }
+        if (!this.alive().length) { yield* this.win(); return; }
       }
       this.toMenu();
     },
@@ -308,8 +348,13 @@
         P.exp -= HB.expToNext(P.lvl);
         const g = HB.levelUp(P);
         HB.sfx('fragment');
-        this.msg = '레벨 ' + P.lvl + '!  HP+' + g.maxHp + '  울림+' + g.maxMp + '  공격+' + g.atk + '  방어+' + g.def;
+        this.msg = '레벨 ' + P.lvl + '!  HP+' + g.maxHp + '  울림+' + g.maxMp + '  공격+' + g.atk + '  방어+' + g.def + '  속도+' + g.spd;
         yield* this.waitOk();
+        for (const id of HB.learnedAt(P.lvl)) {
+          HB.sfx('chime');
+          this.msg = HB.josa(HB.SKILLS[id].name, '을를') + ' 배웠다!  (' + HB.SKILLS[id].desc + ')';
+          yield* this.waitOk();
+        }
       }
       this.end(true);
     },
@@ -368,7 +413,7 @@
 
       if (this.phase === 'menu') this.updateMenu();
       else if (this.phase === 'target') this.updateTarget();
-      else if (this.phase === 'item') this.updateItem();
+      else if (this.phase === 'list') this.updateList();
       if (this.co) {
         if (this.wait > 0) this.wait -= dt;
         else {
@@ -381,48 +426,60 @@
     },
 
     updateMenu() {
-      const inp = HB.input;
-      const c = this.cursor, n = COMMANDS.length;
-      if (inp.hit('up')) { this.cursor = (c + n - 2) % n; HB.sfx('move'); }
-      if (inp.hit('down')) { this.cursor = (c + 2) % n; HB.sfx('move'); }
-      if (inp.hit('left') || inp.hit('right')) { this.cursor = c ^ 1; HB.sfx('move'); }
+      const inp = HB.input, P = HB.party, n = COMMANDS.length;
+      if (inp.hit('up')) { this.cursor = (this.cursor + n - 1) % n; HB.sfx('move'); }
+      if (inp.hit('down')) { this.cursor = (this.cursor + 1) % n; HB.sfx('move'); }
       if (!inp.hit('ok')) return;
-      const cmd = COMMANDS[this.cursor];
-      if (cmd.cost && HB.party.mp < cmd.cost) { HB.sfx('cancel'); this.msg = '울림이 부족하다.'; return; }
-      if (cmd.id === 'chime' && this.silenced) { HB.sfx('cancel'); this.msg = '정적 때문에 종소리를 낼 수 없다.'; return; }
-      if (cmd.id === 'item') {
-        this.items = Object.keys(HB.party.items);
-        if (!this.items.length) { HB.sfx('cancel'); this.msg = '가진 도구가 없다.'; return; }
+      const id = COMMANDS[this.cursor].id;
+      if (id === 'skill') {
+        if (this.silenced) { HB.sfx('cancel'); this.msg = '정적 때문에 기술을 쓸 수 없다.'; return; }
+        this.openList('skill', HB.skillsFor(P.lvl).map((k) => ({ id: k, label: HB.SKILLS[k].name, right: String(HB.SKILLS[k].cost), dim: P.mp < HB.SKILLS[k].cost })), '어떤 기술을 쓸까?');
+      } else if (id === 'item') {
+        const ids = Object.keys(P.items);
+        if (!ids.length) { HB.sfx('cancel'); this.msg = '가진 도구가 없다.'; return; }
+        this.openList('item', ids.map((k) => ({ id: k, label: HB.ITEMS[k].name, right: 'x' + P.items[k] })), '무엇을 쓸까?');
+      } else if (id === 'attack') {
         HB.sfx('ok');
-        this.phase = 'item'; this.itemCursor = 0; this.msg = '무엇을 쓸까?';
-        return;
+        this.aim((t) => this.heroAttack(t), '누구를 공격할까?');
+      } else {
+        HB.sfx('ok');
+        if (id === 'guard') this.guarding = true;
+        this.run(this.round(id === 'guard' ? this.heroGuard() : this.flee()));
       }
-      HB.sfx('ok');
-      this.phase = 'busy';
-      if (cmd.id === 'attack') {
-        const alive = this.alive();
-        if (alive.length === 1) this.run(this.heroAttack(alive[0]));
-        else { this.phase = 'target'; this.target = 0; this.msg = '누구를 공격할까?'; }
-      } else if (cmd.id === 'chime') this.run(this.heroChime());
-      else if (cmd.id === 'heal') this.run(this.heroHeal());
-      else if (cmd.id === 'guard') this.run(this.heroGuard());
-      else this.run(this.flee());
     },
 
-    updateItem() {
-      const inp = HB.input, n = this.items.length;
-      if (inp.hit('up')) { this.itemCursor = (this.itemCursor + n - 1) % n; HB.sfx('move'); }
-      if (inp.hit('down')) { this.itemCursor = (this.itemCursor + 1) % n; HB.sfx('move'); }
+    openList(kind, list, msg) {
+      HB.sfx('ok');
+      this.phase = 'list'; this.listKind = kind; this.list = list; this.listCursor = 0; this.msg = msg;
+    },
+
+    // pick a target (skipped when only one foe is left), then run the round
+    aim(make, msg) {
+      const alive = this.alive();
+      if (alive.length === 1) { this.run(this.round(make(alive[0]))); return; }
+      this.phase = 'target'; this.target = 0; this.msg = msg; this.pending = make;
+    },
+
+    updateList() {
+      const inp = HB.input, n = this.list.length;
+      if (inp.hit('up')) { this.listCursor = (this.listCursor + n - 1) % n; HB.sfx('move'); }
+      if (inp.hit('down')) { this.listCursor = (this.listCursor + 1) % n; HB.sfx('move'); }
       if (inp.hit('cancel')) { HB.sfx('cancel'); this.phase = 'menu'; this.msg = ''; return; }
-      if (inp.hit('ok')) { HB.sfx('ok'); this.phase = 'busy'; this.run(this.heroItem(this.items[this.itemCursor])); }
+      if (!inp.hit('ok')) return;
+      const e = this.list[this.listCursor];
+      if (e.dim) { HB.sfx('cancel'); this.msg = '울림이 부족하다.'; return; }
+      HB.sfx('ok');
+      if (this.listKind === 'item') { this.run(this.round(this.heroItem(e.id))); return; }
+      if (e.id === 'gust') { this.aim((t) => this.heroGust(t), '누구에게 바람을 보낼까?'); return; }
+      this.run(this.round(e.id === 'chime' ? this.heroChime() : e.id === 'heal' ? this.heroHeal() : this.heroRing()));
     },
 
     updateTarget() {
       const inp = HB.input, alive = this.alive();
       if (inp.hit('up') || inp.hit('left')) { this.target = (this.target + alive.length - 1) % alive.length; HB.sfx('move'); }
       if (inp.hit('down') || inp.hit('right')) { this.target = (this.target + 1) % alive.length; HB.sfx('move'); }
-      if (inp.hit('cancel')) { HB.sfx('cancel'); this.toMenu(); return; }
-      if (inp.hit('ok')) { HB.sfx('ok'); this.phase = 'busy'; this.run(this.heroAttack(alive[this.target])); }
+      if (inp.hit('cancel')) { HB.sfx('cancel'); this.phase = 'menu'; this.msg = ''; return; }
+      if (inp.hit('ok')) { HB.sfx('ok'); this.run(this.round(this.pending(alive[this.target]))); }
     },
 
     // ---------- draw ----------
@@ -488,6 +545,16 @@
       this.drawEffects(g, cam);
       if (this.flash > 0) { g.fillStyle = 'rgba(255,255,255,' + Math.min(1, this.flash * 8).toFixed(2) + ')'; g.fillRect(0, 0, HB.W, HB.H); }
 
+      // boss HP bar
+      for (const f of this.foes) {
+        if (!f.boss || f.dead) continue;
+        const x = Math.round(f.x - cam.x) - 24, y = Math.round(f.y - cam.y) - 60;
+        g.fillStyle = '#0a0a1a'; g.fillRect(x - 1, y - 1, 50, 5);
+        g.fillStyle = '#2a2a48'; g.fillRect(x, y, 48, 3);
+        g.fillStyle = f.hp / f.maxHp < 0.5 ? '#ff7a6a' : '#e0a0ff';
+        g.fillRect(x, y, Math.round(48 * Math.max(0, f.hp) / f.maxHp), 3);
+      }
+
       // target cursor
       if (this.phase === 'target') {
         const t = this.alive()[this.target];
@@ -515,26 +582,25 @@
       g.save();
       g.translate(ox, oy);
       // commands
-      HB.drawWindow(g, 6, 110, 116, 64);
+      HB.drawWindow(g, 6, 94, 116, 80);
       const active = this.phase === 'menu';
       COMMANDS.forEach((c, i) => {
-        const cx = 22 + (i % 2) * 52, cy = 118 + Math.floor(i / 2) * 18;
-        const poor = (c.cost && P.mp < c.cost) || (c.id === 'chime' && this.silenced) || (c.id === 'flee' && this.isBoss);
-        const col = !active ? '#8a8aa8' : poor ? '#9a90b0' : '#f4f0e8';
-        HB.text(g, c.label, cx, cy, col);
-        if (c.cost) HB.text(g, String(c.cost), cx + HB.textWidth(c.label) + 3, cy + 2, '#9ab8ff', { font: 'g9' });
+        const cx = 22, cy = 101 + i * 14;
+        const poor = (c.id === 'skill' && this.silenced) || (c.id === 'flee' && this.isBoss);
+        HB.text(g, c.label, cx, cy, !active ? '#8a8aa8' : poor ? '#9a90b0' : '#f4f0e8');
         if (active && i === this.cursor) HB.drawCursor(g, cx - 10, cy + 3);
       });
-      if (this.phase === 'item') {
-        const h = this.items.length * 16 + 10, y = 108 - h;
+      if (this.phase === 'list') {
+        const h = this.list.length * 16 + 10, y = 92 - h;
         HB.drawWindow(g, 6, y, 116, h);
-        this.items.forEach((id, i) => {
-          HB.text(g, HB.ITEMS[id].name, 22, y + 6 + i * 16);
-          HB.text(g, 'x' + P.items[id], 112, y + 7 + i * 16, '#c8c0e0', { font: 'g9', align: 'right' });
-          if (i === this.itemCursor) HB.drawCursor(g, 12, y + 9 + i * 16);
+        this.list.forEach((e, i) => {
+          HB.text(g, e.label, 22, y + 6 + i * 16, e.dim ? '#8a8aa8' : '#f4f0e8');
+          HB.text(g, e.right, 112, y + 7 + i * 16, this.listKind === 'skill' ? '#9ab8ff' : '#c8c0e0', { font: 'g9', align: 'right' });
+          if (i === this.listCursor) HB.drawCursor(g, 12, y + 9 + i * 16);
         });
       }
-      if (this.silenced) HB.text(g, '침묵 ' + this.silenced, 300, 120, '#c8a0ff', { font: 'g9', align: 'right' });
+      const marks = (this.silenced ? '침묵 ' + this.silenced + '  ' : '') + (this.buff ? '공격↑ ' + this.buff : '');
+      if (marks) HB.text(g, marks, 300, 116, '#c8a0ff', { font: 'g9', align: 'right' });
       // status
       HB.drawWindow(g, 126, 128, 188, 46);
       HB.text(g, P.name, 136, 134, this.heroFlash > 0 ? '#ff8a7a' : '#ffe08a');
