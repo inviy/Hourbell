@@ -257,6 +257,13 @@
       s.hits('hat', 'x.o.x.o.x.o.x.ox', 16, 1, 1);
       return s.finalize();
     },
+    // the battle theme a semitone down and faster, for the shrine guardian
+    boss() {
+      const s = SONGS.battle();
+      s.bpm = 168;
+      s.events.forEach((e) => { e.midi -= 1; });
+      return s;
+    },
     victory() {
       const s = new Song({ bpm: 140, loop: false, steps: 40 });
       const run = seq('D5:0.5 F#5:0.5 A5:0.5 D6:0.5 F#6:2 E6 D6 A6:6');

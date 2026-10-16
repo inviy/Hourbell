@@ -93,6 +93,7 @@
 
     // ---------- update ----------
     update(dt, fading) {
+      HB.party.time += dt;
       HB.updateBanner(dt);
       if (this.hintT > 0 && !HB.dialog.active) this.hintT -= dt;
       if (HB.dialog.active) { HB.dialog.update(dt); this.player.moving = false; this.updateFx(dt); return; }
@@ -301,7 +302,7 @@
       this.drawMood(g);
       HB.drawBanner(g);
       this.plugins('drawOverlay', g, cam);
-      if (this.hintT > 0 && !HB.dialog.active && !(HB.Battle && HB.Battle.active)) {
+      if (this.hintT > 0 && !HB.dialog.active && !(HB.Battle && HB.Battle.active) && !(HB.Menu && HB.Menu.open)) {
         g.save();
         g.globalAlpha = Math.min(1, this.hintT);
         HB.text(g, HB.touchControls ? '이동: 패드   조사 / 대화: A' : '이동: 방향키   조사 / 대화: Z, Enter', HB.W / 2, HB.H - 14, '#fff4d8', { align: 'center', font: 'g9' });

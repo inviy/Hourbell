@@ -195,10 +195,10 @@
       spawn: { x: 20.5, y: 1.5, dir: 'down' },
       shrine: { tx: 22, ty: 24 },
       exits: [{ x0: 20, x1: 21, y0: 0, y1: 0, to: 'town', spawn: { x: 16.5, y: 22.4, dir: 'up' } }],
-      signs: [{ tx: 22, ty: 3, text: '바람결 들판\n※ 소리먹이 출몰 주의. 혼자 다니지 마시오.' }],
+      signs: [{ tx: 22, ty: 3, text: '바람결 들판\n※ 소리먹이 출몰 주의. 남쪽 제단에는 큰 그림자가 산다는 소문이 있음.' }],
       enemies: [
-        { x: 26, y: 5 }, { x: 12, y: 10 }, { x: 36, y: 11 },
-        { x: 27, y: 17 }, { x: 16, y: 22 }, { x: 33, y: 24 }, { x: 20, y: 27, guard: true }
+        { x: 26, y: 5 }, { x: 12, y: 10 }, { x: 36, y: 11, kind: 'flicker' },
+        { x: 27, y: 17 }, { x: 16, y: 22, kind: 'flicker' }, { x: 33, y: 24 }, { x: 20, y: 27, kind: 'guard' }
       ],
       npcs: []
     };
