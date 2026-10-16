@@ -3,7 +3,7 @@ window.HB = window.HB || {};
 (function (HB) {
   'use strict';
 
-  const W = 320, H = 180;
+  const W = 480, H = 270;
   HB.W = W; HB.H = H;
 
   // ---------- screen ----------
@@ -18,11 +18,14 @@ window.HB = window.HB || {};
   function resize() {
     const dpr = window.devicePixelRatio || 1;
     const availW = window.innerWidth * dpr, availH = window.innerHeight * dpr;
-    const s = Math.max(1, Math.floor(Math.min(availW / W, availH / H)));
+    const fit = Math.min(availW / W, availH / H);
+    const s = Math.max(1, Math.floor(fit));
+    // below 1x (tiny windows) shrink the canvas instead of overflowing
+    const css = Math.min(1, fit) * s / dpr;
     canvas.width = W * s;
     canvas.height = H * s;
-    canvas.style.width = (W * s / dpr) + 'px';
-    canvas.style.height = (H * s / dpr) + 'px';
+    canvas.style.width = (W * css) + 'px';
+    canvas.style.height = (H * css) + 'px';
     ctx.imageSmoothingEnabled = false;
     HB.scale = s;
   }

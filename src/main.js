@@ -20,11 +20,11 @@
       this.tower = sil; this.rim = rim;
       const r = HB.rng(42);
       this.stars = [];
-      for (let i = 0; i < 70; i++) this.stars.push({ x: r() * HB.W, y: r() * 95, p: r() * 6.28, b: r() });
+      for (let i = 0; i < 150; i++) this.stars.push({ x: r() * HB.W, y: r() * (HB.H - 85), p: r() * 6.28, b: r() });
       // distant hills silhouette
       this.hills = [];
       for (let x = 0; x <= HB.W; x++) {
-        this.hills.push(118 + Math.sin(x * 0.021) * 7 + Math.sin(x * 0.057 + 1) * 4);
+        this.hills.push(HB.H - 62 + Math.sin(x * 0.021) * 7 + Math.sin(x * 0.057 + 1) * 4);
       }
       this.awake = false; // first key wakes the audio, second starts the game
     },
@@ -57,13 +57,13 @@
       g.fillStyle = 'rgba(20,10,40,0.18)';
       for (let y = 0; y < H; y += 2) if (y % 8 < 2) g.fillRect(0, y, W, 1);
       for (const s of this.stars) {
-        const a = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(this.t * 2 + s.p)) * (1 - s.y / 110);
+        const a = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(this.t * 2 + s.p)) * (1 - s.y / (H - 70));
         g.fillStyle = 'rgba(255,244,220,' + a.toFixed(2) + ')';
         g.fillRect(Math.round(s.x), Math.round(s.y), 1, 1);
         if (s.b > 0.93) { g.fillRect(Math.round(s.x) - 1, Math.round(s.y), 3, 1); g.fillRect(Math.round(s.x), Math.round(s.y) - 1, 1, 3); }
       }
       // setting sun (never quite sets)
-      const sunY = 124;
+      const sunY = H - 56;
       g.fillStyle = 'rgba(255,214,140,0.25)';
       g.beginPath(); g.arc(W / 2, sunY, 34, 0, Math.PI * 2); g.fill();
       g.fillStyle = '#ffd890';
@@ -75,11 +75,12 @@
       g.fillStyle = '#1a1028';
       for (let x = 0; x < W; x++) g.fillRect(x, Math.round(this.hills[x] + 14 + Math.sin(x * 0.09) * 3), 1, H);
       // tower silhouette
-      g.drawImage(this.rim, 214, 72);
-      g.drawImage(this.tower, 215, 72);
+      const tx = W / 2 + 54, ty = H - 108;
+      g.drawImage(this.rim, tx - 1, ty);
+      g.drawImage(this.tower, tx, ty);
       // logo
       const lift = Math.min(1, this.t / 1.6);
-      const ly = Math.round(26 - (1 - lift) * 8);
+      const ly = Math.round(H * 0.2 - (1 - lift) * 8);
       g.save();
       g.globalAlpha = lift;
       HB.textScaled(g, 'Hourbell', W / 2, ly, '#ffe6a8', 3, { align: 'center', shadow: '#2a1430' });
@@ -88,7 +89,7 @@
       if (this.t > 1.4 && Math.floor(this.t * 2) % 2 === 0) {
         const msg = HB.touchControls ? (this.awake ? '한 번 더 터치하면 모험 시작' : '화면을 터치하세요')
           : (this.awake ? 'Z / Enter  모험 시작' : '아무 키나 누르세요');
-        HB.text(g, msg, W / 2, 160, '#fff4d8', { align: 'center' });
+        HB.text(g, msg, W / 2, H - 36, '#fff4d8', { align: 'center' });
       }
       if (this.awake && !HB.touchControls) HB.text(g, 'M  소리 켜기 / 끄기', 4, H - 11, '#8a7aa8', { font: 'g9', shadow: null });
       HB.text(g, 'prototype v0.1', W - 4, H - 11, '#8a7aa8', { align: 'right', font: 'g9', shadow: null });
