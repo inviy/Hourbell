@@ -235,8 +235,15 @@
       exits: [{ x0: 5, x1: 6, y0: 7, y1: 7, to: 'town', spawn: { x: 28.5, y: 18.8, dir: 'down' } }],
       npcs: [
         {
+          id: 'mio', name: '노래꾼 미오', pal: 'bard', x: 2.5, y: 5.2, dir: 'up', wander: 0, hideIf: 'mioJoined',
+          lines: ['...']
+        },
+        {
           id: 'innkeep', name: '여관 주인', pal: 'innkeep', x: 8.5, y: 2.6, dir: 'down', wander: 0,
-          lines: ['쉬었다 가게. ...라고 하고 싶은데, 오늘이 끝나질 않으니 숙박비를 받을 수가 있어야지.']
+          lines: [
+            '쉬었다 가게. ...라고 하고 싶은데, 오늘이 끝나질 않으니 숙박비를 받을 수가 있어야지.',
+            '저기 노래꾼 아가씨 말이야. 소리먹이한테 목소리를 먹혔다더군. 말 좀 걸어 주게.'
+          ]
         }
       ]
     };
@@ -266,6 +273,7 @@
       signs: [{ tx: 10, ty: 9, text: '오래된 비석에 글이 새겨져 있다.\n"바람은 가장 낮은 곳에서 일어나, 가장 높이 올랐다가, 그 사이에서 쉰다."' }],
       chimes: [{ tx: 6, ty: 5, note: 1 }, { tx: 11, ty: 4, note: 0 }, { tx: 15, ty: 7, note: 2 }],
       puzzle: { order: [0, 2, 1], flag: 'grovePuzzle' },
+      pickups: [{ id: 'windflower', tx: 20, ty: 13, item: 'windflower', text: '바람도 없는데 혼자 흔들리는 꽃을 꺾었다.' }],
       chests: [
         { id: 'grove1', tx: 12, ty: 12, item: 'plume', locked: 'grovePuzzle' },
         { id: 'grove2', tx: 19, ty: 11, item: 'water', count: 2 }

@@ -89,6 +89,7 @@
           onClose: () => {
             const P = HB.party;
             P.hp = P.maxHp; P.mp = P.maxMp;
+            if (P.ally) P.ally.hp = HB.allyStats(P.ally.id, P.lvl).maxHp;
             HB.sfx('heal');
             const saved = HB.save(w);
             HB.dialog.open('따뜻한 차를 마셨다. HP와 울림이 모두 회복되었다.' + (saved ? '\n(모험을 기록했다)' : ''));
@@ -121,10 +122,6 @@
             HB.fadeTo(() => HB.setScene(HB.Ending), { dur: 2.0, color: '#fff4e0' });
           } : null
         });
-        return true;
-      }
-      if (id === 'child' && w.flags.fragment1) {
-        HB.dialog.open(['방금 종이 흔들렸어! 봤어? 봤지?', '내일이 오려나 봐!'], { name: npc.def.name });
         return true;
       }
       return false;
@@ -207,6 +204,12 @@
             }
           }
         });
+      }
+      // the companion only shows up on the map during battles
+      const B = HB.Battle;
+      if (B.active && B.allyActor) {
+        const A = B.allyActor;
+        list.push({ y: A.y, draw: (g, cam) => { g.save(); if (!B.ally.hp) g.globalAlpha = 0.4; A.draw(g, cam); g.restore(); } });
       }
       // swaying tower once the first fragment is back
       if (w.tower && w.tower.frames) {

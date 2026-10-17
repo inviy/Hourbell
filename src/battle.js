@@ -55,6 +55,14 @@
       p.moving = false;
       this.heroOrigin = { x: p.x, y: p.y };
       this.heroSlot = { x: this.cam.x + HB.W / 2 + HERO[0], y: this.cam.y + HB.H / 2 + HERO[1] };
+      // the companion steps in beside the hero
+      this.ally = null; this.allyActor = null;
+      if (HB.party.ally) {
+        const a = HB.party.ally;
+        this.ally = Object.assign(HB.allyStats(a.id, HB.party.lvl), { hp: a.hp, sang: false });
+        this.allyActor = new HB.Actor(p.x, p.y, this.ally.pal, 'right');
+        this.allySlot = { x: this.heroSlot.x - 20, y: this.heroSlot.y - 28 };
+      }
       this.run(this.introSeq());
     },
 
@@ -95,6 +103,7 @@
       this.flash = 0.1;
       const p = this.w.player;
       const moves = [this.moveTo(p, this.heroSlot.x, this.heroSlot.y, 0.45, 'right')]
+        .concat(this.allyActor ? [this.moveTo(this.allyActor, this.allySlot.x, this.allySlot.y, 0.5, 'right')] : [])
         .concat(this.foes.map((f) => this.moveTo(f, f.slot.x, f.slot.y, 0.45)));
       // run all moves together
       let running = true;
@@ -291,27 +300,71 @@
         return;
       }
       const home = { x: f.x, y: f.y };
+      const toAlly = intent === 'attack' && HB.foeTarget(this.ally) === 'ally';
+      const tgt = toAlly ? this.allyActor : p;
       if (intent === 'attack') {
         this.msg = f.name + '의 공격!';
         yield 0.2;
-        yield* this.moveTo(f, p.x + (f.boss ? 30 : 20), p.y, 0.15);
+        yield* this.moveTo(f, tgt.x + (f.boss ? 30 : 20), tgt.y, 0.15);
       }
-      const dmg = HB.foeDmg(f, P, intent, this.guarding);
-      P.hp = Math.max(0, P.hp - dmg);
+      if (!toAlly) {
+        const dmg = HB.foeDmg(f, P, intent, this.guarding);
+        P.hp = Math.max(0, P.hp - dmg);
+        this.shake = 0.25; this.heroFlash = 0.2;
+        this.num(p.x, p.y - 22, dmg, '#ff8a7a');
+      }
+      // the wave washes over everyone
+      if ((toAlly || intent === 'wave') && this.ally && this.ally.hp > 0) {
+        const d = HB.foeDmg(f, this.ally, intent, false);
+        this.ally.hp = Math.max(0, this.ally.hp - d);
+        this.num(this.allyActor.x, this.allyActor.y - 22, d, '#ff8a7a');
+        if (!this.ally.hp) { yield 0.3; this.msg = HB.josa(this.ally.name, '이가') + ' 쓰러졌다!'; }
+      }
       HB.sfx('hurt');
-      this.shake = 0.25; this.heroFlash = 0.2;
-      this.num(p.x, p.y - 22, dmg, '#ff8a7a');
       yield 0.3;
       yield* this.moveTo(f, home.x, home.y, 0.2);
       yield 0.2;
+    },
+
+    // the companion's turn: decided by HB.allyIntent, shared with the tests
+    *allyAct() {
+      const a = this.ally, A = this.allyActor, P = HB.party, p = this.w.player;
+      const i = HB.allyIntent(a, P, this.alive(), this.silenced > 0);
+      if (i.act === 'song') {
+        const who = i.target === a ? A : p;
+        const amt = Math.min(i.target.maxHp - i.target.hp, HB.songAmt(P.lvl));
+        this.msg = a.name + '의 노래! 맑은 선율이 ' + (i.target === a ? '자신을' : HB.josa(P.name, '을를')) + ' 감쌌다.';
+        HB.sfx('heal');
+        this.fx.push({ kind: 'sparkle', x: who.x, y: who.y - 10, t: 0, color: '#c8f0ff' });
+        yield 0.5;
+        i.target.hp += amt; a.sang = true;
+        this.num(who.x, who.y - 22, amt, '#88f0a0');
+        yield 0.6;
+        return;
+      }
+      const t = i.target, home = { x: A.x, y: A.y };
+      a.sang = false;
+      this.msg = a.name + '의 공격!';
+      yield* this.moveTo(A, t.x - 22, t.y, 0.16, 'right');
+      const dmg = HB.hitDmg(a.atk, t.def);
+      HB.sfx('hit');
+      this.fx.push({ kind: 'slash', x: t.x, y: t.y - 14, t: 0 });
+      t.hp -= dmg; t.flash = 0.2; t.hitShake = 0.3;
+      this.num(t.x, t.y - (t.boss ? 36 : 26), dmg, '#fff4c0');
+      yield 0.3;
+      yield* this.moveTo(A, home.x, home.y, 0.2, 'right');
+      if (t.hp <= 0) yield* this.kill(t);
+      yield 0.1;
     },
 
     // one round: everyone acts in speed order (HB.turnOrder); the hero's
     // turn runs the chosen action. 침묵 and 맑은울림 tick down on the hero's turn.
     *round(action) {
       this.castRing = false;
-      for (const who of HB.turnOrder(HB.party, this.alive())) {
-        if (who === 'hero') {
+      for (const who of HB.turnOrder(HB.party, this.alive(), this.ally)) {
+        if (who === 'ally') {
+          if (this.ally.hp > 0) yield* this.allyAct();
+        } else if (who === 'hero') {
           const wasSilenced = this.silenced > 0;
           yield* action;
           if (!this.active) return; // fled
@@ -335,6 +388,7 @@
       const exp = this.foes.reduce((s, f) => s + f.exp, 0);
       const gold = this.foes.reduce((s, f) => s + rnd(f.gold[0], f.gold[1]), 0);
       P.exp += exp; P.gold += gold;
+      for (const f of this.foes) P.kills[f.kind] = (P.kills[f.kind] || 0) + 1;
       this.msg = '경험치 ' + exp + ', ' + gold + '골드를 얻었다.';
       yield* this.waitOk();
       for (const f of this.foes) {
@@ -369,6 +423,7 @@
       HB.fadeTo(() => {
         this.active = false;
         P.hp = P.maxHp; P.mp = P.maxMp;
+        if (P.ally) P.ally.hp = HB.allyStats(P.ally.id, P.lvl).maxHp;
         const lost = Math.floor(P.gold / 2);
         P.gold -= lost;
         this.w.load('town');
@@ -388,6 +443,12 @@
       // never leave the hero standing inside a tree or the river
       if (w.blocked(w.player.x, w.player.y, w.player)) { w.player.x = this.heroOrigin.x; w.player.y = this.heroOrigin.y; }
       for (const f of this.foes) { if (won || f.dead) f.dead = true; f.inBattle = false; }
+      // the companion keeps her HP (and any level-up gain); a fallen one gets back up with 1
+      if (this.ally && HB.party.ally) {
+        const max = HB.allyStats(this.ally.id, HB.party.lvl).maxHp;
+        HB.party.ally.hp = Math.max(1, Math.min(max, this.ally.hp + (this.ally.hp ? max - this.ally.maxHp : 0)));
+      }
+      this.allyActor = null;
       if (HB.Field) HB.Field.grace = 2.5;
       HB.music.play(HB.Field ? HB.Field.musicFor(w) : w.def.music, { fadeIn: 1.0, fadeOut: 0.6 });
     },
@@ -435,7 +496,7 @@
         if (this.silenced) { HB.sfx('cancel'); this.msg = '정적 때문에 기술을 쓸 수 없다.'; return; }
         this.openList('skill', HB.skillsFor(P.lvl).map((k) => ({ id: k, label: HB.SKILLS[k].name, right: String(HB.SKILLS[k].cost), dim: P.mp < HB.SKILLS[k].cost })), '어떤 기술을 쓸까?');
       } else if (id === 'item') {
-        const ids = Object.keys(P.items).filter((k) => !HB.isGear(k));
+        const ids = Object.keys(P.items).filter((k) => !HB.isGear(k) && !HB.isKey(k));
         if (!ids.length) { HB.sfx('cancel'); this.msg = '가진 도구가 없다.'; return; }
         this.openList('item', ids.map((k) => ({ id: k, label: HB.ITEMS[k].name, right: 'x' + P.items[k] })), '무엇을 쓸까?');
       } else if (id === 'attack') {
@@ -600,7 +661,16 @@
         });
       }
       const marks = (this.silenced ? '침묵 ' + this.silenced + '  ' : '') + (this.buff ? '공격↑ ' + this.buff : '');
-      if (marks) HB.text(g, marks, 300, 116, '#c8a0ff', { font: 'g9', align: 'right' });
+      if (marks) HB.text(g, marks, 300, this.ally ? 96 : 116, '#c8a0ff', { font: 'g9', align: 'right' });
+      if (this.ally) {
+        const a = this.ally, w = Math.round(80 * a.hp / a.maxHp);
+        HB.drawWindow(g, 126, 108, 188, 19);
+        HB.text(g, a.name, 136, 111, a.hp ? '#c8f0ff' : '#8a8aa8', { font: 'g9' });
+        g.fillStyle = '#0a0a1a'; g.fillRect(179, 115, 82, 5);
+        g.fillStyle = '#2a2a48'; g.fillRect(180, 116, 80, 3);
+        g.fillStyle = a.hp / a.maxHp < 0.3 ? '#ff7a6a' : '#7ae08a'; g.fillRect(180, 116, w, 3);
+        HB.text(g, a.hp + '/' + a.maxHp, 304, 111, '#f4f0e8', { font: 'g9', align: 'right' });
+      }
       // status
       HB.drawWindow(g, 126, 128, 188, 46);
       HB.text(g, P.name, 136, 134, this.heroFlash > 0 ? '#ff8a7a' : '#ffe08a');

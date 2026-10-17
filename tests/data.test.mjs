@@ -47,6 +47,7 @@ for (const [id, m] of Object.entries(maps)) {
     for (const d of (m.doors || []).filter((d) => d.to)) assert.ok(nextTo(seen, d.tx, d.ty), 'door to ' + d.to);
     for (const c of m.chests || []) assert.ok(nextTo(seen, c.tx, c.ty), 'chest ' + c.id);
     for (const c of m.chimes || []) assert.ok(nextTo(seen, c.tx, c.ty), 'chime at ' + c.tx + ',' + c.ty);
+    for (const p of m.pickups || []) assert.ok(seen.has(p.tx + ',' + p.ty) || nextTo(seen, p.tx, p.ty), 'pickup ' + p.id);
     for (const n of m.npcs || []) assert.ok(seen.has(Math.floor(n.x) + ',' + Math.floor(n.y)), 'npc ' + n.id);
     if (m.shrine) assert.ok(nextTo(seen, m.shrine.tx + 1, m.shrine.ty + 1) || nextTo(seen, m.shrine.tx + 2, m.shrine.ty + 1), 'shrine');
   });
@@ -66,6 +67,7 @@ for (const [id, m] of Object.entries(maps)) {
       assert.ok(c.gold || HB.ITEMS[c.item], 'chest ' + c.id + ' holds something real');
     }
     for (const c of m.chimes || []) assert.equal(m.rows[c.ty][c.tx], 'q');
+    for (const p of m.pickups || []) assert.ok(HB.ITEMS[p.item], 'pickup item ' + p.item);
     if (m.puzzle) assert.deepEqual([...m.puzzle.order].sort(), [...(m.chimes || []).map((c) => c.note)].sort(), 'puzzle uses each chime once');
     for (const e of m.enemies || []) assert.ok(HB.FOES[e.kind || 'wisp'], 'foe ' + e.kind);
     for (const n of m.npcs || []) assert.ok(HB.PALETTES[n.pal], 'palette ' + n.pal);

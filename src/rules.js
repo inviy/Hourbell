@@ -10,7 +10,8 @@
   HB.newParty = () => ({
     name: '리안', lvl: 1, exp: 0, hp: 40, maxHp: 40, mp: 12, maxMp: 12,
     atk: 6, def: 2, spd: 6, gold: 0, items: { herb: 2 }, time: 0, battles: 0,
-    equip: { weapon: 'staff', armor: 'cloth', charm: null }
+    equip: { weapon: 'staff', armor: 'cloth', charm: null },
+    kills: {}, ally: null // ally: { id, hp } once a companion joins
   });
   HB.party = HB.newParty();
 
@@ -38,6 +39,7 @@
   HB.ITEMS = {
     herb: { name: '약초', hp: 30, price: 8, desc: 'HP를 30 회복한다.' },
     drop: { name: '울림방울', mp: 10, price: 15, desc: '울림을 10 회복한다.' },
+    windflower: { name: '바람꽃', key: true, price: 0, desc: '풍경 숲에서 꺾은 꽃. 바람이 불지 않아도 흔들린다.' },
     water: { name: '맑은물', cure: true, price: 10, desc: '침묵을 풀어 준다. (전투 중)' },
     // equipment: slot + stat bonuses
     staff: { name: '연습용 종채', slot: 'weapon', atk: 2, price: 10, desc: '공격 +2' },
@@ -77,12 +79,13 @@
   };
   HB.sellPrice = (id) => Math.floor(HB.ITEMS[id].price / 2);
   HB.sellItem = function (P, id) {
-    if (!HB.ITEMS[id] || !P.items[id]) return false;
+    if (!HB.ITEMS[id] || !P.items[id] || HB.ITEMS[id].key) return false;
     if (--P.items[id] <= 0) delete P.items[id];
     P.gold += HB.sellPrice(id);
     return true;
   };
   HB.isGear = (id) => !!HB.ITEMS[id].slot;
+  HB.isKey = (id) => !!HB.ITEMS[id].key;
 
   // lvl: level it is learned at. el: element. buff: turns of x1.5 공격
   HB.SKILLS = {
@@ -101,11 +104,33 @@
   HB.chimeDmg = (P, f) => Math.max(1, Math.round((4 + Math.round(HB.eff(P).atk * 0.6) + rnd(0, 3)) * HB.elemMul(f, 'sound'))); // ignores defence
   HB.gustDmg = (P, f, buffed) => Math.max(1, Math.round(HB.hitDmg(Math.round(HB.effAtk(P, buffed) * 1.4), f.def) * HB.elemMul(f, 'wind')));
   // who acts first this round: speed plus a little luck; 'hero' marks the party's turn
-  HB.turnOrder = function (P, foes) {
-    return [{ who: 'hero', ini: HB.eff(P).spd + rnd(0, 3) }]
-      .concat(foes.map((f) => ({ who: f, ini: f.spd + rnd(0, 3) })))
-      .sort((a, b) => b.ini - a.ini).map((e) => e.who);
+  HB.turnOrder = function (P, foes, ally) {
+    const order = [{ who: 'hero', ini: HB.eff(P).spd + rnd(0, 3) }]
+      .concat(foes.map((f) => ({ who: f, ini: f.spd + rnd(0, 3) })));
+    if (ally && ally.hp > 0) order.push({ who: 'ally', ini: ally.spd + rnd(0, 3) });
+    return order.sort((a, b) => b.ini - a.ini).map((e) => e.who);
   };
+
+  // ---------- companions ----------
+  // [base, per level]; companions grow with the hero's level
+  HB.ALLIES = {
+    mio: { name: '미오', pal: 'bard', hp: [22, 5], atk: [3, 1], def: [2, 1], spd: [7, 0.5] }
+  };
+  HB.allyStats = function (id, lvl) {
+    const a = HB.ALLIES[id], s = (k) => Math.round(a[k][0] + a[k][1] * (lvl - 1));
+    return { id, name: a.name, pal: a.pal, maxHp: s('hp'), atk: s('atk'), def: s('def'), spd: s('spd') };
+  };
+  HB.songAmt = (lvl) => 6 + lvl + rnd(0, 3);
+  // the companion sings to whoever is hurt (not while silenced, and not two
+  // turns running), otherwise hits the weakest foe
+  HB.allyIntent = function (a, P, foes, silenced) {
+    const hurt = [P, a].filter((x) => x.hp > 0 && x.hp < x.maxHp * 0.45).sort((x, y) => x.hp / x.maxHp - y.hp / y.maxHp);
+    if (hurt.length && !silenced && !a.sang) return { act: 'song', target: hurt[0] };
+    const t = foes.slice().sort((x, y) => x.hp - y.hp)[0];
+    return { act: 'attack', target: t };
+  };
+  // foes pick the hero or the companion; boss waves hit everyone
+  HB.foeTarget = (ally) => (ally && ally.hp > 0 && Math.random() < 0.4 ? 'ally' : 'hero');
   HB.healAmt = (P) => 15 + P.lvl * 3 + rnd(0, 3);
   HB.critChance = 0.1;
 

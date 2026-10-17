@@ -19,9 +19,17 @@ function partyAt(lvl, herbs, bare) {
 // a sensible player: heal when low, cure silence, buff for the boss,
 // use the element a foe is weak to, otherwise attack. Mirrors battle.js:
 // turn order by speed, 침묵 and 맑은울림 count down on the hero's own turns.
-function fight(P, kinds) {
+function fight(P, kinds, allyId) {
   const foes = kinds.map((k) => Object.assign(HB.makeFoe(k), { hp: HB.FOES[k].hp }));
   let silenced = 0, buff = 0;
+  const ally = allyId ? HB.allyStats(allyId, P.lvl) : null;
+  if (ally) ally.hp = ally.maxHp;
+  function allyAct() {
+    const alive = foes.filter((f) => f.hp > 0);
+    const i = HB.allyIntent(ally, P, alive, silenced > 0);
+    if (i.act === 'song') { i.target.hp = Math.min(i.target.maxHp, i.target.hp + HB.songAmt(P.lvl)); ally.sang = true; }
+    else { i.target.hp -= HB.hitDmg(ally.atk, i.target.def); ally.sang = false; }
+  }
   const can = (id) => HB.skillsFor(P.lvl).includes(id) && !silenced && P.mp >= HB.SKILLS[id].cost;
   const cast = (id) => { P.mp -= HB.SKILLS[id].cost; };
   function heroAct() {
@@ -47,12 +55,17 @@ function fight(P, kinds) {
     if (buff && !cast_ring) buff--;
   }
   for (let turn = 1; turn < 80; turn++) {
-    for (const who of HB.turnOrder(P, foes.filter((f) => f.hp > 0))) {
+    for (const who of HB.turnOrder(P, foes.filter((f) => f.hp > 0), ally)) {
       if (who === 'hero') heroAct();
+      else if (who === 'ally') { if (ally.hp > 0) allyAct(); }
       else if (who.hp > 0) {
         const intent = HB.foeIntent(who, turn, P, silenced > 0);
         if (intent === 'silence') silenced = 2;
         else if (intent === 'swallow') P.mp = Math.max(0, P.mp - 2);
+        else if (intent === 'wave') {
+          P.hp -= HB.foeDmg(who, P, intent, false);
+          if (ally && ally.hp > 0) ally.hp = Math.max(0, ally.hp - HB.foeDmg(who, ally, intent, false));
+        } else if (HB.foeTarget(ally) === 'ally') ally.hp = Math.max(0, ally.hp - HB.foeDmg(who, ally, intent, false));
         else P.hp -= HB.foeDmg(who, P, intent, false);
         if (P.hp <= 0) return false;
       }
@@ -61,9 +74,9 @@ function fight(P, kinds) {
   }
   return false;
 }
-const winRate = (lvl, herbs, kinds, n = 2000, bare = false) => {
+const winRate = (lvl, herbs, kinds, n = 2000, bare = false, ally) => {
   let w = 0;
-  for (let i = 0; i < n; i++) if (fight(partyAt(lvl, herbs, bare), kinds)) w++;
+  for (let i = 0; i < n; i++) if (fight(partyAt(lvl, herbs, bare), kinds, ally)) w++;
   return w / n;
 };
 
@@ -161,7 +174,7 @@ test('equipment: equip, swap back to the bag, unequip', () => {
 });
 
 test('economy: selling never makes money, and gear is a goal', () => {
-  for (const id in HB.ITEMS) assert.ok(HB.sellPrice(id) < HB.ITEMS[id].price, id);
+  for (const id in HB.ITEMS) if (!HB.isKey(id)) assert.ok(HB.sellPrice(id) < HB.ITEMS[id].price, id);
   const P = HB.newParty(); P.items.vest = 1;
   assert.ok(HB.sellItem(P, 'vest'));
   assert.equal(P.gold, 25);
@@ -213,6 +226,29 @@ test('balance: hitting the boss weakness matters', () => {
   const without = winRate(3, 3, ['boss']);
   HB.FOES.boss.weak = weak;
   assert.ok(withWeak > without + 0.1, 'weak ' + withWeak + ' vs none ' + without);
+});
+
+test('companion: 미오 grows with the hero and helps, but levels still matter', () => {
+  const a1 = HB.allyStats('mio', 1), a5 = HB.allyStats('mio', 5);
+  assert.ok(a5.maxHp > a1.maxHp && a5.atk > a1.atk);
+  const r = [2, 3].map((l) => [winRate(l, 3, ['boss'], 1500), winRate(l, 3, ['boss'], 1500, false, 'mio')]);
+  console.log('boss solo / with 미오 at Lv2, Lv3:', JSON.stringify(r));
+  assert.ok(r[1][1] > r[1][0] + 0.15, 'she should clearly help at Lv3');
+  assert.ok(r[0][1] < 0.35, 'but Lv2 is still too early');
+  // she sings to the hurt one and never twice in a row
+  const P = partyAt(3, 0); P.hp = 5;
+  const mio = HB.allyStats('mio', 3); mio.hp = mio.maxHp;
+  assert.equal(HB.allyIntent(mio, P, [HB.makeFoe('wisp')], false).act, 'song');
+  mio.sang = true;
+  assert.equal(HB.allyIntent(mio, P, [HB.makeFoe('wisp')], false).act, 'attack');
+  mio.sang = false;
+  assert.equal(HB.allyIntent(mio, P, [HB.makeFoe('wisp')], true).act, 'attack', 'silence stops her song');
+});
+
+test('key items cannot be sold', () => {
+  const P = HB.newParty(); P.items.windflower = 1;
+  assert.ok(!HB.sellItem(P, 'windflower'));
+  assert.equal(P.items.windflower, 1);
 });
 
 test('pacing: reaching level 4 takes about two field clears', () => {

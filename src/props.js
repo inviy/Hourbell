@@ -50,6 +50,14 @@
       }
       const chest = find(def.chests, tx, ty);
       if (chest) { this.openChest(w, chest); return true; }
+      const pick = find(def.pickups, tx, ty);
+      if (pick && !w.flags['pick_' + pick.id]) {
+        w.flags['pick_' + pick.id] = true;
+        HB.party.items[pick.item] = (HB.party.items[pick.item] || 0) + 1;
+        HB.sfx('fragment');
+        HB.dialog.open(pick.text + '\n' + HB.josa(HB.ITEMS[pick.item].name, '을를') + ' 손에 넣었다.', { voice: 'narrate' });
+        return true;
+      }
       const chime = find(def.chimes, tx, ty);
       if (chime) { this.ringChime(w, chime); return true; }
       return false;
@@ -95,6 +103,19 @@
       for (const c of w.def.chests || []) {
         const open = !!w.flags['chest_' + c.id];
         list.push({ y: (c.ty + 1) * T - 1, draw: (g, cam) => g.drawImage(art.chest[open ? 1 : 0], c.tx * T - cam.x, c.ty * T - cam.y) });
+      }
+      for (const p of w.def.pickups || []) {
+        if (w.flags['pick_' + p.id]) continue;
+        list.push({
+          y: p.ty * T + 8,
+          draw: (g, cam) => {
+            const x = p.tx * T - cam.x + 8, y = p.ty * T - cam.y + 10, sway = Math.round(Math.sin(HB.time * 3) * 1.5);
+            g.fillStyle = '#3a7a34'; g.fillRect(x, y - 6, 1, 7);
+            g.fillStyle = '#a8f0ff'; g.fillRect(x - 2 + sway, y - 9, 5, 3); g.fillRect(x - 1 + sway, y - 10, 3, 5);
+            g.fillStyle = '#ffffff'; g.fillRect(x + sway, y - 9, 1, 1);
+            if (Math.sin(HB.time * 4) > 0.6) { g.fillStyle = '#fffbe0'; g.fillRect(x + 4, y - 13, 1, 1); }
+          }
+        });
       }
       for (const ch of w.def.chimes || []) {
         const at = this.ring[ch.tx + ',' + ch.ty];

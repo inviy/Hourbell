@@ -73,7 +73,7 @@
             return { label: it.name, right: it.price + '골드', dim: P.gold < it.price, desc: it.desc + (it.slot ? '   ' + menu.diff(id) : ''), act: () => menu.buy(id) };
           });
         }
-        const ids = Object.keys(P.items);
+        const ids = Object.keys(P.items).filter((id) => !HB.isKey(id));
         if (!ids.length) return [{ label: '(팔 것이 없음)', dim: true, act: () => menu.fail('팔 것이 없다.') }];
         return ids.map((id) => ({ label: HB.ITEMS[id].name + ' x' + P.items[id], right: HB.sellPrice(id) + '골드', desc: HB.ITEMS[id].desc, act: () => menu.sell(id) }));
       }
@@ -90,6 +90,7 @@
     },
     useItem(id) {
       const P = HB.party, it = HB.ITEMS[id];
+      if (it.key) return this.fail('소중한 물건이다. 쓸 수는 없다.');
       if (it.cure) return this.fail('전투 중에만 쓸 수 있다.');
       if ((it.hp && P.hp >= P.maxHp) || (it.mp && P.mp >= P.maxMp)) return this.fail('지금은 쓸 필요가 없다.');
       const got = HB.useItem(P, id);
@@ -109,14 +110,14 @@
       HB.sellItem(P, id);
       HB.sfx('ok');
       this.note = HB.josa(name, '을를') + ' 팔았다. (+' + HB.sellPrice(id) + '골드)';
-      this.mode.cur = Math.min(this.mode.cur, Math.max(0, Object.keys(P.items).length - 1));
+      this.mode.cur = Math.min(this.mode.cur, Math.max(0, Object.keys(P.items).filter((k) => !HB.isKey(k)).length - 1));
     },
 
     // ---------- input ----------
     update(w, dt, fading) {
       const inp = HB.input;
       if (!this.open) {
-        if (fading || HB.Battle.active || !inp.hit('cancel')) return false;
+        if (fading || HB.Battle.active || (HB.Cutscene && HB.Cutscene.steps) || !inp.hit('cancel')) return false;
         this.open = true; this.stack = [];
         this.push({ id: 'main' });
         return true;
@@ -156,7 +157,7 @@
         return;
       }
       const wide = m.id === 'main' ? 72 : m.id === 'gear' ? 220 : 150;
-      if (m.id !== 'main') this.drawList(g, this.rowsOf(w, 'main'), 8, 8, 72, this.stack[0].cur);
+      if (m.id !== 'main') this.drawList(g, this.rowsOf(w, 'main'), 8, 8, 72, -1); // backdrop, no cursor
       this.drawList(g, rows, m.id === 'main' ? 8 : 20, m.id === 'main' ? 8 : 24, wide, m.cur);
       this.drawNote(g, this.note || (sel && sel.desc) || '');
       if (m.id === 'gear' || m.id === 'items') return; // keep the list readable
@@ -174,7 +175,7 @@
     drawStatus(g, w) {
       const P = HB.party, e = HB.eff(P);
       const x = 176, y = 8, wdt = 200;
-      HB.drawWindow(g, x, y, wdt, 178);
+      HB.drawWindow(g, x, y, wdt, 192);
       HB.text(g, P.name, x + 12, y + 6, '#ffe08a');
       HB.text(g, 'Lv ' + P.lvl, x + wdt - 12, y + 7, '#c8c0e0', { font: 'g9', align: 'right' });
       HB.drawBar(g, x + 12, y + 30, 'HP', P.hp, P.maxHp, P.hp / P.maxHp < 0.3 ? '#ff7a6a' : '#7ae08a');
@@ -183,6 +184,7 @@
       const rows = [
         ['공격', plus('atk')], ['방어', plus('def')], ['속도', plus('spd')],
         ['기술', HB.skillsFor(P.lvl).map((id) => HB.SKILLS[id].name).join(' ')],
+        ['동료', P.ally ? HB.ALLIES[P.ally.id].name + '  HP ' + P.ally.hp + '/' + HB.allyStats(P.ally.id, P.lvl).maxHp : '-'],
         ['다음 레벨까지', HB.expToNext(P.lvl) - P.exp],
         ['골드', P.gold],
         ['종소리 조각', (w.flags.fragment1 ? 1 : 0) + ' / 7'],

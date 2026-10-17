@@ -37,7 +37,7 @@
       if (!this.player) this.player = new Actor(0, 0, 'hero');
       this.player.x = sp.x * T; this.player.y = sp.y * T; this.player.dir = sp.dir || 'down';
       this.player.moving = false;
-      this.npcs = (def.npcs || []).map((n) => {
+      this.npcs = (def.npcs || []).filter((n) => !(n.hideIf && this.flags[n.hideIf])).map((n) => {
         const a = new Actor(n.x * T, n.y * T, n.pal, n.dir);
         a.def = n; a.home = { x: a.x, y: a.y }; a.wait = 1 + Math.random() * 2; a.target = null;
         return a;
