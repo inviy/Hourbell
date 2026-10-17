@@ -89,7 +89,7 @@
           onClose: () => {
             const P = HB.party;
             P.hp = P.maxHp; P.mp = P.maxMp;
-            if (P.ally) P.ally.hp = HB.allyStats(P.ally.id, P.lvl).maxHp;
+            P.allies.forEach((a) => { a.hp = HB.allyStats(a.id, P.lvl).maxHp; });
             HB.sfx('heal');
             const saved = HB.save(w);
             HB.dialog.open('따뜻한 차를 마셨다. HP와 울림이 모두 회복되었다.' + (saved ? '\n(모험을 기록했다)' : ''));
@@ -119,7 +119,7 @@
             HB.save(w);
             HB.sfx('bell');
             HB.music.stop(2.0);
-            HB.fadeTo(() => HB.setScene(HB.Ending), { dur: 2.0, color: '#fff4e0' });
+            HB.fadeTo(() => HB.setScene(HB.Ending, { chapter: 1 }), { dur: 2.0, color: '#fff4e0' });
           } : null
         });
         return true;
@@ -157,7 +157,16 @@
           w.flags.fragment1 = true;
           HB.sfx('fragment');
           HB.music.play('fieldBell', { fadeOut: 1.2, fadeIn: 2.0 });
-          HB.dialog.open(['종소리 조각을 손에 넣었다!  (1 / 7)', '들판의 노래에 첫 소절이 돌아왔다.'], { voice: 'narrate' });
+          HB.dialog.open(['종소리 조각을 손에 넣었다!  (1 / 7)', '들판의 노래에 첫 소절이 돌아왔다.'], {
+            voice: 'narrate',
+            onClose: () => {
+              if (HB.party.pet) return;
+              HB.party.pet = 'pip';
+              HB.sfx('chime');
+              HB.dialog.open(['조각에서 작은 빛 한 점이 떨어져 나왔다.', '빛은 정화된 아기 소리먹이가 되어 리안의 곁을 맴돈다.',
+                '방울이 함께하게 되었다!  (전투 뒤 물건을 물어 오고, 걷는 동안 HP를 채워 준다)'], { voice: 'narrate' });
+            }
+          });
         }
       });
       return true;
@@ -207,9 +216,8 @@
       }
       // the companion only shows up on the map during battles
       const B = HB.Battle;
-      if (B.active && B.allyActor) {
-        const A = B.allyActor;
-        list.push({ y: A.y, draw: (g, cam) => { g.save(); if (!B.ally.hp) g.globalAlpha = 0.4; A.draw(g, cam); g.restore(); } });
+      if (B.active) for (const m of B.allies) {
+        list.push({ y: m.actor.y, draw: (g, cam) => { g.save(); if (!m.hp) g.globalAlpha = 0.4; m.actor.draw(g, cam); g.restore(); } });
       }
       // swaying tower once the first fragment is back
       if (w.tower && w.tower.frames) {

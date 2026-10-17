@@ -111,6 +111,8 @@
     innkeep: { h: '#4a3020', s: '#e0a880', c: '#b85838', C: '#803a24', g: '#f0e0c0', b: '#3a2418' },
     child: { h: '#f0c848', s: '#f8d4b0', c: '#e86848', C: '#a84430', g: '#ffffff', b: '#5a4a8a' },
     fisher: { h: '#3a3a48', s: '#d8a078', c: '#4a8888', C: '#2e5c5c', g: '#d8c890', b: '#3a2a20' },
+    smithgirl: { h: '#c84a2a', s: '#e8b088', c: '#5a6a7a', C: '#3a4652', g: '#e0a040', b: '#3a2418' },
+    apprentice: { h: '#2a2a3a', s: '#f0c8a0', c: '#e8d8b0', C: '#b8a478', g: '#c89a3c', b: '#4a3a2a' },
     bard: { h: '#5ac8b8', s: '#f4d0b0', c: '#7a4ab8', C: '#542e86', g: '#f0d060', b: '#3a2a40' },
     smith: { h: '#2a1a14', s: '#c88860', c: '#6a6a74', C: '#44444e', g: '#c87a3a', b: '#2a1a14' }
   };

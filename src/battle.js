@@ -17,11 +17,13 @@
     { id: 'skill', label: '기술' },
     { id: 'item', label: '도구' },
     { id: 'guard', label: '방어' },
-    { id: 'flee', label: '도망' }
+    { id: 'flee', label: '도망' },
+    { id: 'auto', label: '자동' }
   ];
-  // offsets from the screen centre
+  // offsets from the screen centre; companions stand around the hero
   const SLOTS = [[56, 4], [80, -22], [84, 28]];
   const HERO = [-64, 14];
+  const ALLY_SLOTS = [[-20, -28], [-28, 30], [-46, 2]];
   const rnd = HB.rnd;
 
   const Battle = {
@@ -55,14 +57,15 @@
       p.moving = false;
       this.heroOrigin = { x: p.x, y: p.y };
       this.heroSlot = { x: this.cam.x + HB.W / 2 + HERO[0], y: this.cam.y + HB.H / 2 + HERO[1] };
-      // the companion steps in beside the hero
-      this.ally = null; this.allyActor = null;
-      if (HB.party.ally) {
-        const a = HB.party.ally;
-        this.ally = Object.assign(HB.allyStats(a.id, HB.party.lvl), { hp: a.hp, sang: false });
-        this.allyActor = new HB.Actor(p.x, p.y, this.ally.pal, 'right');
-        this.allySlot = { x: this.heroSlot.x - 20, y: this.heroSlot.y - 28 };
-      }
+      // companions step in beside the hero
+      this.allies = HB.party.allies.slice(0, HB.MAX_ALLIES).map((a, i) => {
+        const m = Object.assign(HB.allyStats(a.id, HB.party.lvl), { hp: a.hp, sang: false, covering: false, covered: false });
+        m.actor = new HB.Actor(p.x, p.y, m.pal, 'right');
+        m.slot = { x: this.heroSlot.x + ALLY_SLOTS[i][0], y: this.heroSlot.y + ALLY_SLOTS[i][1] };
+        return m;
+      });
+      // auto stays on between battles once chosen, and always while auto-hunting
+      this.auto = this.keepAuto || !!(HB.AutoHunt && HB.AutoHunt.on);
       this.run(this.introSeq());
     },
 
@@ -103,7 +106,7 @@
       this.flash = 0.1;
       const p = this.w.player;
       const moves = [this.moveTo(p, this.heroSlot.x, this.heroSlot.y, 0.45, 'right')]
-        .concat(this.allyActor ? [this.moveTo(this.allyActor, this.allySlot.x, this.allySlot.y, 0.5, 'right')] : [])
+        .concat(this.allies.map((m) => this.moveTo(m.actor, m.slot.x, m.slot.y, 0.5, 'right')))
         .concat(this.foes.map((f) => this.moveTo(f, f.slot.x, f.slot.y, 0.45)));
       // run all moves together
       let running = true;
@@ -127,6 +130,8 @@
     },
 
     *heroAttack(t) {
+      if (t.hp <= 0) t = this.alive()[0]; // a companion got there first
+      if (!t) return;
       const P = HB.party, p = this.w.player;
       this.msg = P.name + '의 공격!';
       const home = { x: p.x, y: p.y };
@@ -175,6 +180,8 @@
     },
 
     *heroGust(t) {
+      if (t.hp <= 0) t = this.alive()[0];
+      if (!t) return;
       const P = HB.party;
       P.mp -= HB.SKILLS.gust.cost;
       this.msg = HB.josa(P.name, '은는') + ' 바람결을 일으켰다!';
@@ -302,25 +309,26 @@
         return;
       }
       const home = { x: f.x, y: f.y };
-      const toAlly = intent === 'attack' && HB.foeTarget(this.ally) === 'ally';
-      const tgt = toAlly ? this.allyActor : p;
+      const pick = intent === 'attack' ? HB.foeTarget(this.allies) : 'hero';
+      const tgt = pick === 'hero' ? p : pick.actor;
       if (intent === 'attack') {
-        this.msg = f.name + '의 공격!';
+        this.msg = f.name + '의 공격!' + (pick !== 'hero' && pick.covering ? ' (' + HB.josa(pick.name, '이가') + ' 막아선다)' : '');
         yield 0.2;
         yield* this.moveTo(f, tgt.x + (f.boss ? 30 : 20), tgt.y, 0.15);
       }
-      if (!toAlly) {
+      if (pick === 'hero') {
         const dmg = HB.foeDmg(f, P, intent, this.guarding);
         P.hp = Math.max(0, P.hp - dmg);
         this.shake = 0.25; this.heroFlash = 0.2;
         this.num(p.x, p.y - 22, dmg, '#ff8a7a');
       }
       // the wave washes over everyone
-      if ((toAlly || intent === 'wave') && this.ally && this.ally.hp > 0) {
-        const d = HB.foeDmg(f, this.ally, intent, false);
-        this.ally.hp = Math.max(0, this.ally.hp - d);
-        this.num(this.allyActor.x, this.allyActor.y - 22, d, '#ff8a7a');
-        if (!this.ally.hp) { yield 0.3; this.msg = HB.josa(this.ally.name, '이가') + ' 쓰러졌다!'; }
+      const hit = intent === 'wave' ? this.allies.filter((m) => m.hp > 0) : pick === 'hero' ? [] : [pick];
+      for (const m of hit) {
+        const d = HB.foeDmg(f, m, intent, false);
+        m.hp = Math.max(0, m.hp - d);
+        this.num(m.actor.x, m.actor.y - 22, d, '#ff8a7a');
+        if (!m.hp) { yield 0.3; this.msg = HB.josa(m.name, '이가') + ' 쓰러졌다!'; m.actor.dir = 'down'; }
       }
       HB.sfx('hurt');
       yield 0.3;
@@ -328,24 +336,49 @@
       yield 0.2;
     },
 
-    // the companion's turn: decided by HB.allyIntent, shared with the tests
-    *allyAct() {
-      const a = this.ally, A = this.allyActor, P = HB.party, p = this.w.player;
-      const i = HB.allyIntent(a, P, this.alive(), this.silenced > 0);
+    // a companion's turn: decided by HB.allyIntent, shared with the tests
+    *allyAct(a) {
+      const A = a.actor, P = HB.party, p = this.w.player;
+      a.covering = false;
+      const i = HB.allyIntent(a, [P].concat(this.allies), this.alive(), this.silenced > 0);
+      a.sang = i.act === 'song';
       if (i.act === 'song') {
-        const who = i.target === a ? A : p;
+        const who = i.target === P ? p : i.target.actor;
         const amt = Math.min(i.target.maxHp - i.target.hp, HB.songAmt(P.lvl));
-        this.msg = a.name + '의 노래! 맑은 선율이 ' + (i.target === a ? '자신을' : HB.josa(P.name, '을를')) + ' 감쌌다.';
+        this.msg = a.name + '의 노래! 맑은 선율이 ' + (i.target === a ? '자신을' : HB.josa(i.target.name, '을를')) + ' 감쌌다.';
         HB.sfx('heal');
         this.fx.push({ kind: 'sparkle', x: who.x, y: who.y - 10, t: 0, color: '#c8f0ff' });
         yield 0.5;
-        i.target.hp += amt; a.sang = true;
+        i.target.hp += amt;
         this.num(who.x, who.y - 22, amt, '#88f0a0');
         yield 0.6;
         return;
       }
+      if (i.act === 'cover') {
+        a.covering = true; a.covered = true;
+        this.msg = HB.josa(a.name, '이가') + ' ' + HB.josa(P.name, '을를') + ' 감싸며 앞을 막아섰다!';
+        HB.sfx('thud');
+        yield* this.moveTo(A, p.x + 14, p.y - 4, 0.2, 'right');
+        yield 0.6;
+        return;
+      }
+      if (i.act === 'spell') {
+        const t = i.target;
+        this.msg = a.name + '의 ' + (i.el === 'wind' ? '바람 주문!' : i.el === 'sound' ? '울림 주문!' : '주문!');
+        HB.sfx(i.el === 'wind' ? 'run' : 'chime');
+        this.fx.push({ kind: 'rings', x: A.x, y: A.y - 8, t: 0 });
+        yield 0.45;
+        const dmg = HB.spellDmg(a, t, i.el);
+        t.hp -= dmg; t.flash = 0.25; t.hitShake = 0.3;
+        this.fx.push({ kind: 'sparkle', x: t.x, y: t.y - 14, t: 0, color: i.el === 'wind' ? '#b8f0d0' : '#ffe680' });
+        this.num(t.x, t.y - (t.boss ? 36 : 26), dmg, '#d8c0ff');
+        if (i.el) this.elemNote(t, i.el);
+        yield 0.5;
+        if (t.hp <= 0) yield* this.kill(t);
+        yield 0.1;
+        return;
+      }
       const t = i.target, home = { x: A.x, y: A.y };
-      a.sang = false;
       this.msg = a.name + '의 공격!';
       yield* this.moveTo(A, t.x - 22, t.y, 0.16, 'right');
       const dmg = HB.hitDmg(a.atk, t.def);
@@ -363,9 +396,9 @@
     // turn runs the chosen action. 침묵 and 맑은울림 tick down on the hero's turn.
     *round(action) {
       this.castRing = false;
-      for (const who of HB.turnOrder(HB.party, this.alive(), this.ally)) {
-        if (who === 'ally') {
-          if (this.ally.hp > 0) yield* this.allyAct();
+      for (const who of HB.turnOrder(HB.party, this.alive(), this.allies)) {
+        if (who.isAlly) {
+          if (who.hp > 0 && this.alive().length) yield* this.allyAct(who);
         } else if (who === 'hero') {
           const wasSilenced = this.silenced > 0;
           yield* action;
@@ -400,6 +433,13 @@
         HB.sfx('ok');
         yield* this.waitOk();
       }
+      const found = P.pet && HB.petFind(P.lvl);
+      if (found) {
+        if (found.gold) P.gold += found.gold; else P.items[found.item] = (P.items[found.item] || 0) + 1;
+        this.msg = HB.josa(HB.PETS[P.pet].name, '이가') + ' 반짝이는 것을 물어 왔다! (' + (found.gold ? found.gold + '골드' : HB.ITEMS[found.item].name) + ')';
+        HB.sfx('ok');
+        yield* this.waitOk();
+      }
       while (P.exp >= HB.expToNext(P.lvl)) {
         P.exp -= HB.expToNext(P.lvl);
         const g = HB.levelUp(P);
@@ -417,6 +457,7 @@
 
     *lose() {
       const P = HB.party;
+      if (HB.AutoHunt) HB.AutoHunt.on = false;
       HB.music.stop(1.2);
       this.msg = HB.josa(P.name, '은는') + ' 쓰러졌다...';
       this.w.player.dir = 'down';
@@ -425,7 +466,7 @@
       HB.fadeTo(() => {
         this.active = false;
         P.hp = P.maxHp; P.mp = P.maxMp;
-        if (P.ally) P.ally.hp = HB.allyStats(P.ally.id, P.lvl).maxHp;
+        P.allies.forEach((a) => { a.hp = HB.allyStats(a.id, P.lvl).maxHp; });
         const lost = Math.floor(P.gold / 2);
         P.gold -= lost;
         this.w.load('town');
@@ -445,12 +486,12 @@
       // never leave the hero standing inside a tree or the river
       if (w.blocked(w.player.x, w.player.y, w.player)) { w.player.x = this.heroOrigin.x; w.player.y = this.heroOrigin.y; }
       for (const f of this.foes) { if (won || f.dead) f.dead = true; f.inBattle = false; }
-      // the companion keeps her HP (and any level-up gain); a fallen one gets back up with 1
-      if (this.ally && HB.party.ally) {
-        const max = HB.allyStats(this.ally.id, HB.party.lvl).maxHp;
-        HB.party.ally.hp = Math.max(1, Math.min(max, this.ally.hp + (this.ally.hp ? max - this.ally.maxHp : 0)));
-      }
-      this.allyActor = null;
+      // companions keep their HP (and any level-up gain); a fallen one gets back up with 1
+      this.allies.forEach((m, i) => {
+        const max = HB.allyStats(m.id, HB.party.lvl).maxHp, saved = HB.party.allies[i];
+        if (saved) saved.hp = Math.max(1, Math.min(max, m.hp + (m.hp ? max - m.maxHp : 0)));
+      });
+      this.allies = [];
       if (HB.Field) HB.Field.grace = 2.5;
       HB.music.play(HB.Field ? HB.Field.musicFor(w) : w.def.music, { fadeIn: 1.0, fadeOut: 0.6 });
     },
@@ -474,7 +515,10 @@
       this.fx.forEach((f) => { f.t += dt; });
       this.fx = this.fx.filter((f) => f.t < 0.9);
 
-      if (this.phase === 'menu') this.updateMenu();
+      // X turns auto off at any point; the hero then waits for orders next turn
+      if (this.auto && HB.input.hit('cancel')) { this.auto = this.keepAuto = false; HB.sfx('cancel'); this.msg = '자동 전투를 껐다.'; }
+      if (this.phase === 'menu' && this.auto && !this.co) this.autoAct();
+      else if (this.phase === 'menu') this.updateMenu();
       else if (this.phase === 'target') this.updateTarget();
       else if (this.phase === 'list') this.updateList();
       if (this.co) {
@@ -504,11 +548,28 @@
       } else if (id === 'attack') {
         HB.sfx('ok');
         this.aim((t) => this.heroAttack(t), '누구를 공격할까?');
+      } else if (id === 'auto') {
+        HB.sfx('ok');
+        this.auto = this.keepAuto = true;
+        this.autoAct();
       } else {
         HB.sfx('ok');
         if (id === 'guard') this.guarding = true;
         this.run(this.round(id === 'guard' ? this.heroGuard() : this.flee()));
       }
+    },
+
+    // auto battle: the same picks the balance tests play with (HB.autoPick)
+    autoAct() {
+      const alive = this.alive();
+      const pick = HB.autoPick(HB.party, alive, { silenced: this.silenced > 0, buff: this.buff, waveNext: alive.some((f) => HB.waveNext(f, this.turn)) });
+      const t = pick.target || alive[0];
+      if (pick.act === 'guard') { this.guarding = true; this.run(this.round(this.heroGuard())); }
+      else if (pick.act === 'item') this.run(this.round(this.heroItem(pick.id)));
+      else if (pick.act === 'skill') {
+        const id = pick.id;
+        this.run(this.round(id === 'gust' ? this.heroGust(t) : id === 'chime' ? this.heroChime() : id === 'heal' ? this.heroHeal() : this.heroRing()));
+      } else this.run(this.round(this.heroAttack(t)));
     },
 
     openList(kind, list, msg) {
@@ -645,16 +706,17 @@
       g.save();
       g.translate(ox, oy);
       // commands
-      HB.drawWindow(g, 6, 94, 116, 80);
-      const active = this.phase === 'menu';
+      HB.drawWindow(g, 6, 82, 116, 92);
+      const active = this.phase === 'menu' && !this.auto;
+      if (this.auto) HB.text(g, '자동 전투 중 · X로 끄기', 8, 70, '#ffe08a', { font: 'g9' });
       COMMANDS.forEach((c, i) => {
-        const cx = 22, cy = 101 + i * 14;
+        const cx = 22, cy = 89 + i * 14;
         const poor = (c.id === 'skill' && this.silenced) || (c.id === 'flee' && this.isBoss);
         HB.text(g, c.label, cx, cy, !active ? '#8a8aa8' : poor ? '#9a90b0' : '#f4f0e8');
         if (active && i === this.cursor) HB.drawCursor(g, cx - 10, cy + 3);
       });
       if (this.phase === 'list') {
-        const h = this.list.length * 16 + 10, y = 92 - h;
+        const h = this.list.length * 16 + 10, y = 80 - h;
         HB.drawWindow(g, 6, y, 116, h);
         this.list.forEach((e, i) => {
           HB.text(g, e.label, 22, y + 6 + i * 16, e.dim ? '#8a8aa8' : '#f4f0e8');
@@ -662,17 +724,18 @@
           if (i === this.listCursor) HB.drawCursor(g, 12, y + 9 + i * 16);
         });
       }
+      const n = this.allies.length, ah = n ? 6 + n * 11 : 0, ay = 127 - ah;
       const marks = (this.silenced ? '침묵 ' + this.silenced + '  ' : '') + (this.buff ? '공격↑ ' + this.buff : '');
-      if (marks) HB.text(g, marks, 300, this.ally ? 96 : 116, '#c8a0ff', { font: 'g9', align: 'right' });
-      if (this.ally) {
-        const a = this.ally, w = Math.round(80 * a.hp / a.maxHp);
-        HB.drawWindow(g, 126, 108, 188, 19);
-        HB.text(g, a.name, 136, 111, a.hp ? '#c8f0ff' : '#8a8aa8', { font: 'g9' });
-        g.fillStyle = '#0a0a1a'; g.fillRect(179, 115, 82, 5);
-        g.fillStyle = '#2a2a48'; g.fillRect(180, 116, 80, 3);
-        g.fillStyle = a.hp / a.maxHp < 0.3 ? '#ff7a6a' : '#7ae08a'; g.fillRect(180, 116, w, 3);
-        HB.text(g, a.hp + '/' + a.maxHp, 304, 111, '#f4f0e8', { font: 'g9', align: 'right' });
-      }
+      if (marks) HB.text(g, marks, 300, ay - 12, '#c8a0ff', { font: 'g9', align: 'right' });
+      if (n) HB.drawWindow(g, 126, ay, 188, ah);
+      this.allies.forEach((a, i) => {
+        const y = ay + 3 + i * 11, w = Math.round(80 * a.hp / a.maxHp);
+        HB.text(g, a.name + (a.covering ? ' 막기' : ''), 136, y, a.hp ? '#c8f0ff' : '#8a8aa8', { font: 'g9' });
+        g.fillStyle = '#0a0a1a'; g.fillRect(179, y + 4, 82, 5);
+        g.fillStyle = '#2a2a48'; g.fillRect(180, y + 5, 80, 3);
+        g.fillStyle = a.hp / a.maxHp < 0.3 ? '#ff7a6a' : '#7ae08a'; g.fillRect(180, y + 5, w, 3);
+        HB.text(g, a.hp + '/' + a.maxHp, 304, y, '#f4f0e8', { font: 'g9', align: 'right' });
+      });
       // status
       HB.drawWindow(g, 126, 128, 188, 46);
       HB.text(g, P.name, 136, 134, this.heroFlash > 0 ? '#ff8a7a' : '#ffe08a');

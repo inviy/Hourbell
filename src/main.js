@@ -113,23 +113,33 @@
         HB.text(g, msg, W / 2, H - 36, '#fff4d8', { align: 'center' });
       }
       if (this.awake && !HB.touchControls) HB.text(g, 'M  소리 켜기 / 끄기', 4, H - 11, '#8a7aa8', { font: 'g9', shadow: null });
-      HB.text(g, 'prototype v0.8', W - 4, H - 11, '#8a7aa8', { align: 'right', font: 'g9', shadow: null });
+      HB.text(g, 'prototype v0.9', W - 4, H - 11, '#8a7aa8', { align: 'right', font: 'g9', shadow: null });
     }
   };
   HB.Title = Title;
 
-  // end of chapter one: a quiet roll of what you did, then back to the title
+  // chapter cards: title, two lines, then on to the next chapter (or the
+  // title screen after the last one). Chapter files add their own entries.
+  HB.CHAPTERS = HB.CHAPTERS || {};
+  HB.CHAPTERS[1] = {
+    title: '바람결의 첫 소절',
+    lines: ['멈춰 있던 노을이, 아주 조금 기울었다.', '남은 여섯 소절은 다른 시대에 잠들어 있다.'],
+    next: ['종소리가 울린 뒤, 동쪽 바닷가 쪽 안개가 아주 조금 옅어졌다.', '(2장 물안개 항구는 곧 이어집니다)']
+  };
+
   const Ending = {
-    enter() {
+    enter(arg) {
       this.t = 0; this.leaving = false;
+      this.n = (arg && arg.chapter) || 1;
+      const c = this.c = HB.CHAPTERS[this.n];
       const P = HB.party, m = Math.floor(P.time / 60);
       this.lines = [
-        ['제1장  바람결의 첫 소절', '#ffe6a8', 0.5],
+        ['제' + this.n + '장  ' + c.title, '#ffe6a8', 0.5],
         ['- 완 -', '#f4d8e8', 1.5],
         ['Lv ' + P.lvl + '  ·  ' + Math.floor(m / 60) + '시간 ' + (m % 60) + '분  ·  전투 ' + P.battles + '회', '#c8c0e0', 3.0],
-        ['멈춰 있던 노을이, 아주 조금 기울었다.', '#f4f0e8', 4.5],
-        ['남은 여섯 소절은 다른 시대에 잠들어 있다.', '#f4f0e8', 6.0],
-        ['- 다음 장에서 계속 -', '#ffe08a', 8.0]
+        [c.lines[0], '#f4f0e8', 4.5],
+        [c.lines[1], '#f4f0e8', 6.0],
+        [c.final ? '- 끝 -' : '- 다음 장에서 계속 -', '#ffe08a', 8.0]
       ];
       this.stars = Title.stars || [];
       HB.music.play('title', { fadeIn: 3 });
@@ -141,7 +151,12 @@
         this.leaving = true;
         HB.sfx('ok');
         HB.music.stop(1.2);
-        HB.fadeTo(() => HB.setScene(Title), { dur: 1.2 });
+        const c = this.c;
+        HB.fadeTo(() => {
+          if (c.final) { HB.setScene(Title); return; }
+          HB.setScene(HB.World, { map: c.returnMap || 'town', spawn: c.spawn });
+          if (c.next) HB.dialog.open(c.next, { voice: 'narrate' });
+        }, { dur: 1.2 });
       }
     },
     draw(g) {
@@ -160,7 +175,7 @@
         HB.text(g, text, W / 2, 50 + i * 28 + Math.round((1 - a) * 4), col, { align: 'center' });
         g.restore();
       });
-      if (this.t > 9 && Math.floor(this.t * 2) % 2 === 0) HB.text(g, 'Z / Enter  타이틀로', W / 2, H - 24, '#a898c0', { align: 'center', font: 'g9' });
+      if (this.t > 9 && Math.floor(this.t * 2) % 2 === 0) HB.text(g, this.c.final ? 'Z / Enter  타이틀로' : 'Z / Enter  계속하기', W / 2, H - 24, '#a898c0', { align: 'center', font: 'g9' });
     }
   };
   HB.Ending = Ending;
