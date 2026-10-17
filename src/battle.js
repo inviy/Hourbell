@@ -435,7 +435,7 @@
         if (this.silenced) { HB.sfx('cancel'); this.msg = '정적 때문에 기술을 쓸 수 없다.'; return; }
         this.openList('skill', HB.skillsFor(P.lvl).map((k) => ({ id: k, label: HB.SKILLS[k].name, right: String(HB.SKILLS[k].cost), dim: P.mp < HB.SKILLS[k].cost })), '어떤 기술을 쓸까?');
       } else if (id === 'item') {
-        const ids = Object.keys(P.items);
+        const ids = Object.keys(P.items).filter((k) => !HB.isGear(k));
         if (!ids.length) { HB.sfx('cancel'); this.msg = '가진 도구가 없다.'; return; }
         this.openList('item', ids.map((k) => ({ id: k, label: HB.ITEMS[k].name, right: 'x' + P.items[k] })), '무엇을 쓸까?');
       } else if (id === 'attack') {

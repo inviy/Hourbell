@@ -9,7 +9,8 @@
 
   HB.newParty = () => ({
     name: '리안', lvl: 1, exp: 0, hp: 40, maxHp: 40, mp: 12, maxMp: 12,
-    atk: 8, def: 3, spd: 6, gold: 0, items: { herb: 2 }, time: 0, battles: 0
+    atk: 6, def: 2, spd: 6, gold: 0, items: { herb: 2 }, time: 0, battles: 0,
+    equip: { weapon: 'staff', armor: 'cloth', charm: null }
   });
   HB.party = HB.newParty();
 
@@ -37,8 +38,51 @@
   HB.ITEMS = {
     herb: { name: '약초', hp: 30, price: 8, desc: 'HP를 30 회복한다.' },
     drop: { name: '울림방울', mp: 10, price: 15, desc: '울림을 10 회복한다.' },
-    water: { name: '맑은물', cure: true, price: 10, desc: '침묵을 풀어 준다. (전투 중)' }
+    water: { name: '맑은물', cure: true, price: 10, desc: '침묵을 풀어 준다. (전투 중)' },
+    // equipment: slot + stat bonuses
+    staff: { name: '연습용 종채', slot: 'weapon', atk: 2, price: 10, desc: '공격 +2' },
+    mallet: { name: '청동 종채', slot: 'weapon', atk: 5, price: 60, desc: '공격 +5' },
+    plume: { name: '바람깃 종채', slot: 'weapon', atk: 9, spd: 1, price: 200, desc: '공격 +9, 속도 +1' },
+    cloth: { name: '여행복', slot: 'armor', def: 1, price: 10, desc: '방어 +1' },
+    vest: { name: '가죽 조끼', slot: 'armor', def: 3, price: 50, desc: '방어 +3' },
+    cloak: { name: '은실 망토', slot: 'armor', def: 6, price: 140, desc: '방어 +6' },
+    quill: { name: '깃털 장식', slot: 'charm', spd: 3, price: 40, desc: '속도 +3' },
+    amulet: { name: '수호 부적', slot: 'charm', def: 2, price: 45, desc: '방어 +2' }
   };
+  HB.SLOTS = { weapon: '무기', armor: '방어구', charm: '장신구' };
+
+  // stats with equipment applied
+  HB.eff = function (P) {
+    const e = { atk: P.atk, def: P.def, spd: P.spd };
+    const eq = P.equip || {};
+    for (const slot in eq) {
+      const it = HB.ITEMS[eq[slot]];
+      if (it) for (const k in e) e[k] += it[k] || 0;
+    }
+    return e;
+  };
+  // equip an owned item from the bag; whatever was worn goes back in the bag
+  HB.equip = function (P, id) {
+    const it = HB.ITEMS[id];
+    if (!it || !it.slot || !P.items[id]) return false;
+    HB.unequip(P, it.slot);
+    if (--P.items[id] <= 0) delete P.items[id];
+    P.equip[it.slot] = id;
+    return true;
+  };
+  HB.unequip = function (P, slot) {
+    const old = P.equip[slot];
+    if (old) P.items[old] = (P.items[old] || 0) + 1;
+    P.equip[slot] = null;
+  };
+  HB.sellPrice = (id) => Math.floor(HB.ITEMS[id].price / 2);
+  HB.sellItem = function (P, id) {
+    if (!HB.ITEMS[id] || !P.items[id]) return false;
+    if (--P.items[id] <= 0) delete P.items[id];
+    P.gold += HB.sellPrice(id);
+    return true;
+  };
+  HB.isGear = (id) => !!HB.ITEMS[id].slot;
 
   // lvl: level it is learned at. el: element. buff: turns of x1.5 공격
   HB.SKILLS = {
@@ -52,13 +96,13 @@
 
   // ---------- formulas ----------
   HB.hitDmg = (atk, def) => Math.max(1, atk + rnd(0, Math.floor(atk / 2)) - def);
-  HB.effAtk = (P, buffed) => (buffed ? Math.round(P.atk * 1.5) : P.atk);
+  HB.effAtk = (P, buffed) => { const a = HB.eff(P).atk; return buffed ? Math.round(a * 1.5) : a; };
   HB.elemMul = (f, el) => (el && f.weak === el ? 1.5 : el && f.resist === el ? 0.5 : 1);
-  HB.chimeDmg = (P, f) => Math.max(1, Math.round((4 + Math.round(P.atk * 0.6) + rnd(0, 3)) * HB.elemMul(f, 'sound'))); // ignores defence
+  HB.chimeDmg = (P, f) => Math.max(1, Math.round((4 + Math.round(HB.eff(P).atk * 0.6) + rnd(0, 3)) * HB.elemMul(f, 'sound'))); // ignores defence
   HB.gustDmg = (P, f, buffed) => Math.max(1, Math.round(HB.hitDmg(Math.round(HB.effAtk(P, buffed) * 1.4), f.def) * HB.elemMul(f, 'wind')));
   // who acts first this round: speed plus a little luck; 'hero' marks the party's turn
   HB.turnOrder = function (P, foes) {
-    return [{ who: 'hero', ini: P.spd + rnd(0, 3) }]
+    return [{ who: 'hero', ini: HB.eff(P).spd + rnd(0, 3) }]
       .concat(foes.map((f) => ({ who: f, ini: f.spd + rnd(0, 3) })))
       .sort((a, b) => b.ini - a.ini).map((e) => e.who);
   };
@@ -78,7 +122,7 @@
   // damage a foe deals with an attack ('wave' hits harder and ignores guarding)
   HB.foeDmg = function (f, P, intent, guarding) {
     if (intent === 'wave') return Math.round(f.atk * 1.4) + rnd(0, 3);
-    const d = HB.hitDmg(f.atk, P.def);
+    const d = HB.hitDmg(f.atk, HB.eff(P).def);
     return guarding ? Math.max(1, Math.floor(d / 2)) : d;
   };
 
@@ -106,14 +150,25 @@
 
   // ---------- save data ----------
   const SAVE_KEY = 'hourbell.save1';
-  HB.SAVE_VERSION = 1;
+  HB.SAVE_VERSION = 2;
+  // v1 (v0.2/v0.3) had no equipment: base 공격 / 방어 included what the
+  // starting staff and clothes now give
+  const MIGRATE = {
+    1(d) {
+      if ('atk' in d.party) d.party.atk -= 2;
+      if ('def' in d.party) d.party.def -= 1;
+      d.party.equip = { weapon: 'staff', armor: 'cloth', charm: null };
+    }
+  };
   HB.saveGame = function (store, data) {
     try { store.setItem(SAVE_KEY, JSON.stringify(Object.assign({ v: HB.SAVE_VERSION }, data))); return true; } catch (e) { return false; }
   };
   HB.loadGame = function (store) {
     try {
       const d = JSON.parse(store.getItem(SAVE_KEY));
-      if (!d || d.v !== HB.SAVE_VERSION || !d.party) return null;
+      if (!d || !d.party) return null;
+      while (d.v < HB.SAVE_VERSION && MIGRATE[d.v]) MIGRATE[d.v++](d);
+      if (d.v !== HB.SAVE_VERSION) return null;
       d.party = Object.assign(HB.newParty(), d.party); // fields added later get defaults
       return d;
     } catch (e) { return null; }

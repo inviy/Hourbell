@@ -103,6 +103,10 @@
       ],
       npcs: [
         {
+          id: 'smith', name: '대장장이 브론', pal: 'smith', x: 24.5, y: 7.6, dir: 'down', wander: 0,
+          lines: ['쇠 두드리는 소리도 종소리 비슷하지 않나?']
+        },
+        {
           id: 'keeper', name: '종지기 노인', pal: 'keeper', x: 16.5, y: 13.4, dir: 'down', wander: 0,
           lines: [
             '종이 멈춘 지 꽤 되었지. 그날 이후로 해가 지지도, 뜨지도 않아.',

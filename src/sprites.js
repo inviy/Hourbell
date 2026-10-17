@@ -110,7 +110,8 @@
     florist: { h: '#e87898', s: '#f8d0b0', c: '#58a868', C: '#3a7848', g: '#fff0a0', b: '#6a4030' },
     innkeep: { h: '#4a3020', s: '#e0a880', c: '#b85838', C: '#803a24', g: '#f0e0c0', b: '#3a2418' },
     child: { h: '#f0c848', s: '#f8d4b0', c: '#e86848', C: '#a84430', g: '#ffffff', b: '#5a4a8a' },
-    fisher: { h: '#3a3a48', s: '#d8a078', c: '#4a8888', C: '#2e5c5c', g: '#d8c890', b: '#3a2a20' }
+    fisher: { h: '#3a3a48', s: '#d8a078', c: '#4a8888', C: '#2e5c5c', g: '#d8c890', b: '#3a2a20' },
+    smith: { h: '#2a1a14', s: '#c88860', c: '#6a6a74', C: '#44444e', g: '#c87a3a', b: '#2a1a14' }
   };
 
   // soft oval shadow under characters

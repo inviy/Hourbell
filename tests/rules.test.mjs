@@ -127,10 +127,68 @@ test('save round trip, bad data and old saves', () => {
   assert.equal(d.flags.fragment1, true);
   mem['hourbell.save1'] = '{broken';
   assert.equal(HB.loadGame(store), null);
-  mem['hourbell.save1'] = JSON.stringify({ v: 1, party: { lvl: 2 } });
-  assert.equal(HB.loadGame(store).party.atk, 8, 'missing fields fall back to defaults');
+  mem['hourbell.save1'] = JSON.stringify({ v: 2, party: { lvl: 2 } });
+  assert.equal(HB.eff(HB.loadGame(store).party).atk, 8, 'missing fields fall back to defaults');
+  mem['hourbell.save1'] = JSON.stringify({ v: 99, party: { lvl: 2 } });
+  assert.equal(HB.loadGame(store), null, 'saves from a newer version are refused');
   const full = { setItem() { throw new Error('quota'); } };
   assert.equal(HB.saveGame(full, { party: P }), false);
+});
+
+test('save migration v1 -> v2 keeps effective stats', () => {
+  const mem = {}, store = { setItem: (k, v) => { mem[k] = v; }, getItem: (k) => mem[k] ?? null };
+  mem['hourbell.save1'] = JSON.stringify({ v: 1, party: { lvl: 4, atk: 15, def: 6, spd: 9, items: { herb: 1 } }, flags: {} });
+  const d = HB.loadGame(store);
+  assert.equal(d.v, HB.SAVE_VERSION);
+  assert.deepEqual({ ...HB.eff(d.party) }, { atk: 15, def: 6, spd: 9 });
+  assert.equal(d.party.equip.weapon, 'staff');
+});
+
+test('equipment: equip, swap back to the bag, unequip', () => {
+  const P = HB.newParty();
+  assert.equal(HB.eff(P).atk, 8);
+  assert.ok(!HB.equip(P, 'mallet'), 'cannot equip what you do not own');
+  P.items.mallet = 1;
+  assert.ok(HB.equip(P, 'mallet'));
+  assert.equal(HB.eff(P).atk, P.atk + 5);
+  assert.equal(P.items.staff, 1, 'old weapon returns to the bag');
+  assert.equal(P.items.mallet, undefined);
+  P.items.quill = 1; HB.equip(P, 'quill');
+  assert.equal(HB.eff(P).spd, P.spd + 3);
+  HB.unequip(P, 'charm');
+  assert.equal(HB.eff(P).spd, P.spd);
+  assert.equal(P.items.quill, 1);
+});
+
+test('economy: selling never makes money, and gear is a goal', () => {
+  for (const id in HB.ITEMS) assert.ok(HB.sellPrice(id) < HB.ITEMS[id].price, id);
+  const P = HB.newParty(); P.items.vest = 1;
+  assert.ok(HB.sellItem(P, 'vest'));
+  assert.equal(P.gold, 25);
+  assert.ok(!HB.sellItem(P, 'vest'));
+  // average gold from one field clear (4 wisps, 2 flickers, 1 guard)
+  const avg = (k) => (HB.FOES[k].gold[0] + HB.FOES[k].gold[1]) / 2;
+  const perClear = 4 * avg('wisp') + 2 * avg('flicker') + avg('guard');
+  const expClear = 4 * HB.FOES.wisp.exp + 2 * HB.FOES.flicker.exp + HB.FOES.guard.exp;
+  let need = 0;
+  for (let l = 1; l < 4; l++) need += HB.expToNext(l);
+  const goldAtLv4 = perClear * need / expClear;
+  const smith = ['mallet', 'vest', 'cloak', 'quill', 'amulet'].reduce((s, id) => s + HB.ITEMS[id].price, 0);
+  assert.ok(goldAtLv4 >= HB.ITEMS.mallet.price + 2 * HB.ITEMS.herb.price, 'one upgrade by the boss: ' + goldAtLv4.toFixed(0));
+  assert.ok(goldAtLv4 < smith / 2, 'but not the whole shop');
+});
+
+test('balance: gear helps but does not replace levels', () => {
+  const geared = (P) => { P.items.mallet = 1; P.items.vest = 1; HB.equip(P, 'mallet'); HB.equip(P, 'vest'); return P; };
+  let plain = 0, gear = 0, gear2 = 0;
+  for (let i = 0; i < 1500; i++) {
+    if (fight(partyAt(3, 3), ['boss'])) plain++;
+    if (fight(geared(partyAt(3, 3)), ['boss'])) gear++;
+    if (fight(geared(partyAt(2, 3)), ['boss'])) gear2++;
+  }
+  console.log('boss at Lv3 plain / geared, Lv2 geared:', plain / 1500, gear / 1500, gear2 / 1500);
+  assert.ok(gear > plain + 150, 'gear should help');
+  assert.ok(gear2 / 1500 < 0.3, 'level 2 is still too early even with gear');
 });
 
 test('balance: field foes are fair, and levels matter', () => {
