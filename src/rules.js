@@ -10,8 +10,8 @@
   HB.newParty = () => ({
     name: '리안', lvl: 1, exp: 0, hp: 40, maxHp: 40, mp: 12, maxMp: 12,
     atk: 6, def: 2, spd: 6, gold: 0, items: { herb: 3, water: 1 }, time: 0, battles: 0,
-    equip: { weapon: 'staff', armor: 'cloth', charm: null },
-    kills: {}, ally: null // ally: { id, hp } once a companion joins
+    equip: { weapon: 'staff', head: null, armor: 'cloth', hands: null, feet: null, charm: null, score: null },
+    kills: {}, allies: [], pet: null // allies: [{ id, hp }] as companions join (up to 3)
   });
   HB.party = HB.newParty();
 
@@ -50,17 +50,27 @@
     vest: { name: '가죽 조끼', slot: 'armor', def: 3, price: 50, desc: '방어 +3' },
     cloak: { name: '은실 망토', slot: 'armor', def: 6, price: 140, desc: '방어 +6' },
     quill: { name: '깃털 장식', slot: 'charm', spd: 3, price: 40, desc: '속도 +3' },
-    amulet: { name: '수호 부적', slot: 'charm', def: 2, price: 45, desc: '방어 +2' }
+    amulet: { name: '수호 부적', slot: 'charm', def: 2, price: 45, desc: '방어 +2' },
+    cap: { name: '가죽 모자', slot: 'head', def: 1, price: 25, desc: '방어 +1' },
+    helm: { name: '철 투구', slot: 'head', def: 3, price: 90, desc: '방어 +3' },
+    gloves: { name: '작업 장갑', slot: 'hands', atk: 1, price: 20, desc: '공격 +1' },
+    tempo: { name: '박자 장갑', slot: 'hands', atk: 2, spd: 1, price: 70, desc: '공격 +2, 속도 +1' },
+    sandals: { name: '짚신', slot: 'feet', spd: 1, price: 15, desc: '속도 +1' },
+    boots: { name: '바람 장화', slot: 'feet', spd: 3, price: 80, desc: '속도 +3' },
+    oldscore: { name: '낡은 악보', slot: 'score', pow: 10, price: 40, desc: '기술 위력 +10%' },
+    fieldsong: { name: '들판의 노래', slot: 'score', pow: 20, price: 120, desc: '기술 위력 +20%' }
   };
-  HB.SLOTS = { weapon: '무기', armor: '방어구', charm: '장신구' };
+  // seven slots; pow is skill power in percent (종소리, 바람결, 회복)
+  HB.SLOTS = { weapon: '무기', head: '머리', armor: '몸', hands: '손', feet: '발', charm: '장신구', score: '악보' };
+  HB.STATS = { atk: '공격', def: '방어', spd: '속도', pow: '기술' };
   HB.SHOPS = {
     florist: { title: '꽃집 아이라의 가게', stock: ['herb', 'herb2', 'drop', 'water'] },
-    smith: { title: '대장장이 브론의 대장간', stock: ['mallet', 'vest', 'cloak', 'quill', 'amulet'] }
+    smith: { title: '대장장이 브론의 대장간', stock: ['mallet', 'cap', 'helm', 'vest', 'cloak', 'gloves', 'tempo', 'sandals', 'boots', 'quill', 'amulet', 'oldscore', 'fieldsong'] }
   };
 
   // stats with equipment applied
   HB.eff = function (P) {
-    const e = { atk: P.atk, def: P.def, spd: P.spd };
+    const e = { atk: P.atk, def: P.def, spd: P.spd, pow: 0 };
     const eq = P.equip || {};
     for (const slot in eq) {
       const it = HB.ITEMS[eq[slot]];
@@ -106,37 +116,93 @@
   HB.hitDmg = (atk, def) => Math.max(1, atk + rnd(0, Math.floor(atk / 2)) - def);
   HB.effAtk = (P, buffed) => { const a = HB.eff(P).atk; return buffed ? Math.round(a * 1.5) : a; };
   HB.elemMul = (f, el) => (el && f.weak === el ? 1.5 : el && f.resist === el ? 0.5 : 1);
-  HB.chimeDmg = (P, f) => Math.max(1, Math.round((4 + Math.round(HB.eff(P).atk * 0.6) + rnd(0, 3)) * HB.elemMul(f, 'sound'))); // ignores defence
-  HB.gustDmg = (P, f, buffed) => Math.max(1, Math.round(HB.hitDmg(Math.round(HB.effAtk(P, buffed) * 1.4), f.def) * HB.elemMul(f, 'wind')));
+  const powMul = (P) => 1 + HB.eff(P).pow / 100;
+  HB.chimeDmg = (P, f) => Math.max(1, Math.round((4 + Math.round(HB.eff(P).atk * 0.6) + rnd(0, 3)) * HB.elemMul(f, 'sound') * powMul(P))); // ignores defence
+  HB.gustDmg = (P, f, buffed) => Math.max(1, Math.round(HB.hitDmg(Math.round(HB.effAtk(P, buffed) * 1.4), f.def) * HB.elemMul(f, 'wind') * powMul(P)));
   // who acts first this round: speed plus a little luck; 'hero' marks the party's turn
-  HB.turnOrder = function (P, foes, ally) {
-    const order = [{ who: 'hero', ini: HB.eff(P).spd + rnd(0, 3) }]
-      .concat(foes.map((f) => ({ who: f, ini: f.spd + rnd(0, 3) })));
-    if (ally && ally.hp > 0) order.push({ who: 'ally', ini: ally.spd + rnd(0, 3) });
-    return order.sort((a, b) => b.ini - a.ini).map((e) => e.who);
+  // allies are battle objects ({ isAlly: true, hp, spd, ... })
+  HB.turnOrder = function (P, foes, allies) {
+    return [{ who: 'hero', ini: HB.eff(P).spd + rnd(0, 3) }]
+      .concat(foes.map((f) => ({ who: f, ini: f.spd + rnd(0, 3) })))
+      .concat((allies || []).filter((a) => a.hp > 0).map((a) => ({ who: a, ini: a.spd + rnd(0, 3) })))
+      .sort((a, b) => b.ini - a.ini).map((e) => e.who);
   };
 
   // ---------- companions ----------
-  // [base, per level]; companions grow with the hero's level
+  // [base, per level]; companions grow with the hero's level.
+  // role: healer sings to the hurt, fighter hits hard and covers a hero in
+  // trouble, caster aims at the element a foe is weak to
   HB.ALLIES = {
-    mio: { name: '미오', pal: 'bard', hp: [22, 5], atk: [3, 1], def: [2, 1], spd: [7, 0.5] }
+    mio: { name: '미오', pal: 'bard', role: 'healer', hp: [22, 5], atk: [3, 1], def: [2, 1], spd: [7, 0.5] },
+    dan: { name: '단비', pal: 'smithgirl', role: 'fighter', hp: [30, 7], atk: [5, 1.6], def: [4, 1.2], spd: [4, 0.4] },
+    haru: { name: '하루', pal: 'apprentice', role: 'caster', hp: [20, 4.5], atk: [4, 1.3], def: [1, 0.8], spd: [8, 0.6] }
   };
+  HB.MAX_ALLIES = 3;
   HB.allyStats = function (id, lvl) {
     const a = HB.ALLIES[id], s = (k) => Math.round(a[k][0] + a[k][1] * (lvl - 1));
-    return { id, name: a.name, pal: a.pal, maxHp: s('hp'), atk: s('atk'), def: s('def'), spd: s('spd') };
+    return { id, isAlly: true, name: a.name, pal: a.pal, role: a.role, maxHp: s('hp'), atk: s('atk'), def: s('def'), spd: s('spd') };
   };
   HB.songAmt = (lvl) => 6 + lvl + rnd(0, 3);
-  // the companion sings to whoever is hurt (not while silenced, and not two
-  // turns running), otherwise hits the weakest foe
-  HB.allyIntent = function (a, P, foes, silenced) {
-    const hurt = [P, a].filter((x) => x.hp > 0 && x.hp < x.maxHp * 0.45).sort((x, y) => x.hp / x.maxHp - y.hp / y.maxHp);
-    if (hurt.length && !silenced && !a.sang) return { act: 'song', target: hurt[0] };
-    const t = foes.slice().sort((x, y) => x.hp - y.hp)[0];
+  HB.spellDmg = (a, f, el) => Math.max(1, Math.round((4 + a.atk * 1.2 + rnd(0, 3)) * HB.elemMul(f, el))); // ignores defence
+  // party: [hero, ...allies]. Returns { act: 'song' | 'cover' | 'spell' | 'attack', target, el }
+  HB.allyIntent = function (a, party, foes, silenced) {
+    const hurt = party.filter((x) => x.hp > 0 && x.hp < x.maxHp * 0.45).sort((x, y) => x.hp / x.maxHp - y.hp / y.maxHp);
+    const weakest = foes.slice().sort((x, y) => x.hp - y.hp)[0];
+    if (a.role === 'healer' && hurt.length && !silenced && !a.sang) return { act: 'song', target: hurt[0] };
+    if (a.role === 'fighter') {
+      const hero = party[0];
+      if (hero.hp > 0 && hero.hp < hero.maxHp * 0.35 && !a.covered) return { act: 'cover' };
+      return { act: 'attack', target: foes.slice().sort((x, y) => y.atk - x.atk)[0] };
+    }
+    if (a.role === 'caster' && !silenced) {
+      for (const el of ['wind', 'sound']) { const t = foes.find((f) => f.weak === el); if (t) return { act: 'spell', target: t, el }; }
+      const t = foes.find((f) => f.resist !== 'sound') || weakest;
+      return { act: 'spell', target: t, el: t.resist === 'sound' ? null : 'sound' };
+    }
+    return { act: 'attack', target: weakest };
+  };
+  // foes pick a target: a covering fighter draws every hit, otherwise the
+  // hero takes 40% and the companions share the rest
+  HB.foeTarget = function (allies) {
+    const up = (allies || []).filter((a) => a.hp > 0);
+    const cover = up.find((a) => a.covering);
+    if (cover) return cover;
+    if (!up.length || Math.random() < 0.4) return 'hero';
+    return up[Math.floor(Math.random() * up.length)];
+  };
+
+  // ---------- pet ----------
+  // the pet stays out of the fighting (boss fights are close races, even a
+  // tiny helper tips them); it finds things after battles and mends you on walks
+  HB.PETS = { pip: { name: '방울', desc: '정화된 아기 소리먹이. 전투 뒤에 물건을 물어 오고, 걷는 동안 HP를 조금씩 채워 준다.' } };
+  HB.PET_FIND = 0.35;
+  HB.petFind = function (lvl) {
+    if (Math.random() >= HB.PET_FIND) return null;
+    const r = Math.random();
+    if (r < 0.55) return { item: 'herb' };
+    if (r < 0.8) return { item: 'drop' };
+    if (r < 0.9) return { item: 'water' };
+    return { gold: 5 + lvl * 2 };
+  };
+  HB.PET_REGEN = 3; // seconds per HP while walking
+
+  // ---------- auto battle ----------
+  // what the hero does on auto; the balance tests play with the same picks.
+  // c: { silenced, buff, waveNext }
+  HB.autoPick = function (P, foes, c) {
+    const can = (id) => HB.skillsFor(P.lvl).includes(id) && !c.silenced && P.mp >= HB.SKILLS[id].cost;
+    const low = P.hp < P.maxHp * 0.45;
+    if (c.waveNext && P.hp < P.maxHp * 0.8) return { act: 'guard' };
+    if (low && can('heal')) return { act: 'skill', id: 'heal' };
+    if (low) { const it = ['herb2', 'herb'].find((k) => P.items[k]); if (it) return { act: 'item', id: it }; }
+    if (c.silenced && P.items.water) return { act: 'item', id: 'water' };
+    if (can('ring') && !c.buff && foes.some((f) => f.boss)) return { act: 'skill', id: 'ring' };
+    if (foes.length > 1 && can('chime') && foes.filter((f) => f.resist !== 'sound').length > 1) return { act: 'skill', id: 'chime' };
+    const t = foes.find((f) => f.weak === 'wind') || foes[0];
+    if (can('gust') && t.resist !== 'wind') return { act: 'skill', id: 'gust', target: t };
     return { act: 'attack', target: t };
   };
-  // foes pick the hero or the companion; boss waves hit everyone
-  HB.foeTarget = (ally) => (ally && ally.hp > 0 && Math.random() < 0.4 ? 'ally' : 'hero');
-  HB.healAmt = (P) => 15 + P.lvl * 3 + rnd(0, 3);
+  HB.healAmt = (P) => Math.round((15 + P.lvl * 3 + rnd(0, 3)) * powMul(P));
   HB.critChance = 0.1;
 
   // what a foe does this turn: 'attack' | 'swallow' | 'wave' | 'silence'
@@ -195,7 +261,7 @@
 
   // ---------- save data ----------
   const SAVE_KEY = 'hourbell.save1';
-  HB.SAVE_VERSION = 2;
+  HB.SAVE_VERSION = 3;
   // v1 (v0.2/v0.3) had no equipment: base 공격 / 방어 included what the
   // starting staff and clothes now give
   const MIGRATE = {
@@ -203,6 +269,15 @@
       if ('atk' in d.party) d.party.atk -= 2;
       if ('def' in d.party) d.party.def -= 1;
       d.party.equip = { weapon: 'staff', armor: 'cloth', charm: null };
+    },
+    // v2 had one companion and three equipment slots; v3 has a party list,
+    // seven slots and a pet (given to anyone who already holds the first fragment)
+    2(d) {
+      const P = d.party;
+      P.allies = P.ally ? [P.ally] : [];
+      delete P.ally;
+      P.equip = Object.assign({ weapon: null, head: null, armor: null, hands: null, feet: null, charm: null, score: null }, P.equip);
+      if (d.flags && d.flags.fragment1) P.pet = 'pip';
     }
   };
   HB.saveGame = function (store, data) {

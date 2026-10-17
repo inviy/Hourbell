@@ -37,7 +37,8 @@ window.HB = window.HB || {};
     ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down',
     ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right',
     KeyZ: 'ok', Enter: 'ok', Space: 'ok',
-    KeyX: 'cancel', Escape: 'cancel', Backspace: 'cancel'
+    KeyX: 'cancel', Escape: 'cancel', Backspace: 'cancel',
+    KeyQ: 'auto'
   };
   const input = { down: {}, pressed: {}, any: false };
   input.isDown = (a) => !!input.down[a];

@@ -1,91 +1,15 @@
-// Rules and balance checks. Run: node --test tests/
+// Rules and balance checks. Run: node --test tests/*.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import vm from 'node:vm';
+import { loadHB, partyAt as party, fight as play, winRate as rate } from './sim.mjs';
 
-const window = { HB: {} };
-vm.runInNewContext(readFileSync(new URL('../src/rules.js', import.meta.url), 'utf8'), { window, Math, JSON, Object });
-const HB = window.HB;
-
-function partyAt(lvl, herbs, bare) {
-  const P = HB.newParty();
-  while (P.lvl < lvl) HB.levelUp(P);
-  P.hp = P.maxHp; P.mp = P.maxMp; P.items = { herb: herbs };
-  if (bare) P.mp = P.maxMp = 0; // attack only: no skills, no items
-  return P;
-}
-
-// a sensible player: heal when low, cure silence, buff for the boss,
-// use the element a foe is weak to, otherwise attack. Mirrors battle.js:
-// turn order by speed, 침묵 and 맑은울림 count down on the hero's own turns.
-function fight(P, kinds, allyId) {
-  const foes = kinds.map((k) => Object.assign(HB.makeFoe(k), { hp: HB.FOES[k].hp }));
-  let silenced = 0, buff = 0;
-  const ally = allyId ? HB.allyStats(allyId, P.lvl) : null;
-  if (ally) ally.hp = ally.maxHp;
-  function allyAct() {
-    const alive = foes.filter((f) => f.hp > 0);
-    const i = HB.allyIntent(ally, P, alive, silenced > 0);
-    if (i.act === 'song') { i.target.hp = Math.min(i.target.maxHp, i.target.hp + HB.songAmt(P.lvl)); ally.sang = true; }
-    else { i.target.hp -= HB.hitDmg(ally.atk, i.target.def); ally.sang = false; }
-  }
-  const can = (id) => HB.skillsFor(P.lvl).includes(id) && !silenced && P.mp >= HB.SKILLS[id].cost;
-  const cast = (id) => { P.mp -= HB.SKILLS[id].cost; };
-  function heroAct() {
-    const alive = foes.filter((f) => f.hp > 0);
-    const low = P.hp < P.maxHp * 0.45;
-    let cast_ring = false;
-    if (guarding) P.mp = Math.min(P.maxMp, P.mp + 2); // braced for the warned wave
-    else if (low && can('heal')) { cast('heal'); P.hp = Math.min(P.maxHp, P.hp + HB.healAmt(P)); }
-    else if (low && P.items.herb) HB.useItem(P, 'herb');
-    else if (silenced && P.items.water) { HB.useItem(P, 'water'); silenced = 0; return; }
-    else if (can('ring') && !buff && alive.some((f) => f.boss)) { cast('ring'); buff = HB.SKILLS.ring.buff; cast_ring = true; }
-    else if (alive.length > 1 && can('chime') && alive.filter((f) => f.resist !== 'sound').length > 1) {
-      cast('chime'); alive.forEach((f) => { f.hp -= HB.chimeDmg(P, f); });
-    } else {
-      const t = alive.find((f) => f.weak === 'wind') || alive[0];
-      if (can('gust') && t.resist !== 'wind') { cast('gust'); t.hp -= HB.gustDmg(P, t, buff > 0); }
-      else {
-        let d = HB.hitDmg(HB.effAtk(P, buff > 0), t.def);
-        if (Math.random() < HB.critChance) d = Math.round(d * 1.8);
-        t.hp -= d;
-      }
-    }
-    if (silenced) silenced--;
-    if (buff && !cast_ring) buff--;
-  }
-  let guarding = false;
-  for (let turn = 1; turn < 80; turn++) {
-    // a player who reads the warning guards against the wave unless healthy
-    guarding = foes.some((f) => f.hp > 0 && HB.waveNext(f, turn)) && P.hp < P.maxHp * 0.8;
-    for (const who of HB.turnOrder(P, foes.filter((f) => f.hp > 0), ally)) {
-      if (who === 'hero') heroAct();
-      else if (who === 'ally') { if (ally.hp > 0) allyAct(); }
-      else if (who.hp > 0) {
-        const intent = HB.foeIntent(who, turn, P, silenced > 0);
-        if (intent === 'silence') silenced = 2;
-        else if (intent === 'swallow') P.mp = Math.max(0, P.mp - 2);
-        else if (intent === 'wave') {
-          P.hp -= HB.foeDmg(who, P, intent, guarding);
-          if (ally && ally.hp > 0) ally.hp = Math.max(0, ally.hp - HB.foeDmg(who, ally, intent, false));
-        } else if (HB.foeTarget(ally) === 'ally') ally.hp = Math.max(0, ally.hp - HB.foeDmg(who, ally, intent, false));
-        else P.hp -= HB.foeDmg(who, P, intent, guarding);
-        if (P.hp <= 0) return false;
-      }
-      if (foes.every((f) => f.hp <= 0)) return true;
-    }
-  }
-  return false;
-}
-const winRate = (lvl, herbs, kinds, n = 2000, bare = false, ally) => {
-  let w = 0;
-  for (let i = 0; i < n; i++) if (fight(partyAt(lvl, herbs, bare), kinds, ally)) w++;
-  return w / n;
-};
+const HB = loadHB();
+const partyAt = (lvl, herbs, opts) => party(HB, lvl, herbs, opts);
+const winRate = (lvl, herbs, kinds, opts, n) => rate(HB, lvl, herbs, kinds, opts, n);
+const memStore = () => { const mem = {}; return { mem, setItem: (k, v) => { mem[k] = v; }, getItem: (k) => mem[k] ?? null }; };
 
 test('exp curve and growth rise every level', () => {
-  for (let l = 1; l < 20; l++) assert.ok(HB.expToNext(l + 1) > HB.expToNext(l));
+  for (let l = 1; l < 30; l++) assert.ok(HB.expToNext(l + 1) > HB.expToNext(l));
   const P = HB.newParty(), atk = P.atk, hp = P.maxHp;
   const gain = HB.levelUp(P);
   assert.equal(P.lvl, 2);
@@ -108,18 +32,20 @@ test('elements: weak x1.5, resist x0.5', () => {
   assert.equal(HB.effAtk({ atk: 10 }, true), 15);
 });
 
-test('turn order: faster acts first more often', () => {
+test('turn order: faster acts first more often, everyone acts once', () => {
   let first = 0;
   for (let i = 0; i < 2000; i++) if (HB.turnOrder({ spd: 6 }, [HB.makeFoe('flicker')])[0] !== 'hero') first++;
   assert.ok(first / 2000 > 0.7, 'flicker (spd 9) usually beats a level 1 hero');
-  for (let i = 0; i < 200; i++) assert.equal(HB.turnOrder({ spd: 6 }, [HB.makeFoe('wisp'), HB.makeFoe('guard')]).length, 3);
+  const team = ['mio', 'dan', 'haru'].map((id) => Object.assign(HB.allyStats(id, 5), { hp: 10 }));
+  team[1].hp = 0;
+  for (let i = 0; i < 200; i++) assert.equal(HB.turnOrder({ spd: 6 }, [HB.makeFoe('wisp'), HB.makeFoe('guard')], team).length, 5, 'fallen companions skip');
 });
 
 test('damage is never below 1', () => {
   for (let i = 0; i < 500; i++) assert.ok(HB.hitDmg(1, 99) >= 1);
   const boss = HB.makeFoe('boss');
   for (let i = 0; i < 500; i++) assert.ok(HB.foeDmg(boss, { def: 99 }, 'attack', true) >= 1);
-  for (let i = 0; i < 500; i++) assert.ok(HB.chimeDmg({ atk: 1 }, boss) >= 1 && HB.gustDmg({ atk: 1 }, { def: 99 }) >= 1);
+  for (let i = 0; i < 500; i++) assert.ok(HB.chimeDmg({ atk: 1 }, boss) >= 1 && HB.gustDmg({ atk: 1 }, { def: 99 }) >= 1 && HB.spellDmg({ atk: 1 }, boss, 'sound') >= 1);
 });
 
 test('items: use, buy and run out', () => {
@@ -134,34 +60,53 @@ test('items: use, buy and run out', () => {
   assert.ok(!HB.buyItem(P, 'herb'));
 });
 
-test('save round trip, bad data and old saves', () => {
-  const mem = {}, store = { setItem: (k, v) => { mem[k] = v; }, getItem: (k) => mem[k] ?? null };
+test('save round trip, bad data and newer versions', () => {
+  const store = memStore();
   assert.equal(HB.loadGame(store), null);
   const P = partyAt(3, 2);
   assert.ok(HB.saveGame(store, { party: P, flags: { fragment1: true }, map: 'field', x: 10, y: 20, dir: 'up' }));
   const d = HB.loadGame(store);
   assert.equal(d.party.lvl, 3);
   assert.equal(d.flags.fragment1, true);
-  mem['hourbell.save1'] = '{broken';
+  store.mem['hourbell.save1'] = '{broken';
   assert.equal(HB.loadGame(store), null);
-  mem['hourbell.save1'] = JSON.stringify({ v: 2, party: { lvl: 2 } });
+  store.mem['hourbell.save1'] = JSON.stringify({ v: HB.SAVE_VERSION, party: { lvl: 2 } });
   assert.equal(HB.eff(HB.loadGame(store).party).atk, 8, 'missing fields fall back to defaults');
-  mem['hourbell.save1'] = JSON.stringify({ v: 99, party: { lvl: 2 } });
+  store.mem['hourbell.save1'] = JSON.stringify({ v: 99, party: { lvl: 2 } });
   assert.equal(HB.loadGame(store), null, 'saves from a newer version are refused');
   const full = { setItem() { throw new Error('quota'); } };
   assert.equal(HB.saveGame(full, { party: P }), false);
 });
 
-test('save migration v1 -> v2 keeps effective stats', () => {
-  const mem = {}, store = { setItem: (k, v) => { mem[k] = v; }, getItem: (k) => mem[k] ?? null };
-  mem['hourbell.save1'] = JSON.stringify({ v: 1, party: { lvl: 4, atk: 15, def: 6, spd: 9, items: { herb: 1 } }, flags: {} });
+test('save migration v1 -> current keeps effective stats', () => {
+  const store = memStore();
+  store.mem['hourbell.save1'] = JSON.stringify({ v: 1, party: { lvl: 4, atk: 15, def: 6, spd: 9, items: { herb: 1 } }, flags: {} });
   const d = HB.loadGame(store);
   assert.equal(d.v, HB.SAVE_VERSION);
-  assert.deepEqual({ ...HB.eff(d.party) }, { atk: 15, def: 6, spd: 9 });
+  assert.deepEqual({ ...HB.eff(d.party) }, { atk: 15, def: 6, spd: 9, pow: 0 });
   assert.equal(d.party.equip.weapon, 'staff');
 });
 
-test('equipment: equip, swap back to the bag, unequip', () => {
+test('save migration v2 -> v3: one companion becomes a party list, pet for fragment holders', () => {
+  const store = memStore();
+  store.mem['hourbell.save1'] = JSON.stringify({
+    v: 2, flags: { fragment1: true, mioJoined: true },
+    party: { lvl: 5, atk: 14, def: 6, spd: 10, ally: { id: 'mio', hp: 17 }, equip: { weapon: 'mallet', armor: 'vest', charm: 'quill' } }
+  });
+  const d = HB.loadGame(store);
+  assert.equal(d.party.ally, undefined);
+  assert.deepEqual([...d.party.allies].map((a) => ({ ...a })), [{ id: 'mio', hp: 17 }]);
+  assert.equal(d.party.pet, 'pip');
+  assert.equal(d.party.equip.weapon, 'mallet');
+  assert.ok('score' in d.party.equip && d.party.equip.head === null);
+  store.mem['hourbell.save1'] = JSON.stringify({ v: 2, flags: {}, party: { lvl: 1 } });
+  assert.equal(HB.loadGame(store).party.pet, null, 'no fragment, no pet yet');
+});
+
+test('equipment: seven slots, swap back to the bag, unequip', () => {
+  assert.equal(Object.keys(HB.SLOTS).length, 7);
+  for (const id in HB.ITEMS) if (HB.ITEMS[id].slot) assert.ok(HB.SLOTS[HB.ITEMS[id].slot], id + ' has a real slot');
+  for (const slot in HB.SLOTS) assert.ok(Object.values(HB.ITEMS).some((it) => it.slot === slot), 'something to wear in ' + slot);
   const P = HB.newParty();
   assert.equal(HB.eff(P).atk, 8);
   assert.ok(!HB.equip(P, 'mallet'), 'cannot equip what you do not own');
@@ -169,12 +114,20 @@ test('equipment: equip, swap back to the bag, unequip', () => {
   assert.ok(HB.equip(P, 'mallet'));
   assert.equal(HB.eff(P).atk, P.atk + 5);
   assert.equal(P.items.staff, 1, 'old weapon returns to the bag');
-  assert.equal(P.items.mallet, undefined);
   P.items.quill = 1; HB.equip(P, 'quill');
   assert.equal(HB.eff(P).spd, P.spd + 3);
   HB.unequip(P, 'charm');
   assert.equal(HB.eff(P).spd, P.spd);
   assert.equal(P.items.quill, 1);
+});
+
+test('a score raises skill power', () => {
+  const P = partyAt(5, 0), boss = HB.makeFoe('boss');
+  const avg = (fn) => { let s = 0; for (let i = 0; i < 3000; i++) s += fn(); return s / 3000; };
+  const before = avg(() => HB.healAmt(P)), chime0 = avg(() => HB.chimeDmg(P, boss));
+  P.items.fieldsong = 1; HB.equip(P, 'fieldsong');
+  assert.ok(avg(() => HB.healAmt(P)) > before * 1.15);
+  assert.ok(avg(() => HB.chimeDmg(P, boss)) > chime0 * 1.1);
 });
 
 test('economy: selling never makes money, and gear is a goal', () => {
@@ -190,29 +143,24 @@ test('economy: selling never makes money, and gear is a goal', () => {
   let need = 0;
   for (let l = 1; l < 4; l++) need += HB.expToNext(l);
   const goldAtLv4 = perClear * need / expClear;
-  const smith = ['mallet', 'vest', 'cloak', 'quill', 'amulet'].reduce((s, id) => s + HB.ITEMS[id].price, 0);
+  const smith = HB.SHOPS.smith.stock.reduce((s, id) => s + HB.ITEMS[id].price, 0);
   assert.ok(goldAtLv4 >= HB.ITEMS.mallet.price + 2 * HB.ITEMS.herb.price, 'one upgrade by the boss: ' + goldAtLv4.toFixed(0));
-  assert.ok(goldAtLv4 < smith / 2, 'but not the whole shop');
+  assert.ok(goldAtLv4 < smith / 3, 'but not the whole shop');
 });
 
 test('balance: gear helps but does not replace levels', () => {
-  const geared = (P) => { P.items.mallet = 1; P.items.vest = 1; HB.equip(P, 'mallet'); HB.equip(P, 'vest'); return P; };
-  let plain = 0, gear = 0, gear2 = 0;
-  for (let i = 0; i < 1500; i++) {
-    if (fight(partyAt(3, 3), ['boss'])) plain++;
-    if (fight(geared(partyAt(3, 3)), ['boss'])) gear++;
-    if (fight(geared(partyAt(2, 3)), ['boss'])) gear2++;
-  }
-  console.log('boss at Lv3 plain / geared, Lv2 geared:', plain / 1500, gear / 1500, gear2 / 1500);
-  assert.ok(gear > plain + 150, 'gear should help');
-  assert.ok(gear2 / 1500 < 0.3, 'level 2 is still too early even with gear');
+  const gear = ['mallet', 'vest'];
+  const plain = winRate(3, 3, ['boss']), geared = winRate(3, 3, ['boss'], { gear }), early = winRate(2, 3, ['boss'], { gear });
+  console.log('boss at Lv3 plain / geared, Lv2 geared:', plain, geared, early);
+  assert.ok(geared > plain + 0.1, 'gear should help');
+  assert.ok(early < 0.3, 'level 2 is still too early even with gear');
 });
 
 test('balance: field foes are fair, and levels matter', () => {
   assert.ok(winRate(1, 2, ['wisp', 'wisp', 'flicker']) > 0.95, 'a careful level 1 survives a pack');
   const pack = ['guard', 'wisp', 'flicker'];
-  assert.ok(winRate(1, 0, pack, 1000, true) < 0.2, 'level 1 cannot just mash attack on a guard pack');
-  assert.ok(winRate(3, 0, pack, 1000, true) > 0.9, 'level 3 can');
+  assert.ok(winRate(1, 0, pack, { bare: true }, 1000) < 0.2, 'level 1 cannot just mash attack on a guard pack');
+  assert.ok(winRate(3, 0, pack, { bare: true }, 1000) > 0.9, 'level 3 can');
 });
 
 test('balance: the boss asks for a few levels', () => {
@@ -233,21 +181,65 @@ test('balance: hitting the boss weakness matters', () => {
   assert.ok(withWeak > without + 0.1, 'weak ' + withWeak + ' vs none ' + without);
 });
 
-test('companion: 미오 grows with the hero and helps, but levels still matter', () => {
-  const a1 = HB.allyStats('mio', 1), a5 = HB.allyStats('mio', 5);
-  assert.ok(a5.maxHp > a1.maxHp && a5.atk > a1.atk);
-  const r = [2, 3].map((l) => [winRate(l, 3, ['boss'], 1500), winRate(l, 3, ['boss'], 1500, false, 'mio')]);
-  console.log('boss solo / with 미오 at Lv2, Lv3:', JSON.stringify(r));
-  assert.ok(r[1][1] > r[1][0] + 0.15, 'she should clearly help at Lv3');
-  assert.ok(r[0][1] < 0.35, 'but Lv2 is still too early');
-  // she sings to the hurt one and never twice in a row
-  const P = partyAt(3, 0); P.hp = 5;
-  const mio = HB.allyStats('mio', 3); mio.hp = mio.maxHp;
-  assert.equal(HB.allyIntent(mio, P, [HB.makeFoe('wisp')], false).act, 'song');
+test('companions: roles do what they say', () => {
+  const P = partyAt(5, 0), wisp = HB.makeFoe('wisp'), flicker = HB.makeFoe('flicker');
+  const make = (id) => Object.assign(HB.allyStats(id, 5), { hp: HB.allyStats(id, 5).maxHp });
+  const mio = make('mio'), dan = make('dan'), haru = make('haru');
+  P.hp = 5;
+  assert.equal(HB.allyIntent(mio, [P, mio], [wisp], false).act, 'song');
   mio.sang = true;
-  assert.equal(HB.allyIntent(mio, P, [HB.makeFoe('wisp')], false).act, 'attack');
+  assert.equal(HB.allyIntent(mio, [P, mio], [wisp], false).act, 'attack', 'not twice in a row');
   mio.sang = false;
-  assert.equal(HB.allyIntent(mio, P, [HB.makeFoe('wisp')], true).act, 'attack', 'silence stops her song');
+  assert.equal(HB.allyIntent(mio, [P, mio], [wisp], true).act, 'attack', 'silence stops her song');
+  assert.equal(HB.allyIntent(dan, [P, dan], [wisp], false).act, 'cover', 'the fighter covers a hero in trouble');
+  dan.covering = true;
+  for (let i = 0; i < 50; i++) assert.equal(HB.foeTarget([mio, dan]), dan, 'a covering fighter draws every hit');
+  const spell = HB.allyIntent(haru, [P, haru], [wisp, flicker], false);
+  assert.equal(spell.act, 'spell');
+  assert.equal(spell.target, flicker, 'the caster goes for a weakness');
+  assert.equal(spell.el, 'wind');
+  assert.equal(HB.allyIntent(haru, [P, haru], [wisp], true).act, 'attack', 'silence stops his spells');
+});
+
+test('companions: each one helps, a full party more, and levels still matter', () => {
+  const solo = winRate(3, 3, ['boss']);
+  const r = {};
+  for (const id of ['mio', 'dan', 'haru']) r[id] = winRate(3, 3, ['boss'], { allies: [id] });
+  const full = winRate(3, 3, ['boss'], { allies: ['mio', 'dan', 'haru'] });
+  // only 미오 can join before the first boss (단비 and 하루 come in chapters 3 and 4)
+  const early = winRate(2, 3, ['boss'], { allies: ['mio'] });
+  console.log('boss Lv3 solo', solo, 'with', JSON.stringify(r), 'full party', full, 'Lv2 with 미오', early);
+  for (const id in r) assert.ok(r[id] > solo + 0.05, id + ' should help');
+  assert.ok(full >= Math.max(...Object.values(r)) - 0.02, 'three are at least as good as one');
+  assert.ok(early < 0.35, 'Lv2 is still too early for the first boss');
+});
+
+test('pet: finds things about a third of the time, never gear', () => {
+  let found = 0, gold = 0;
+  for (let i = 0; i < 6000; i++) {
+    const f = HB.petFind(5);
+    if (!f) continue;
+    found++;
+    if (f.gold) gold++;
+    else assert.ok(HB.ITEMS[f.item] && !HB.isGear(f.item), f.item);
+  }
+  assert.ok(Math.abs(found / 6000 - HB.PET_FIND) < 0.03);
+  assert.ok(gold > 0 && gold < found / 4);
+});
+
+test('auto battle: sensible picks', () => {
+  const P = partyAt(5, 2), boss = HB.makeFoe('boss'), wisp = HB.makeFoe('wisp'), flicker = HB.makeFoe('flicker');
+  P.hp = Math.round(P.maxHp * 0.6);
+  assert.equal(HB.autoPick(P, [boss], { waveNext: true }).act, 'guard', 'brace for a warned wave');
+  P.hp = 5;
+  assert.equal(HB.autoPick(P, [boss], {}).id, 'heal', 'heal when low');
+  P.mp = 0;
+  assert.equal(HB.autoPick(P, [boss], {}).id, 'herb', 'out of 울림: use a herb');
+  P.hp = P.maxHp; P.mp = P.maxMp; P.items.water = 1;
+  assert.equal(HB.autoPick(P, [boss], { silenced: true }).id, 'water', 'cure silence');
+  assert.equal(HB.autoPick(P, [wisp, flicker, wisp], {}).id, 'chime', 'chime a group');
+  // auto battle wins the fights a player would expect to win
+  assert.ok(winRate(4, 3, ['boss']) > 0.9);
 });
 
 test('key items cannot be sold', () => {

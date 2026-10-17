@@ -18,7 +18,7 @@
     return Math.floor(m / 60) + ':' + String(m % 60).padStart(2, '0');
   };
   const bag = (gear) => Object.keys(HB.party.items).filter((id) => HB.isGear(id) === gear);
-  const statLine = (it) => ['atk', 'def', 'spd'].filter((k) => it[k]).map((k) => ({ atk: '공격', def: '방어', spd: '속도' })[k] + '+' + it[k]).join(' ');
+  const statLine = (it) => Object.keys(HB.STATS).filter((k) => it[k]).map((k) => HB.STATS[k] + '+' + it[k] + (k === 'pow' ? '%' : '')).join(' ');
 
   const Menu = {
     open: false, stack: [], note: '',
@@ -45,7 +45,7 @@
         return [
           { label: '도구', act: () => (bag(false).length ? menu.push({ id: 'items' }) : menu.fail('가진 도구가 없다.')) },
           { label: '장비', act: () => menu.push({ id: 'equip' }) }
-        ].concat(this.hooks.map((h) => ({ label: h.label, act: () => menu.push({ id: h.mode }) })), [
+        ].concat(this.hooks.map((h) => ({ label: h.label, act: h.act ? () => h.act(w) : () => menu.push({ id: h.mode }) })), [
           { label: '기록', act: () => { const ok = HB.save(w); HB.sfx(ok ? 'fragment' : 'cancel'); menu.note = ok ? '모험을 기록했다.' : '기록할 수 없었다. (브라우저 저장소가 막혀 있음)'; } },
           { label: '닫기', act: () => menu.close() }
         ]);
@@ -85,8 +85,8 @@
     diff(id) {
       const P = HB.party, it = HB.ITEMS[id], now = HB.eff(P);
       const after = HB.eff(Object.assign({}, P, { equip: Object.assign({}, P.equip, { [it.slot]: id }) }));
-      return ['atk', 'def', 'spd'].filter((k) => after[k] !== now[k])
-        .map((k) => ({ atk: '공격', def: '방어', spd: '속도' })[k] + ' ' + now[k] + ' → ' + after[k]).join('  ') || '변화 없음';
+      return Object.keys(HB.STATS).filter((k) => after[k] !== now[k])
+        .map((k) => HB.STATS[k] + ' ' + now[k] + (k === 'pow' ? '%' : '') + ' → ' + after[k] + (k === 'pow' ? '%' : '')).join('  ') || '변화 없음';
     },
     useItem(id) {
       const P = HB.party, it = HB.ITEMS[id];
@@ -134,13 +134,21 @@
     },
 
     // ---------- draw ----------
-    drawList(g, rows, x, y, wdt, cur) {
-      HB.drawWindow(g, x, y, wdt, 14 + rows.length * 16);
-      rows.forEach((r, i) => {
-        HB.text(g, r.label, x + 18, y + 6 + i * 16, r.dim ? '#8a8aa8' : '#f4f0e8');
-        if (r.right) HB.text(g, r.right, x + wdt - 10, y + 7 + i * 16, '#c8c0e0', { font: 'g9', align: 'right' });
-        if (i === cur) HB.drawCursor(g, x + 6, y + 9 + i * 16);
+    drawList(g, rows, x, y, wdt, cur, max) {
+      max = max || 9;
+      const top = Math.max(0, Math.min(rows.length - max, cur - Math.floor(max / 2)));
+      const shown = rows.slice(top, top + max);
+      HB.drawWindow(g, x, y, wdt, 14 + shown.length * 16);
+      shown.forEach((r, j) => {
+        const i = top + j;
+        HB.text(g, r.label, x + 18, y + 6 + j * 16, r.dim ? '#8a8aa8' : '#f4f0e8');
+        if (r.right) HB.text(g, r.right, x + wdt - 10, y + 7 + j * 16, '#c8c0e0', { font: 'g9', align: 'right' });
+        if (i === cur) HB.drawCursor(g, x + 6, y + 9 + j * 16);
       });
+      // more above / below
+      g.fillStyle = '#fff8e0';
+      if (top > 0) { g.fillRect(x + wdt / 2 - 2, y + 2, 5, 1); g.fillRect(x + wdt / 2 - 1, y + 1, 3, 1); }
+      if (top + max < rows.length) { const by = y + 12 + shown.length * 16; g.fillRect(x + wdt / 2 - 2, by, 5, 1); g.fillRect(x + wdt / 2 - 1, by + 1, 3, 1); }
     },
 
     drawOverlay(w, g) {
@@ -177,16 +185,17 @@
     drawStatus(g, w) {
       const P = HB.party, e = HB.eff(P);
       const x = 176, y = 8, wdt = 200;
-      HB.drawWindow(g, x, y, wdt, 192);
+      HB.drawWindow(g, x, y, wdt, 220);
       HB.text(g, P.name, x + 12, y + 6, '#ffe08a');
       HB.text(g, 'Lv ' + P.lvl, x + wdt - 12, y + 7, '#c8c0e0', { font: 'g9', align: 'right' });
       HB.drawBar(g, x + 12, y + 30, 'HP', P.hp, P.maxHp, P.hp / P.maxHp < 0.3 ? '#ff7a6a' : '#7ae08a');
       HB.drawBar(g, x + 12, y + 44, '울림', P.mp, P.maxMp, '#7ab0ff');
       const plus = (k) => e[k] + (e[k] !== P[k] ? ' (+' + (e[k] - P[k]) + ')' : '');
       const rows = [
-        ['공격', plus('atk')], ['방어', plus('def')], ['속도', plus('spd')],
+        ['공격', plus('atk')], ['방어', plus('def')], ['속도', plus('spd')], ['기술 위력', '+' + e.pow + '%'],
         ['기술', HB.skillsFor(P.lvl).map((id) => HB.SKILLS[id].name).join(' ')],
-        ['동료', P.ally ? HB.ALLIES[P.ally.id].name + '  HP ' + P.ally.hp + '/' + HB.allyStats(P.ally.id, P.lvl).maxHp : '-'],
+        ['동료', P.allies.map((a) => HB.ALLIES[a.id].name).join(' · ') || '-'],
+        ['펫', P.pet ? HB.PETS[P.pet].name : '-'],
         ['다음 레벨까지', HB.expToNext(P.lvl) - P.exp],
         ['골드', P.gold],
         ['종소리 조각', (w.flags.fragment1 ? 1 : 0) + ' / 7'],

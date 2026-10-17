@@ -161,17 +161,40 @@ try {
   await sleep(800);
   await ev(`HB.Field.interact(${W}, 23, 25)`); await drain();
   assert.ok(await ev(`${W}.flags.fragment1`));
+  assert.equal(await ev('HB.party.pet'), 'pip', 'the fragment frees the pet');
+
+  step('party of four, auto battle, auto hunt');
+  await ev(`(() => { const P = HB.party; P.allies = ['mio', 'dan', 'haru'].map((id) => ({ id, hp: HB.allyStats(id, P.lvl).maxHp }));
+    ${W}.load('field', { x: 21, y: 4, dir: 'down' }); })()`);
+  await sleep(800);
+  const b0 = await ev('HB.party.battles');
+  await key('KeyQ'); await sleep(1500); await shot('07-autohunt');
+  for (let i = 0; i < 120 && (await ev('HB.AutoHunt.on') || await ev('HB.Battle.active')); i++) {
+    if (await ev('!!HB.Battle.waitingOk')) await key('KeyZ');
+    if (i === 6) await shot('08-party-auto');
+    await sleep(800);
+  }
+  assert.ok(await ev('HB.party.battles') > b0, 'auto hunt found fights');
+  assert.ok(!(await ev('HB.AutoHunt.on')), 'and stopped on its own');
+  await drain();
+  assert.equal(await ev('HB.party.allies.length'), 3);
+
+  step('chapter one ends and the game goes on');
   await ev(`${W}.load('town')`); await sleep(400);
   await talkTo('keeper'); await drain(); await sleep(2500);
   assert.equal(await ev('HB.getScene() === HB.Ending'), true);
-  await sleep(9000); await shot('07-ending');
-  await key('KeyZ'); await sleep(1800);
+  await sleep(9000); await shot('09-ending');
+  await key('KeyZ'); await sleep(2000);
+  assert.equal(await ev('HB.getScene() === HB.World'), true, 'back on the map, not the title');
+  await drain();
 
   step('title: continue from the save');
-  await key('KeyZ'); await sleep(700); await shot('08-continue');
+  await send('Page.navigate', { url: URL_ }); await sleep(2500);
+  await key('KeyZ'); await sleep(700); await shot('10-continue');
   await key('KeyZ'); await sleep(2300);
   assert.ok(await ev(`${W}.flags.chapter1`));
   assert.equal(await ev('HB.party.items.plume'), 1);
+  assert.equal(await ev('HB.party.pet'), 'pip');
 
   assert.deepEqual(errors, [], 'no JS errors');
   console.log('ok, screenshots in ' + OUT);

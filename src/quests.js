@@ -50,7 +50,7 @@
       ['move', 'mio', px + (me && me.x < w.player.x ? -1 : 1), py],
       ['face', 'mio', me && me.x < w.player.x ? 'right' : 'left'],
       ['call', (wd) => {
-        P.ally = { id: 'mio', hp: HB.allyStats('mio', P.lvl).maxHp };
+        P.allies.push({ id: 'mio', hp: HB.allyStats('mio', P.lvl).maxHp });
         wd.flags.mioJoined = true;
         wd.npcs = wd.npcs.filter((n) => n.def.id !== 'mio');
       }],
