@@ -124,6 +124,8 @@
       }
       const m = this.mode, rows = this.rows(w), n = rows.length;
       if (m.id === 'shop' && (inp.hit('left') || inp.hit('right'))) { m.tab ^= 1; m.cur = 0; this.note = ''; HB.sfx('move'); }
+      const row = rows[m.cur];
+      if (row && row.adjust && (inp.hit('left') || inp.hit('right'))) row.adjust(inp.hit('left') ? -1 : 1);
       if (n && inp.hit('up')) { m.cur = (m.cur + n - 1) % n; HB.sfx('move'); }
       if (n && inp.hit('down')) { m.cur = (m.cur + 1) % n; HB.sfx('move'); }
       if (inp.hit('cancel')) { this.back(); return true; }

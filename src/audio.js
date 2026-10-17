@@ -19,8 +19,8 @@
     comp.threshold.value = -14; comp.ratio.value = 3;
     master.connect(comp); comp.connect(ac.destination);
 
-    musicBus = ac.createGain(); musicBus.gain.value = 0.55; musicBus.connect(master);
-    sfxBus = ac.createGain(); sfxBus.gain.value = 0.7; sfxBus.connect(master);
+    musicBus = ac.createGain(); musicBus.gain.value = 0.55 * HB.options.music / 10; musicBus.connect(master);
+    sfxBus = ac.createGain(); sfxBus.gain.value = 0.7 * HB.options.sfx / 10; sfxBus.connect(master);
 
     // echo: the warm, roomy tail SNES soundtracks were known for
     echoIn = ac.createGain(); echoIn.gain.value = 0.22;
@@ -376,6 +376,16 @@
     if (!ac || muted || !SFX[name]) return;
     SFX[name](ac.currentTime + 0.01);
   };
+
+  HB.setVolume = function () {
+    if (!ac) return; // init() reads HB.options
+    musicBus.gain.setTargetAtTime(0.55 * HB.options.music / 10, ac.currentTime, 0.05);
+    sfxBus.gain.setTargetAtTime(0.7 * HB.options.sfx / 10, ac.currentTime, 0.05);
+  };
+  // silent while the game is paused (window blurred) or the tab is hidden;
+  // the key or tap that unpauses calls HB.onUserGesture, which resumes
+  window.addEventListener('blur', () => { if (ac) ac.suspend(); });
+  document.addEventListener('visibilitychange', () => { if (ac && document.hidden) ac.suspend(); });
 
   HB.toggleMute = function () {
     muted = !muted;

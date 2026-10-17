@@ -40,7 +40,8 @@
         return;
       }
       if (!this.awake || this.t - this.awakeT < 0.4) return;
-      if (this.saved && (HB.input.hit('up') || HB.input.hit('down'))) { this.choice ^= 1; HB.sfx('move'); }
+      if (this.saved && (HB.input.hit('up') || HB.input.hit('down'))) { this.choice ^= 1; this.confirmNew = false; HB.sfx('move'); }
+      if (this.saved && this.choice === 1 && !this.confirmNew && HB.input.hit('ok')) { this.confirmNew = true; HB.sfx('cancel'); return; }
       if (HB.input.hit('ok') || (!this.saved && HB.input.hit('cancel'))) {
         this.leaving = true;
         HB.sfx && HB.sfx('start');
@@ -104,14 +105,15 @@
           if (i === this.choice) HB.drawCursor(g, W / 2 - 38, y + 3);
         });
         const P = this.saved.party;
-        HB.text(g, 'Lv ' + P.lvl + '  ·  조각 ' + (this.saved.flags.fragment1 ? 1 : 0) + ' / 7', W / 2, H - 16, '#c8b8d8', { font: 'g9', align: 'center' });
+        HB.text(g, this.confirmNew ? '처음부터 시작해도 기록은 남지만, 다음에 기록하면 덮어써집니다. 한 번 더 누르면 시작'
+          : 'Lv ' + P.lvl + '  ·  조각 ' + (this.saved.flags.fragment1 ? 1 : 0) + ' / 7', W / 2, H - 16, this.confirmNew ? '#ffd080' : '#c8b8d8', { font: 'g9', align: 'center' });
       } else if (this.t > 1.4 && Math.floor(this.t * 2) % 2 === 0) {
         const msg = HB.touchControls ? (this.awake ? '한 번 더 터치하면 모험 시작' : '화면을 터치하세요')
           : (this.awake ? 'Z / Enter  모험 시작' : '아무 키나 누르세요');
         HB.text(g, msg, W / 2, H - 36, '#fff4d8', { align: 'center' });
       }
       if (this.awake && !HB.touchControls) HB.text(g, 'M  소리 켜기 / 끄기', 4, H - 11, '#8a7aa8', { font: 'g9', shadow: null });
-      HB.text(g, 'prototype v0.6', W - 4, H - 11, '#8a7aa8', { align: 'right', font: 'g9', shadow: null });
+      HB.text(g, 'prototype v0.7', W - 4, H - 11, '#8a7aa8', { align: 'right', font: 'g9', shadow: null });
     }
   };
   HB.Title = Title;

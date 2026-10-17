@@ -251,6 +251,19 @@ test('key items cannot be sold', () => {
   assert.equal(P.items.windflower, 1);
 });
 
+test('options: defaults, clamping and junk', () => {
+  assert.deepEqual({ ...HB.sanitizeOptions(null) }, { ...HB.OPTION_DEFAULTS });
+  assert.deepEqual({ ...HB.sanitizeOptions('x') }, { ...HB.OPTION_DEFAULTS });
+  const o = HB.sanitizeOptions({ music: 15, sfx: -3, text: 5, shake: 'no', flash: false, evil: 1 });
+  assert.equal(o.music, 10);
+  assert.equal(o.sfx, 0);
+  assert.equal(o.text, 1);
+  assert.equal(o.shake, true);
+  assert.equal(o.flash, false);
+  assert.equal(o.evil, undefined);
+  assert.equal(HB.sanitizeOptions({ music: 4.6 }).music, 5);
+});
+
 test('pacing: reaching level 4 takes about two field clears', () => {
   const clear = 4 * HB.FOES.wisp.exp + 2 * HB.FOES.flicker.exp + HB.FOES.guard.exp;
   let need = 0;

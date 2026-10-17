@@ -173,6 +173,20 @@
     return true;
   };
 
+  // ---------- options ----------
+  // text: 0 slow, 1 normal, 2 fast. shake / flash: comfort switches
+  HB.OPTION_DEFAULTS = { music: 7, sfx: 8, text: 1, shake: true, flash: true };
+  // stored options may be old or hand-edited: keep known keys with sane values
+  HB.sanitizeOptions = function (o) {
+    const out = Object.assign({}, HB.OPTION_DEFAULTS);
+    if (!o || typeof o !== 'object') return out;
+    for (const k of ['music', 'sfx']) if (Number.isFinite(o[k])) out[k] = Math.max(0, Math.min(10, Math.round(o[k])));
+    if ([0, 1, 2].includes(o.text)) out.text = o.text;
+    for (const k of ['shake', 'flash']) if (typeof o[k] === 'boolean') out[k] = o[k];
+    return out;
+  };
+  HB.options = HB.sanitizeOptions();
+
   // ---------- save data ----------
   const SAVE_KEY = 'hourbell.save1';
   HB.SAVE_VERSION = 2;

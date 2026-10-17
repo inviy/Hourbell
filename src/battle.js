@@ -456,7 +456,7 @@
     // ---------- update ----------
     update(w, dt) {
       // keep the camera steady with optional shake
-      const sh = this.shake > 0 ? Math.round((Math.random() - 0.5) * 6 * (this.shake / 0.3)) : 0;
+      const sh = this.shake > 0 && HB.options.shake ? Math.round((Math.random() - 0.5) * 6 * (this.shake / 0.3)) : 0;
       w.cam.x = this.cam.x + sh; w.cam.y = this.cam.y + (sh ? Math.round((Math.random() - 0.5) * 3) : 0);
       this.shake = Math.max(0, this.shake - dt);
       this.distort = Math.max(0, this.distort - dt);
@@ -587,7 +587,7 @@
 
     drawOverlay(g, cam) {
       // encounter: wavy distortion and a white flash
-      if (this.distort > 0) {
+      if (this.distort > 0 && HB.options.flash) {
         const [tc, tx] = HB.makeCanvas(HB.W, HB.H);
         tx.drawImage(g.canvas, 0, 0);
         const amp = (this.distort / 0.55) * 10;
@@ -604,7 +604,7 @@
       g.fillStyle = grd; g.fillRect(0, 0, HB.W, HB.H);
 
       this.drawEffects(g, cam);
-      if (this.flash > 0) { g.fillStyle = 'rgba(255,255,255,' + Math.min(1, this.flash * 8).toFixed(2) + ')'; g.fillRect(0, 0, HB.W, HB.H); }
+      if (this.flash > 0 && HB.options.flash) { g.fillStyle = 'rgba(255,255,255,' + Math.min(1, this.flash * 8).toFixed(2) + ')'; g.fillRect(0, 0, HB.W, HB.H); }
 
       // boss HP bar
       for (const f of this.foes) {
