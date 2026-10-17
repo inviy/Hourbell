@@ -111,4 +111,62 @@
     rows.forEach((r, j) => r.split('').forEach((ch, i) => { if (pal[ch]) { x.fillStyle = pal[ch]; x.fillRect(i, j, 1, 1); } }));
     return c;
   };
+
+  // 4 frames of 24x24 with a lit dome (shared by shapes below)
+  function dome(x, cx, cy, rx, ry, pal, f) {
+    for (let j = -ry - 1; j <= ry + 1; j++) for (let i = -rx - 1; i <= rx + 1; i++) {
+      const d = Math.sqrt((i * i) / (rx * rx) + (j * j) / (ry * ry));
+      if (d > 1.05) continue;
+      const lit = (-i / rx * 0.6 - j / ry * 0.8);
+      let col = d > 0.9 ? pal.out : lit > 0.45 ? pal.light : lit < -0.3 ? pal.dark : pal.mid;
+      if (col === pal.mid && ((i + j + f) & 3) === 0 && lit > 0.15) col = pal.light;
+      x.fillStyle = col; x.fillRect(cx + i, cy + j, 1, 1);
+    }
+  }
+
+  // 갯바위게: a wide shell, eyes on stalks, claws that snap in turn
+  function makeCrabFrames(pal) {
+    pal = Object.assign({ out: '#3a1410', dark: '#8a2a1a', mid: '#d0502a', light: '#f8a070', eye: '#1a1010', claw: '#e86a3a' }, pal);
+    const frames = [];
+    for (let f = 0; f < 4; f++) {
+      const [c, x] = HB.makeCanvas(24, 24);
+      const put = (i, j, col) => { x.fillStyle = col; x.fillRect(i, j, 1, 1); };
+      for (let k = 0; k < 3; k++) { // legs
+        const lift = (f + k) % 2;
+        put(5 - k, 17 + k - lift, pal.out); put(6 - k, 16 + k, pal.dark);
+        put(18 + k, 17 + k - (1 - lift), pal.out); put(17 + k, 16 + k, pal.dark);
+      }
+      dome(x, 12, 15, 8, 4, pal, f);
+      [[9, 9], [15, 9]].forEach(([ex, ey]) => { put(ex, ey + 1, pal.dark); put(ex, ey + 2, pal.dark); put(ex, ey, pal.eye); });
+      const snap = f % 2;
+      [[2, 10 - snap], [19, 10 - (1 - snap)]].forEach(([cx, cy]) => {
+        for (let j = 0; j < 4; j++) for (let i = 0; i < 4; i++) if (i + j > 0 && i + j < 6) put(cx + i, cy + j, i + j > 4 ? pal.out : pal.claw);
+        put(cx + 1, cy, '#2a0a08');
+      });
+      frames.push(c);
+    }
+    return frames;
+  }
+
+  // 물방울 해파리: a see-through bell with trailing tentacles
+  function makeJellyFrames(pal) {
+    pal = Object.assign({ out: '#1a2a5a', dark: '#3a5aa8', mid: '#7aa8e8', light: '#d8f0ff', glow: '#fff8c0' }, pal);
+    const frames = [];
+    for (let f = 0; f < 4; f++) {
+      const [c, x] = HB.makeCanvas(24, 24);
+      const put = (i, j, col) => { x.fillStyle = col; x.fillRect(i, j, 1, 1); };
+      for (let k = 0; k < 4; k++) {
+        const tx = 7 + k * 3;
+        for (let j = 0; j < 9; j++) put(tx + Math.round(Math.sin(j * 0.7 + f * 1.57 + k) * 1), 12 + j, j > 6 ? pal.dark : pal.mid);
+      }
+      dome(x, 12, 9, 7, 5, pal, f);
+      for (let j = 10; j <= 12; j++) for (let i = 6; i <= 18; i++) put(i, j, (i + j) % 2 ? pal.out : pal.dark); // rim
+      put(11, 8, pal.glow); put(12, 8, pal.glow); put(12, 7, pal.glow);
+      frames.push(c);
+    }
+    return frames;
+  }
+
+  // shape name -> frame maker; chapter art picks one and a palette
+  HB.SHAPES = { wisp: HB.makeWispFrames, crab: makeCrabFrames, jelly: makeJellyFrames };
 })(window.HB);

@@ -106,7 +106,7 @@
         });
         const P = this.saved.party;
         HB.text(g, this.confirmNew ? '처음부터 시작해도 기록은 남지만, 다음에 기록하면 덮어써집니다. 한 번 더 누르면 시작'
-          : 'Lv ' + P.lvl + '  ·  조각 ' + (this.saved.flags.fragment1 ? 1 : 0) + ' / 7', W / 2, H - 16, this.confirmNew ? '#ffd080' : '#c8b8d8', { font: 'g9', align: 'center' });
+          : 'Lv ' + P.lvl + '  ·  조각 ' + HB.fragments(this.saved.flags) + ' / 7', W / 2, H - 16, this.confirmNew ? '#ffd080' : '#c8b8d8', { font: 'g9', align: 'center' });
       } else if (this.t > 1.4 && Math.floor(this.t * 2) % 2 === 0) {
         const msg = HB.touchControls ? (this.awake ? '한 번 더 터치하면 모험 시작' : '화면을 터치하세요')
           : (this.awake ? 'Z / Enter  모험 시작' : '아무 키나 누르세요');
@@ -124,6 +124,8 @@
   HB.CHAPTERS[1] = {
     title: '바람결의 첫 소절',
     lines: ['멈춰 있던 노을이, 아주 조금 기울었다.', '남은 여섯 소절은 다른 시대에 잠들어 있다.'],
+    keeper: ['오오... 방금 그 소리, 첫 소절이로군!', '보게, 종이 아주 조금 흔들리고 있네. 나머지 소절도 분명 어딘가에 있을 걸세.', '...들리는가? 아워벨이 아주 작게, 한 번 울렸네.'],
+    keeperAfter: ['종이 아주 조금 흔들리고 있네. 나머지 소절도 분명 어딘가에 있을 걸세.'],
     next: ['종소리가 울린 뒤, 동쪽 바닷가 쪽 안개가 아주 조금 옅어졌다.', '(2장 물안개 항구는 곧 이어집니다)']
   };
 

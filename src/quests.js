@@ -30,7 +30,7 @@
         ['토비에게 바람꽃을 준다', (f) => f.tobyDone]
       ]
     }
-  ];
+  ].concat(HB.QUESTS || []); // chapter files may have added theirs already
 
   // { started, step: index of the first unfinished step, done, label(i) }
   HB.questState = function (q, f, P) {

@@ -278,7 +278,11 @@
     }
   };
   const songCache = {};
-  function getSong(name) { return songCache[name] || (songCache[name] = SONGS[name]()); }
+  // chapter files add songs to HB.SONG_DEFS as (kit) => Song, built from the same theme
+  const kit = () => ({ Song, seq, THEME_A, THEME_B, CH_A, CH_B, CHORDS, chordsTo, toMinor, SONGS });
+  function getSong(name) {
+    return songCache[name] || (songCache[name] = SONGS[name] ? SONGS[name]() : HB.SONG_DEFS[name](kit()));
+  }
 
   // ---------- player ----------
   let pending = null;

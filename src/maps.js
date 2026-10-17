@@ -45,7 +45,7 @@
     const W = 34, H = 24;
     const m = new Grid(W, H, '.');
     sprinkle(m, ',', 0.07, 7);
-    forestBorder(m, 3, [{ x0: 16, x1: 17, y0: 20, y1: 23 }]);
+    forestBorder(m, 3, [{ x0: 16, x1: 17, y0: 20, y1: 23 }, { x0: 30, x1: 33, y0: 13, y1: 14 }]);
 
     // plaza with the tower
     m.rect(11, 9, 12, 7, '_');
@@ -60,6 +60,8 @@
     // paths
     m.vline(6, 7, 11, '='); m.hline(6, 10, 11, '=');
     m.vline(27, 7, 11, '='); m.hline(23, 27, 11, '=');
+    // the road east to the coast (2장)
+    m.vline(27, 11, 13, '='); m.hline(27, 33, 13, '=');
     m.vline(5, 19, 20, '='); m.hline(5, 15, 20, '=');
     m.vline(28, 19, 20, '='); m.hline(18, 28, 20, '=');
     m.vline(16, 16, 23, '='); m.vline(17, 16, 23, '=');
@@ -90,7 +92,11 @@
       rows: m.rows(),
       spawn: { x: 16.5, y: 18, dir: 'up' },
       tower: { tx: 15, ty: 10 },
-      exits: [{ x0: 16, x1: 17, y0: 23, y1: 23, to: 'field', spawn: { x: 20.5, y: 1.5, dir: 'down' } }],
+      exits: [
+        { x0: 16, x1: 17, y0: 23, y1: 23, to: 'field', spawn: { x: 20.5, y: 1.5, dir: 'down' } },
+        { x0: 33, x1: 33, y0: 13, y1: 14, to: 'mistroad', spawn: { x: 1.5, y: 9.4, dir: 'right' }, need: 'chapter1',
+          blocked: '짙은 안개가 길을 막고 있다. 먼저 들판의 종소리를 찾아야 할 것 같다.' }
+      ],
       signs: [
         { tx: 18, ty: 21, text: '남쪽 - 바람결 들판\n해가 지기 전에 돌아오시오.' },
         { tx: 13, ty: 8, text: '울림골 - 아워벨이 시간을 지키는 마을\n왼쪽 아래 꽃집, 오른쪽 위 대장간, 오른쪽 아래 여관' }
@@ -202,6 +208,7 @@
       theme: 'field',
       mood: 'day',
       music: 'field',
+      musicAfter: { flag: 'fragment1', music: 'fieldBell' },
       rows: m.rows(),
       spawn: { x: 20.5, y: 1.5, dir: 'down' },
       shrine: { tx: 22, ty: 24 },

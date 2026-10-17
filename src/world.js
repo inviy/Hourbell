@@ -134,6 +134,13 @@
           const edgeT = ty === 0 && p.dir === 'up';
           const edgeX = (tx === 0 && p.dir === 'left') || (tx === this.map.w - 1 && p.dir === 'right');
           if (!(edgeY || edgeT || edgeX)) continue;
+          // some roads open only after a chapter: step back and say why
+          if (e.need && !this.flags[e.need]) {
+            const [dx, dy] = DIRS[p.dir];
+            p.x -= dx * 8; p.y -= dy * 8;
+            HB.dialog.open(e.blocked || '아직 이 길로는 갈 수 없다.');
+            return;
+          }
           HB.sfx && HB.sfx('step');
           HB.fadeTo(() => this.load(e.to, e.spawn));
           return;
@@ -214,8 +221,14 @@
     },
 
     // ---------- atmosphere ----------
+    // def.moodAfter: { flag, mood } e.g. the port's fog lifts after its chapter
+    moodNow() {
+      const a = this.def.moodAfter;
+      return a && this.flags[a.flag] ? a.mood : this.def.mood;
+    },
+
     updateFx(dt) {
-      const mood = this.def.mood;
+      const mood = this.moodNow();
       const cx = this.cam.x, cy = this.cam.y;
       const want = mood === 'sunset' ? 34 : 18;
       while (this.motes.length < want) {
@@ -231,17 +244,17 @@
         m.life -= dt;
       }
       this.motes = this.motes.filter((m) => m.life > 0 && m.x > cx - 20 && m.x < cx + HB.W + 20 && m.y > cy - 20 && m.y < cy + HB.H + 20);
-      if (mood === 'day') {
-        while (this.clouds.length < 3) {
+      if (mood === 'day' || mood === 'fog') {
+        while (this.clouds.length < (mood === 'fog' ? 8 : 3)) {
           this.clouds.push({ x: cx - 140 - Math.random() * 200, y: cy + Math.random() * HB.H, s: 0.7 + Math.random() * 0.7 });
         }
-        for (const c of this.clouds) c.x += 9 * dt;
+        for (const c of this.clouds) c.x += (mood === 'fog' ? 5 : 9) * dt;
         this.clouds = this.clouds.filter((c) => c.x < cx + HB.W + 140);
       }
     },
 
     drawMood(g) {
-      const mood = this.def.mood;
+      const mood = this.moodNow();
       const cam = this.cam;
       if (mood === 'sunset') {
         g.save();
@@ -263,6 +276,16 @@
           const a = Math.min(1, m.life / 1.5) * (0.5 + 0.5 * Math.sin(HB.time * 3 + m.ph));
           g.fillStyle = 'rgba(255,214,140,' + (a * 0.9).toFixed(2) + ')';
           g.fillRect(Math.round(m.x - cam.x), Math.round(m.y - cam.y), 1, 1);
+        }
+        g.restore();
+      } else if (mood === 'fog') {
+        // a pale veil and slow drifting banks of mist
+        g.save();
+        g.fillStyle = 'rgba(214,224,236,0.30)'; g.fillRect(0, 0, HB.W, HB.H);
+        for (const c of this.clouds) {
+          const sx = Math.round(c.x - cam.x), sy = Math.round(c.y - cam.y);
+          g.fillStyle = 'rgba(236,242,250,0.22)';
+          g.beginPath(); g.ellipse(sx, sy, 90 * c.s, 26 * c.s, 0, 0, Math.PI * 2); g.fill();
         }
         g.restore();
       } else if (mood === 'inside') {

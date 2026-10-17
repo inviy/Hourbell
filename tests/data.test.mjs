@@ -3,17 +3,9 @@
 // Runs the real map builders from src/maps.js. Run: node --test tests/
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import vm from 'node:vm';
+import { loadHB } from './sim.mjs';
 
-const src = (f) => readFileSync(new URL('../src/' + f, import.meta.url), 'utf8');
-const window = { HB: {} };
-const ctx = { window, Math, JSON, Object };
-// core.js needs a DOM, so take only its seeded RNG (the maps depend on it)
-const rng = /HB\.rng = function[\s\S]*?\n  \};/.exec(src('core.js'))[0];
-vm.runInNewContext('(function (HB) {' + rng + '})(window.HB);', ctx);
-['rules.js', 'sprites.js', 'tiles.js', 'maps.js'].forEach((f) => vm.runInNewContext(src(f), ctx));
-const HB = window.HB;
+const HB = loadHB(['rules.js', 'sprites.js', 'tiles.js', 'maps.js', 'ch2.js']);
 const maps = Object.fromEntries(Object.entries(HB.MAPS).map(([id, build]) => [id, build()]));
 
 const solid = (m, x, y) => { const r = m.rows[y]; return !r || r[x] === undefined || HB.SOLID.has(r[x]); };
@@ -49,6 +41,12 @@ for (const [id, m] of Object.entries(maps)) {
     for (const c of m.chimes || []) assert.ok(nextTo(seen, c.tx, c.ty), 'chime at ' + c.tx + ',' + c.ty);
     for (const p of m.pickups || []) assert.ok(seen.has(p.tx + ',' + p.ty) || nextTo(seen, p.tx, p.ty), 'pickup ' + p.id);
     for (const n of m.npcs || []) assert.ok(seen.has(Math.floor(n.x) + ',' + Math.floor(n.y)), 'npc ' + n.id);
+    if (m.altar) {
+      const a = m.altar;
+      let ok = false;
+      for (let y = a.ty; y < a.ty + (a.h || 1); y++) for (let x = a.tx; x < a.tx + (a.w || 1); x++) if (nextTo(seen, x, y)) ok = true;
+      assert.ok(ok, 'altar');
+    }
     if (m.shrine) assert.ok(nextTo(seen, m.shrine.tx + 1, m.shrine.ty + 1) || nextTo(seen, m.shrine.tx + 2, m.shrine.ty + 1), 'shrine');
   });
 
@@ -75,7 +73,20 @@ for (const [id, m] of Object.entries(maps)) {
     for (const p of m.pickups || []) assert.ok(HB.ITEMS[p.item], 'pickup item ' + p.item);
     if (m.puzzle) assert.deepEqual([...m.puzzle.order].sort(), [...(m.chimes || []).map((c) => c.note)].sort(), 'puzzle uses each chime once');
     for (const e of m.enemies || []) assert.ok(HB.FOES[e.kind || 'wisp'], 'foe ' + e.kind);
-    for (const n of m.npcs || []) assert.ok(HB.PALETTES[n.pal], 'palette ' + n.pal);
+    for (const n of m.npcs || []) {
+      assert.ok(HB.PALETTES[n.pal], 'palette ' + n.pal);
+      if (n.shop) assert.ok(HB.SHOPS[n.shop], 'shop ' + n.shop);
+      if (n.fetch) assert.ok(HB.ITEMS[n.fetch.item] && Object.keys(n.fetch.reward.items || {}).every((id) => HB.ITEMS[id]), 'fetch ' + n.id);
+    }
+    if (m.altar) {
+      const a = m.altar, boss = HB.FOES[a.boss];
+      for (let y = a.ty; y < a.ty + (a.h || 1); y++) for (let x = a.tx; x < a.tx + (a.w || 1); x++) assert.equal(m.rows[y][x], 'X', 'altar tile');
+      assert.ok(boss && boss.boss && boss.flag, 'altar boss ' + a.boss);
+      assert.ok(HB.FOE_ART[a.boss], 'boss art');
+      assert.ok(!a.art || HB.ALTAR_ART[a.art], 'altar art ' + a.art);
+      assert.ok(a.n >= 2 && a.n <= 7 && a.intro && a.take && a.taken, 'altar text');
+    }
+    for (const e of m.enemies || []) assert.ok(HB.FOE_ART[e.kind || 'wisp'] || ['wisp', 'flicker', 'guard'].includes(e.kind || 'wisp'), 'art for ' + e.kind);
   });
 }
 

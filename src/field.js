@@ -4,17 +4,20 @@
   'use strict';
 
   const T = HB.TILE;
-  // per kind: palette, sight, chase speed, wander radius, draw scale
-  const KINDS = {
-    wisp: { pal: null, sight: 72, chase: 36, roam: 40, scale: 1 },
-    flicker: { pal: { dark: '#1e5a6a', mid: '#3aa8b8', light: '#a8f0f0' }, sight: 90, chase: 50, roam: 56, scale: 1 },
-    guard: { pal: { dark: '#6a1e4a', mid: '#b04a7a', light: '#f08ab0' }, sight: 52, chase: 30, roam: 16, scale: 1 },
-    boss: { pal: { out: '#0a0612', dark: '#1e1430', mid: '#3a2a5a', light: '#7a6aa8', eye: '#f4c450' }, sight: 0, chase: 0, roam: 0, scale: 2 }
-  };
+  // per kind: shape (HB.SHAPES), palette, sight, chase speed, wander radius,
+  // draw scale. Chapter files add their own kinds.
+  HB.FOE_ART = Object.assign(HB.FOE_ART || {}, {
+    wisp: { shape: 'wisp', pal: null, sight: 72, chase: 36, roam: 40, scale: 1 },
+    flicker: { shape: 'wisp', pal: { dark: '#1e5a6a', mid: '#3aa8b8', light: '#a8f0f0' }, sight: 90, chase: 50, roam: 56, scale: 1 },
+    guard: { shape: 'wisp', pal: { dark: '#6a1e4a', mid: '#b04a7a', light: '#f08ab0' }, sight: 52, chase: 30, roam: 16, scale: 1 },
+    boss: { shape: 'wisp', pal: { out: '#0a0612', dark: '#1e1430', mid: '#3a2a5a', light: '#7a6aa8', eye: '#f4c450' }, sight: 0, chase: 0, roam: 0, scale: 2 }
+  });
+  const KINDS = HB.FOE_ART;
   const frames = {};
   function framesFor(kind) {
     if (!frames[kind]) {
-      const img = HB.makeWispFrames(KINDS[kind].pal || undefined);
+      const art = KINDS[kind];
+      const img = HB.SHAPES[art.shape || 'wisp'](art.pal || undefined);
       frames[kind] = { img, flash: img.map((f) => HB.flashOf(f, '#ffffff')) };
     }
     return frames[kind];
@@ -23,9 +26,10 @@
   const Field = {
     enemies: [], shrine: null, grace: 0,
 
+    // def.musicAfter: { flag, music } swaps a map's song once a flag is set
     musicFor(w) {
-      if (w.def.id === 'field' && w.flags.fragment1) return 'fieldBell';
-      return w.def.music;
+      const m = w.def.musicAfter;
+      return m && w.flags[m.flag] ? m.music : w.def.music;
     },
 
     onLoad(w, def) {
@@ -45,7 +49,7 @@
           ? Array.from({ length: n }, (_, i) => HB.makeBellTower(((i / (n - 1)) - 0.5) * 0.16))
           : null;
       }
-      if (def.id === 'field' && w.flags.fragment1) HB.music.play('fieldBell');
+      if (this.musicFor(w) !== def.music) HB.music.play(this.musicFor(w));
     },
 
     update(w, dt, fading) {
@@ -84,17 +88,7 @@
     talk(w, npc) {
       const id = npc.def.id;
       if (id === 'innkeep') {
-        HB.dialog.open(npc.def.lines.concat(['...그래도 잠깐 앉았다 가게. 차 한 잔은 공짜일세.']), {
-          name: npc.def.name,
-          onClose: () => {
-            const P = HB.party;
-            P.hp = P.maxHp; P.mp = P.maxMp;
-            P.allies.forEach((a) => { a.hp = HB.allyStats(a.id, P.lvl).maxHp; });
-            HB.sfx('heal');
-            const saved = HB.save(w);
-            HB.dialog.open('따뜻한 차를 마셨다. HP와 울림이 모두 회복되었다.' + (saved ? '\n(모험을 기록했다)' : ''));
-          }
-        });
+        HB.restAtInn(w, npc.def.name, npc.def.lines.concat(['...그래도 잠깐 앉았다 가게. 차 한 잔은 공짜일세.']), '따뜻한 차를 마셨다. HP와 울림이 모두 회복되었다.');
         return true;
       }
       if (id === 'florist') {
@@ -107,20 +101,23 @@
         });
         return true;
       }
-      if (id === 'keeper' && w.flags.fragment1) {
-        const first = !w.flags.chapter1;
-        HB.dialog.open([
-          '오오... 방금 그 소리, 첫 소절이로군!',
-          '보게, 종이 아주 조금 흔들리고 있네. 나머지 소절도 분명 어딘가에 있을 걸세.'
-        ].concat(first ? ['...들리는가? 아워벨이 아주 작게, 한 번 울렸네.'] : []), {
+      // bringing a fragment home ends its chapter (HB.CHAPTERS[n].keeper)
+      if (id === 'keeper' && HB.fragments(w.flags)) {
+        const n = [1, 2, 3, 4, 5, 6, 7].find((k) => w.flags['fragment' + k] && !w.flags['chapter' + k]);
+        if (!n) {
+          const last = [7, 6, 5, 4, 3, 2, 1].find((k) => w.flags['chapter' + k]);
+          HB.dialog.open(HB.CHAPTERS[last].keeperAfter || HB.CHAPTERS[last].keeper, { name: npc.def.name });
+          return true;
+        }
+        HB.dialog.open(HB.CHAPTERS[n].keeper, {
           name: npc.def.name,
-          onClose: first ? () => {
-            w.flags.chapter1 = true;
+          onClose: () => {
+            w.flags['chapter' + n] = true;
             HB.save(w);
             HB.sfx('bell');
             HB.music.stop(2.0);
-            HB.fadeTo(() => HB.setScene(HB.Ending, { chapter: 1 }), { dur: 2.0, color: '#fff4e0' });
-          } : null
+            HB.fadeTo(() => HB.setScene(HB.Ending, { chapter: n }), { dur: 2.0, color: '#fff4e0' });
+          }
         });
         return true;
       }
@@ -229,7 +226,7 @@
 
     drawOverlay(w, g, cam) {
       if (HB.Battle.active) { HB.Battle.drawOverlay(g, cam); return; }
-      if (w.def.id !== 'field' || HB.dialog.active) return;
+      if (!(w.def.enemies || []).length || HB.dialog.active) return;
       const P = HB.party;
       HB.drawWindow(g, 4, 4, 76, 42, 0.85);
       HB.text(g, P.name, 10, 6, '#ffe08a', { font: 'g9' });
