@@ -29,7 +29,9 @@
     }
   };
 
-  HB.SOLID = new Set(['~', 'T', '^', '#', 'W', 'D', 'F', 'r', 's', 'B', 'X']);
+  // h: a tree you can walk under (secret paths). k, n: table, bed. C, q: chest and
+  // wind-chime post, drawn as props on top of grass
+  HB.SOLID = new Set(['~', 'T', '^', '#', 'W', 'D', 'F', 'r', 's', 'B', 'X', 'k', 'n', 'C', 'q']);
 
   function px(c, x, y, col) { c.fillStyle = col; c.fillRect(x, y, 1, 1); }
   const h2 = HB.hash2;
@@ -235,10 +237,37 @@
     c.fillStyle = '#6a4428'; c.fillRect(ox, oy + 1, T, 1); c.fillRect(ox, oy + 14, T, 1);
   }
 
+  // ---------- interior ----------
+  function floor(c, ox, oy, tx, ty) {
+    c.fillStyle = '#9a6a40'; c.fillRect(ox, oy, T, T);
+    for (let y = 0; y < T; y += 4) {
+      c.fillStyle = '#7a5030'; c.fillRect(ox, oy + y + 3, T, 1);
+      c.fillStyle = '#b07c4c'; c.fillRect(ox, oy + y, T, 1);
+      const seam = (Math.floor(h2(tx, ty * 4 + y, 7) * 12) + 2);
+      c.fillStyle = '#7a5030'; c.fillRect(ox + seam, oy + y, 1, 3);
+    }
+  }
+  function table(c, ox, oy, tx, ty, P, map) {
+    floor(c, ox, oy, tx, ty);
+    const up = map.at(tx, ty - 1) === 'k', dn = map.at(tx, ty + 1) === 'k';
+    c.fillStyle = '#5a3420'; c.fillRect(ox, oy + (up ? 0 : 2), T, T - (up ? 0 : 2) - (dn ? 0 : 3));
+    c.fillStyle = '#c8945c'; c.fillRect(ox, oy + (up ? 0 : 2), T, T - (up ? 0 : 3) - (dn ? 0 : 5));
+    if (!up) { c.fillStyle = '#e0b07a'; c.fillRect(ox, oy + 2, T, 1); }
+  }
+  function bed(c, ox, oy, tx, ty, P, map) {
+    floor(c, ox, oy, tx, ty);
+    const head = map.at(tx, ty - 1) !== 'n';
+    c.fillStyle = '#4a2c1c'; c.fillRect(ox + 1, oy, 14, T);
+    if (head) { c.fillStyle = '#f4ecdc'; c.fillRect(ox + 3, oy + 3, 10, 6); c.fillStyle = '#d8ccb4'; c.fillRect(ox + 3, oy + 8, 10, 1); }
+    c.fillStyle = '#5a7ab8'; c.fillRect(ox + 2, oy + (head ? 10 : 0), 12, T - (head ? 10 : 2));
+    c.fillStyle = '#7a9ad0'; c.fillRect(ox + 2, oy + (head ? 10 : 0), 12, 1);
+  }
+
   const BASE = {
     '.': grass, ',': flowers, '=': path, '_': plaza, '~': waterBase, '^': roof,
     '#': wall, 'W': windowTile, 'D': door, 'F': fence, 'r': rock, 's': sign,
-    'b': bridge, 'T': grass, 'B': plaza, 'X': grass
+    'b': bridge, 'T': grass, 'B': plaza, 'X': grass,
+    'h': grass, 'C': grass, 'q': grass, 'f': floor, 'k': table, 'n': bed
   };
 
   // ---------- tree canopy (drawn above characters) ----------
@@ -317,7 +346,7 @@
       const ch = this.rows[ty][tx];
       const fn = BASE[ch] || grass;
       fn(x, tx * T, ty * T, tx, ty, P, this);
-      if (ch === 'T') { trunk(x, tx * T, ty * T, P); this.trees.push({ tx, ty, v: h2(tx, ty, 4) < 0.5 ? 0 : 1 }); }
+      if (ch === 'T' || ch === 'h') { trunk(x, tx * T, ty * T, P); this.trees.push({ tx, ty, v: h2(tx, ty, 4) < 0.5 ? 0 : 1 }); }
       if (ch === '~') this.waters.push({ tx, ty });
       if (ch === 'W') this.windows.push({ x: tx * T + 8, y: ty * T + 8 });
     }

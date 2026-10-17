@@ -265,6 +265,17 @@
           g.fillRect(Math.round(m.x - cam.x), Math.round(m.y - cam.y), 1, 1);
         }
         g.restore();
+      } else if (mood === 'inside') {
+        // lamp-lit room: warm tint and a soft glow from each window
+        g.save();
+        g.globalCompositeOperation = 'multiply';
+        g.fillStyle = '#ffd8a8'; g.fillRect(0, 0, HB.W, HB.H);
+        g.globalCompositeOperation = 'lighter';
+        for (const w of this.map.windows) {
+          g.globalAlpha = 0.35;
+          g.drawImage(this.glow, Math.round(w.x - cam.x - 14), Math.round(w.y - cam.y - 6));
+        }
+        g.restore();
       } else if (mood === 'day') {
         g.save();
         for (const c of this.clouds) {

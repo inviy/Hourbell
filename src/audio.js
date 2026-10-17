@@ -366,6 +366,10 @@
     heal(t) { [69, 73, 76, 81].forEach((m, i) => tone(sfxBus, t + i * 0.07, mtof(m), 0.1, { wave: 'tri', vol: 0.1, echo: true })); },
     run(t) { [72, 67, 64, 60].forEach((m, i) => tone(sfxBus, t + i * 0.05, mtof(m), 0.05, { duty: 0.5, vol: 0.06 })); },
     vanish(t) { noise(sfxBus, t, 0.6, { vol: 0.12, type: 'bandpass', freq: 3000, sweep: 200 }); tone(sfxBus, t, 880, 0.5, { duty: 0.125, vol: 0.06, slide: 0.2 }); },
+    // the three grove chimes (low, mid, high)
+    ding0(t) { bell(sfxBus, t, mtof(62), 0.14, 2.4); },
+    ding1(t) { bell(sfxBus, t, mtof(69), 0.13, 2.2); },
+    ding2(t) { bell(sfxBus, t, mtof(78), 0.12, 2.0); },
     fragment(t) { [62, 69, 74, 78, 81].forEach((m, i) => bell(sfxBus, t + i * 0.12, mtof(m + 12), 0.08, 2.4)); }
   };
   HB.sfx = function (name) {
