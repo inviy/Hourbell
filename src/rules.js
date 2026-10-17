@@ -9,7 +9,7 @@
 
   HB.newParty = () => ({
     name: '리안', lvl: 1, exp: 0, hp: 40, maxHp: 40, mp: 12, maxMp: 12,
-    atk: 6, def: 2, spd: 6, gold: 0, items: { herb: 2 }, time: 0, battles: 0,
+    atk: 6, def: 2, spd: 6, gold: 0, items: { herb: 3, water: 1 }, time: 0, battles: 0,
     equip: { weapon: 'staff', armor: 'cloth', charm: null },
     kills: {}, ally: null // ally: { id, hp } once a companion joins
   });
@@ -30,14 +30,15 @@
   // kind -> base stats. swallow: chance to eat 울림 instead of attacking
   // weak / resist: element taken at x1.5 / x0.5
   HB.FOES = {
-    wisp: { name: '소리먹이', hp: 18, atk: 6, def: 1, spd: 5, exp: 4, gold: [2, 5], drop: ['herb', 0.12], swallow: 0.22, weak: 'sound' },
-    flicker: { name: '떨림이', hp: 12, atk: 5, def: 0, spd: 9, exp: 4, gold: [3, 7], drop: ['drop', 0.2], swallow: 0.45, weak: 'wind', resist: 'sound' },
-    guard: { name: '울림삼킴이', hp: 34, atk: 9, def: 3, spd: 3, exp: 12, gold: [8, 12], drop: ['water', 0.5], swallow: 0.15, resist: 'wind' },
-    boss: { name: '침묵의 파수꾼', hp: 200, atk: 14, def: 4, spd: 6, exp: 50, gold: [40, 40], drop: ['drop', 1], swallow: 0, boss: true, weak: 'wind', resist: 'sound' }
+    wisp: { name: '소리먹이', hp: 18, atk: 6, def: 1, spd: 5, exp: 4, gold: [4, 7], drop: ['herb', 0.25], swallow: 0.22, weak: 'sound' },
+    flicker: { name: '떨림이', hp: 12, atk: 5, def: 0, spd: 9, exp: 4, gold: [5, 10], drop: ['drop', 0.35], swallow: 0.45, weak: 'wind', resist: 'sound' },
+    guard: { name: '울림삼킴이', hp: 34, atk: 9, def: 3, spd: 3, exp: 12, gold: [14, 20], drop: ['herb2', 0.6], swallow: 0.15, resist: 'wind' },
+    boss: { name: '침묵의 파수꾼', hp: 220, atk: 14, def: 4, spd: 6, exp: 50, gold: [80, 80], drop: ['herb2', 1], swallow: 0, boss: true, weak: 'wind', resist: 'sound' }
   };
 
   HB.ITEMS = {
     herb: { name: '약초', hp: 30, price: 8, desc: 'HP를 30 회복한다.' },
+    herb2: { name: '고급 약초', hp: 70, price: 24, desc: 'HP를 70 회복한다.' },
     drop: { name: '울림방울', mp: 10, price: 15, desc: '울림을 10 회복한다.' },
     windflower: { name: '바람꽃', key: true, price: 0, desc: '풍경 숲에서 꺾은 꽃. 바람이 불지 않아도 흔들린다.' },
     water: { name: '맑은물', cure: true, price: 10, desc: '침묵을 풀어 준다. (전투 중)' },
@@ -53,7 +54,7 @@
   };
   HB.SLOTS = { weapon: '무기', armor: '방어구', charm: '장신구' };
   HB.SHOPS = {
-    florist: { title: '꽃집 아이라의 가게', stock: ['herb', 'drop', 'water'] },
+    florist: { title: '꽃집 아이라의 가게', stock: ['herb', 'herb2', 'drop', 'water'] },
     smith: { title: '대장장이 브론의 대장간', stock: ['mallet', 'vest', 'cloak', 'quill', 'amulet'] }
   };
 
@@ -139,19 +140,20 @@
   HB.critChance = 0.1;
 
   // what a foe does this turn: 'attack' | 'swallow' | 'wave' | 'silence'
+  // the boss's wave comes every third turn; the battle warns a turn ahead
+  HB.waveNext = (f, turn) => !!f.boss && turn % 3 === 2;
   HB.foeIntent = function (f, turn, P, silenced) {
     if (f.boss) {
-      if (f.hp < f.maxHp / 2 && !silenced && turn % 4 === 1) return 'silence';
-      if (turn % 3 === 2) return 'wave';
+      if (HB.waveNext(f, turn)) return 'wave';
+      if (f.hp < f.maxHp / 2 && !silenced && turn % 6 === 0) return 'silence';
       return 'attack';
     }
     if (Math.random() < f.swallow && P.mp > 0) return 'swallow';
     return 'attack';
   };
-  // damage a foe deals with an attack ('wave' hits harder and ignores guarding)
+  // damage a foe deals ('wave' ignores defence; guarding halves both)
   HB.foeDmg = function (f, P, intent, guarding) {
-    if (intent === 'wave') return Math.round(f.atk * 1.4) + rnd(0, 3);
-    const d = HB.hitDmg(f.atk, HB.eff(P).def);
+    const d = intent === 'wave' ? Math.round(f.atk * 1.2) + rnd(0, 3) : HB.hitDmg(f.atk, HB.eff(P).def);
     return guarding ? Math.max(1, Math.floor(d / 2)) : d;
   };
 

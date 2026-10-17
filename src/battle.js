@@ -122,6 +122,8 @@
     toMenu() {
       this.phase = 'menu'; this.msg = '';
       this.turn++; this.guarding = false;
+      const boss = this.alive().find((f) => HB.waveNext(f, this.turn));
+      if (boss) this.msg = HB.josa(boss.name, '이가') + ' 깊게 숨을 들이마신다... (방어하면 파동 피해 절반)';
     },
 
     *heroAttack(t) {

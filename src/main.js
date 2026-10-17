@@ -113,7 +113,7 @@
         HB.text(g, msg, W / 2, H - 36, '#fff4d8', { align: 'center' });
       }
       if (this.awake && !HB.touchControls) HB.text(g, 'M  소리 켜기 / 끄기', 4, H - 11, '#8a7aa8', { font: 'g9', shadow: null });
-      HB.text(g, 'prototype v0.7', W - 4, H - 11, '#8a7aa8', { align: 'right', font: 'g9', shadow: null });
+      HB.text(g, 'prototype v0.8', W - 4, H - 11, '#8a7aa8', { align: 'right', font: 'g9', shadow: null });
     }
   };
   HB.Title = Title;
