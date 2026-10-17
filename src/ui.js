@@ -94,7 +94,7 @@
       if (!dlg.open) return;
       const total = dlg.pages[dlg.page].join('').length;
       if (dlg.shown < total) {
-        const speed = HB.input.isDown('ok') ? 120 : 42;
+        const speed = HB.input.isDown('ok') ? 120 : [24, 42, 80][HB.options.text];
         const before = Math.floor(dlg.shown);
         dlg.shown = Math.min(total, dlg.shown + speed * dt);
         const after = Math.floor(dlg.shown);

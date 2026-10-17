@@ -45,6 +45,7 @@ window.HB = window.HB || {};
   input.press = (a) => { if (!input.down[a]) input.pressed[a] = true; input.down[a] = true; input.any = true; };
   input.release = (a) => { input.down[a] = false; };
   window.addEventListener('keydown', (e) => {
+    if (HB.paused) { HB.paused = false; e.preventDefault(); HB.onUserGesture && HB.onUserGesture(); return; } // the key that resumes does nothing else
     const a = KEYMAP[e.code];
     if (a) { e.preventDefault(); input.press(a); }
     HB.onUserGesture && HB.onUserGesture();
@@ -53,7 +54,10 @@ window.HB = window.HB || {};
     const a = KEYMAP[e.code];
     if (a) input.release(a);
   });
-  window.addEventListener('blur', () => { input.down = {}; });
+  // pause when the window loses focus; any key, click or touch resumes
+  HB.paused = false;
+  window.addEventListener('blur', () => { input.down = {}; HB.paused = true; });
+  window.addEventListener('pointerdown', () => { HB.paused = false; });
   HB.input = input;
 
   // ---------- utilities ----------
@@ -118,6 +122,7 @@ window.HB = window.HB || {};
     last = now;
     if (dt > 0.25) dt = 0.25;
     acc += dt;
+    if (HB.paused) acc = 0;
     while (acc >= STEP) {
       update(STEP);
       acc -= STEP;
@@ -153,6 +158,11 @@ window.HB = window.HB || {};
       g.fillStyle = fade.color;
       g.fillRect(0, 0, W, H);
       g.globalAlpha = 1;
+    }
+    if (HB.paused) {
+      g.fillStyle = 'rgba(10,8,24,0.6)'; g.fillRect(0, 0, W, H);
+      HB.text(g, '일시정지', W / 2, H / 2 - 12, '#fff4d8', { align: 'center' });
+      HB.text(g, '아무 키나 누르거나 화면을 누르면 계속', W / 2, H / 2 + 6, '#c8c0e0', { align: 'center', font: 'g9' });
     }
     ctx.drawImage(buf, 0, 0, canvas.width, canvas.height);
   }

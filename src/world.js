@@ -37,7 +37,7 @@
       if (!this.player) this.player = new Actor(0, 0, 'hero');
       this.player.x = sp.x * T; this.player.y = sp.y * T; this.player.dir = sp.dir || 'down';
       this.player.moving = false;
-      this.npcs = (def.npcs || []).map((n) => {
+      this.npcs = (def.npcs || []).filter((n) => !(n.hideIf && this.flags[n.hideIf])).map((n) => {
         const a = new Actor(n.x * T, n.y * T, n.pal, n.dir);
         a.def = n; a.home = { x: a.x, y: a.y }; a.wait = 1 + Math.random() * 2; a.target = null;
         return a;
@@ -93,6 +93,7 @@
 
     // ---------- update ----------
     update(dt, fading) {
+      HB.party.time += dt;
       HB.updateBanner(dt);
       if (this.hintT > 0 && !HB.dialog.active) this.hintT -= dt;
       if (HB.dialog.active) { HB.dialog.update(dt); this.player.moving = false; this.updateFx(dt); return; }
@@ -264,6 +265,17 @@
           g.fillRect(Math.round(m.x - cam.x), Math.round(m.y - cam.y), 1, 1);
         }
         g.restore();
+      } else if (mood === 'inside') {
+        // lamp-lit room: warm tint and a soft glow from each window
+        g.save();
+        g.globalCompositeOperation = 'multiply';
+        g.fillStyle = '#ffd8a8'; g.fillRect(0, 0, HB.W, HB.H);
+        g.globalCompositeOperation = 'lighter';
+        for (const w of this.map.windows) {
+          g.globalAlpha = 0.35;
+          g.drawImage(this.glow, Math.round(w.x - cam.x - 14), Math.round(w.y - cam.y - 6));
+        }
+        g.restore();
       } else if (mood === 'day') {
         g.save();
         for (const c of this.clouds) {
@@ -301,10 +313,10 @@
       this.drawMood(g);
       HB.drawBanner(g);
       this.plugins('drawOverlay', g, cam);
-      if (this.hintT > 0 && !HB.dialog.active && !(HB.Battle && HB.Battle.active)) {
+      if (this.hintT > 0 && !HB.dialog.active && !(HB.Battle && HB.Battle.active) && !(HB.Menu && HB.Menu.open)) {
         g.save();
         g.globalAlpha = Math.min(1, this.hintT);
-        HB.text(g, HB.touchControls ? '이동: 패드   조사 / 대화: A' : '이동: 방향키   조사 / 대화: Z, Enter', HB.W / 2, HB.H - 14, '#fff4d8', { align: 'center', font: 'g9' });
+        HB.text(g, HB.touchControls ? '이동: 패드   조사 / 대화: A   메뉴: B' : '이동: 방향키   조사 / 대화: Z   메뉴: X', HB.W / 2, HB.H - 14, '#fff4d8', { align: 'center', font: 'g9' });
         g.restore();
       }
       HB.dialog.draw(g);

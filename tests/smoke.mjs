@@ -1,0 +1,185 @@
+// Browser smoke run: plays through the game in headless Chrome over the
+// DevTools protocol, fails on any JS error or broken expectation, and saves
+// screenshots. Needs Chrome (set CHROME=/path/to/chrome if it is not found).
+// Run: node tests/smoke.mjs   (not part of `node --test`, it is slow)
+import { spawn } from 'node:child_process';
+import { createServer } from 'node:http';
+import { readFile, mkdir, writeFile, rm } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, extname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import assert from 'node:assert/strict';
+
+const ROOT = fileURLToPath(new URL('..', import.meta.url));
+const OUT = join(tmpdir(), 'hourbell-smoke');
+const CHROME = process.env.CHROME || [
+  'C:/Program Files/Google/Chrome/Application/chrome.exe',
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  '/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'
+].find(existsSync);
+if (!CHROME) { console.error('Chrome not found; set CHROME=/path/to/chrome'); process.exit(2); }
+
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.woff2': 'font/woff2' };
+const server = createServer(async (req, res) => {
+  let path = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+  if (path === '/') path = '/index.html';
+  try {
+    if (path.includes('..')) throw new Error('bad path');
+    const body = await readFile(join(ROOT, path));
+    res.writeHead(200, { 'content-type': TYPES[extname(path)] || 'application/octet-stream' }).end(body);
+  } catch { res.writeHead(404).end(); }
+}).listen(0, '127.0.0.1');
+await new Promise((r) => server.once('listening', r));
+const URL_ = 'http://127.0.0.1:' + server.address().port + '/';
+
+await rm(OUT, { recursive: true, force: true });
+await mkdir(OUT, { recursive: true });
+const PORT = 9300 + Math.floor(Math.random() * 500);
+const chrome = spawn(CHROME, ['--headless=new', '--remote-debugging-port=' + PORT, '--user-data-dir=' + join(OUT, 'profile'),
+  '--window-size=960,540', '--autoplay-policy=no-user-gesture-required', 'about:blank']);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+let page;
+for (let i = 0; i < 50 && !page; i++) {
+  try { page = (await (await fetch('http://127.0.0.1:' + PORT + '/json/list')).json()).find((t) => t.type === 'page'); } catch { /* not up yet */ }
+  if (!page) await sleep(200);
+}
+const ws = new WebSocket(page.webSocketDebuggerUrl);
+await new Promise((r) => ws.addEventListener('open', r));
+let id = 0;
+const pend = {}, errors = [];
+ws.addEventListener('message', (ev) => {
+  const m = JSON.parse(ev.data);
+  if (m.id && pend[m.id]) { pend[m.id](m); delete pend[m.id]; }
+  if (m.method === 'Runtime.exceptionThrown') errors.push(m.params.exceptionDetails.exception?.description || m.params.exceptionDetails.text);
+  if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') errors.push('console.error: ' + JSON.stringify(m.params.args.map((a) => a.value)));
+});
+const send = (method, params = {}) => new Promise((r) => { const i = ++id; pend[i] = r; ws.send(JSON.stringify({ id: i, method, params })); });
+const ev = async (expr) => {
+  const r = await send('Runtime.evaluate', { expression: expr, returnByValue: true });
+  if (r.result.exceptionDetails) throw new Error(expr + ' -> ' + r.result.exceptionDetails.exception?.description);
+  return r.result.result?.value;
+};
+const key = async (code, hold = 60) => {
+  await send('Input.dispatchKeyEvent', { type: 'keyDown', code, key: code }); await sleep(hold);
+  await send('Input.dispatchKeyEvent', { type: 'keyUp', code, key: code }); await sleep(120);
+};
+const shot = async (name) => {
+  const r = await send('Page.captureScreenshot', { format: 'png' });
+  await writeFile(join(OUT, name + '.png'), Buffer.from(r.result.data, 'base64'));
+};
+const W = 'HB.World';
+const busy = () => ev('HB.dialog.active || !!HB.Cutscene.steps');
+const drain = async () => { for (let i = 0; i < 30 && await busy(); i++) { await key('KeyZ'); await sleep(300); } };
+const talkTo = async (npc) => {
+  await ev(`(() => { const n = ${W}.npcs.find((n) => n.def.id === '${npc}'); n.def.wander = 0; n.target = null;
+    ${W}.player.x = n.x; ${W}.player.y = n.y + 15; ${W}.player.dir = 'up'; })()`);
+  await key('KeyZ'); await sleep(300);
+};
+// finish a battle: drop every foe to 1 HP and attack until it is over
+const winBattle = async () => {
+  await ev('HB.Battle.foes.forEach((f) => { if (f.hp > 0) f.hp = 1; })');
+  for (let i = 0; i < 60 && await ev('HB.Battle.active'); i++) {
+    const phase = await ev('HB.Battle.phase');
+    if (phase === 'menu') await ev('HB.Battle.cursor = 0');
+    if (phase === 'menu' || phase === 'target' || await ev('!!HB.Battle.waitingOk')) await key('KeyZ');
+    await sleep(400);
+  }
+};
+const step = (name) => console.log('- ' + name);
+
+try {
+  await send('Runtime.enable'); await send('Page.enable');
+  await send('Page.navigate', { url: URL_ });
+  await sleep(2500);
+  await ev('localStorage.clear()');
+
+  step('title -> new game -> town');
+  await key('KeyZ'); await sleep(600); await shot('01-title');
+  await key('KeyZ'); await sleep(2300); await drain();
+  assert.equal(await ev(`${W}.def.id`), 'town');
+
+  step('keeper, pause menu, status, options');
+  await talkTo('keeper'); await drain();
+  assert.ok(await ev(`${W}.flags.metKeeper`));
+  await key('KeyX'); await sleep(200); await shot('02-menu');
+  await ev("HB.Menu.mode.cur = HB.Menu.rows(HB.World).findIndex((r) => r.label === '옵션')");
+  await key('KeyZ'); await key('ArrowLeft'); await key('ArrowLeft'); await sleep(200); await shot('03-options');
+  assert.equal(await ev('HB.options.music'), 5);
+  assert.equal(JSON.parse(await ev("localStorage.getItem('hourbell.options')")).music, 5);
+  await key('KeyX'); await key('KeyX');
+  assert.ok(!(await ev('HB.Menu.open')));
+
+  step('focus loss pauses, a key resumes');
+  await ev("window.dispatchEvent(new Event('blur'))");
+  await sleep(200); await shot('04-paused');
+  assert.ok(await ev('HB.paused'));
+  assert.equal(await ev('HB.audio.ctx && HB.audio.ctx.state'), 'suspended', 'audio stops while paused');
+  await key('KeyZ'); await sleep(300);
+  assert.ok(!(await ev('HB.paused')));
+  assert.equal(await ev('HB.audio.ctx && HB.audio.ctx.state'), 'running', 'audio comes back');
+
+  step('smith: buy and equip');
+  await ev('HB.party.gold = 200');
+  await talkTo('smith'); await drain();
+  await key('KeyZ'); await sleep(200); await key('KeyX');
+  assert.equal(await ev('HB.party.items.mallet'), 1);
+  assert.ok(await ev("HB.equip(HB.party, 'mallet')"));
+
+  step('field battle: win, gold, kills');
+  await ev(`${W}.load('field', { x: 26, y: 6, dir: 'up' }); HB.Field.grace = 0;`); await sleep(400);
+  const gold0 = await ev('HB.party.gold'), battles0 = await ev('HB.party.battles');
+  await ev('HB.Battle.start(HB.World, HB.Field.enemies.slice(0, 3))'); await sleep(2700); await shot('05-battle');
+  await winBattle();
+  assert.ok(!(await ev('HB.Battle.active')));
+  assert.ok(await ev('HB.party.gold') > gold0);
+  assert.ok(await ev('HB.party.battles') > battles0);
+
+  step('secret path to the grove, chime puzzle, chest');
+  await ev(`${W}.load('field', { x: 41.5, y: 19.9, dir: 'right' }); HB.Field.enemies.forEach((e) => { e.dead = true; });`); await sleep(1300);
+  await key('ArrowRight', 2600); await sleep(1500);
+  assert.equal(await ev(`${W}.def.id`), 'grove');
+  await ev('HB.Field.enemies.forEach((e) => { e.dead = true; })');
+  for (const [x, y] of [[11, 4], [15, 7], [6, 5]]) {
+    await ev(`${W}.player.x = ${x + 0.5} * 16; ${W}.player.y = ${y + 1.9} * 16; ${W}.player.dir = 'up'`);
+    await key('KeyZ'); await sleep(500);
+  }
+  await drain();
+  assert.ok(await ev(`${W}.flags.grovePuzzle`));
+  await ev(`${W}.player.x = 12.5 * 16; ${W}.player.y = 13.9 * 16; ${W}.player.dir = 'up'`);
+  await key('KeyZ'); await sleep(600); await drain();
+  assert.equal(await ev('HB.party.items.plume'), 1);
+
+  step('boss, fragment, ending');
+  await ev(`(() => { ${W}.load('field', { x: 24, y: 27.6, dir: 'up' }); HB.Field.enemies.forEach((e) => { e.dead = true; });
+    const P = HB.party; while (P.lvl < 4) HB.levelUp(P); P.hp = P.maxHp; P.mp = P.maxMp; })()`);
+  await sleep(500);
+  await ev(`HB.Field.interact(${W}, 23, 25)`); await drain(); await sleep(3500);
+  assert.ok(await ev('HB.Battle.isBoss')); await shot('06-boss');
+  await winBattle();
+  assert.ok(await ev(`${W}.flags.boss1`));
+  await sleep(800);
+  await ev(`HB.Field.interact(${W}, 23, 25)`); await drain();
+  assert.ok(await ev(`${W}.flags.fragment1`));
+  await ev(`${W}.load('town')`); await sleep(400);
+  await talkTo('keeper'); await drain(); await sleep(2500);
+  assert.equal(await ev('HB.getScene() === HB.Ending'), true);
+  await sleep(9000); await shot('07-ending');
+  await key('KeyZ'); await sleep(1800);
+
+  step('title: continue from the save');
+  await key('KeyZ'); await sleep(700); await shot('08-continue');
+  await key('KeyZ'); await sleep(2300);
+  assert.ok(await ev(`${W}.flags.chapter1`));
+  assert.equal(await ev('HB.party.items.plume'), 1);
+
+  assert.deepEqual(errors, [], 'no JS errors');
+  console.log('ok, screenshots in ' + OUT);
+} catch (e) {
+  console.error('FAILED:', e.message);
+  if (errors.length) console.error('JS errors:', errors);
+  await shot('failure').catch(() => {});
+  process.exitCode = 1;
+} finally {
+  ws.close(); chrome.kill(); server.close();
+}

@@ -93,15 +93,25 @@
       exits: [{ x0: 16, x1: 17, y0: 23, y1: 23, to: 'field', spawn: { x: 20.5, y: 1.5, dir: 'down' } }],
       signs: [
         { tx: 18, ty: 21, text: '남쪽 - 바람결 들판\n해가 지기 전에 돌아오시오.' },
-        { tx: 13, ty: 8, text: '울림골 - 아워벨이 시간을 지키는 마을' }
+        { tx: 13, ty: 8, text: '울림골 - 아워벨이 시간을 지키는 마을\n왼쪽 아래 꽃집, 오른쪽 위 대장간, 오른쪽 아래 여관' }
       ],
       doors: [
         { tx: 6, ty: 5, text: '문이 잠겨 있다. 안에서 냄비 끓는 소리가 들린다.' },
-        { tx: 27, ty: 5, text: '문틈으로 오래된 오르골 소리가 새어 나온다.' },
-        { tx: 5, ty: 17, text: '"지금은 바빠요! 꽃 포장 중이에요!"' },
-        { tx: 28, ty: 17, text: '여관 "쉬어가는 종". 안쪽이 따뜻해 보인다.' }
+        { tx: 27, ty: 5, text: '대장간. 안에서 쇠를 두드리는 소리가 울린다.', shop: 'smith' },
+        { tx: 5, ty: 17, text: '꽃집 "바람꽃". 문을 열자 꽃향기가 번진다.', shop: 'florist' },
+        { tx: 28, ty: 17, text: '여관 "쉬어가는 종"', to: 'inn', spawn: { x: 6, y: 6.4, dir: 'up' } }
+      ],
+      // hanging shop signs over the doors
+      boards: [
+        { tx: 27, ty: 5, icon: 'anvil', name: '대장간' },
+        { tx: 5, ty: 17, icon: 'flower', name: '꽃집' },
+        { tx: 28, ty: 17, icon: 'bell', name: '여관' }
       ],
       npcs: [
+        {
+          id: 'smith', name: '대장장이 브론', pal: 'smith', x: 25.5, y: 6.8, dir: 'down', wander: 0,
+          lines: ['쇠 두드리는 소리도 종소리 비슷하지 않나?']
+        },
         {
           id: 'keeper', name: '종지기 노인', pal: 'keeper', x: 16.5, y: 13.4, dir: 'down', wander: 0,
           lines: [
@@ -111,16 +121,10 @@
           ]
         },
         {
-          id: 'florist', name: '꽃집 아이라', pal: 'florist', x: 9.5, y: 12.5, dir: 'right', wander: 2.5,
+          id: 'florist', name: '꽃집 아이라', pal: 'florist', x: 6.5, y: 18.8, dir: 'down', wander: 0,
           lines: [
             '들판에 나가면 바람 소리가 꼭 노래처럼 들려.',
             '그런데 요즘엔 소리를 먹는 이상한 것들이 떠다닌대. 조심해!'
-          ]
-        },
-        {
-          id: 'innkeep', name: '여관 주인', pal: 'innkeep', x: 28.5, y: 19.6, dir: 'down', wander: 0,
-          lines: [
-            '쉬었다 가게. ...라고 하고 싶은데, 오늘이 끝나질 않으니 숙박비를 받을 수가 있어야지.'
           ]
         },
         {
@@ -132,7 +136,10 @@
         },
         {
           id: 'fisher', name: '낚시꾼', pal: 'fisher', x: 26.6, y: 10.5, dir: 'right', wander: 0,
-          lines: ['물고기도 시간이 멈춘 걸 아는 모양이야. 같은 녀석이 벌써 열두 번째 낚였어.']
+          lines: [
+            '물고기도 시간이 멈춘 걸 아는 모양이야. 같은 녀석이 벌써 열두 번째 낚였어.',
+            '그러고 보니 들판 동쪽 끝 숲에서 가끔 풍경 소리가 새어 나오더군. 꽃이 핀 쪽 나무 사이로 길이라도 있는 걸까?'
+          ]
         }
       ]
     };
@@ -182,6 +189,10 @@
     river.forEach(([x, y]) => { if (m.get(x, y) === '=') m.set(x, y, 'b'); });
 
     sprinkle(m, 'r', 0.012, 5);
+    // secret path: trees on the east edge you can walk under ('h')
+    for (let x = 43; x < W; x++) for (let y = 19; y <= 20; y++) m.set(x, y, x === 43 ? ',' : 'h');
+    [[40, 18], [41, 18], [42, 19], [42, 17]].forEach(([x, y]) => m.set(x, y, ','));
+    m.set(44, 4, 'C'); m.set(44, 5, '.'); m.set(43, 5, '.');
     m.set(22, 3, 's');
 
     return {
@@ -194,17 +205,91 @@
       rows: m.rows(),
       spawn: { x: 20.5, y: 1.5, dir: 'down' },
       shrine: { tx: 22, ty: 24 },
-      exits: [{ x0: 20, x1: 21, y0: 0, y1: 0, to: 'town', spawn: { x: 16.5, y: 22.4, dir: 'up' } }],
-      signs: [{ tx: 22, ty: 3, text: '바람결 들판\n※ 소리먹이 출몰 주의. 혼자 다니지 마시오.' }],
+      exits: [
+        { x0: 20, x1: 21, y0: 0, y1: 0, to: 'town', spawn: { x: 16.5, y: 22.4, dir: 'up' } },
+        { x0: 47, x1: 47, y0: 19, y1: 20, to: 'grove', spawn: { x: 1.5, y: 8.4, dir: 'right' } }
+      ],
+      chests: [{ id: 'field1', tx: 44, ty: 4, gold: 40 }],
+      signs: [{ tx: 22, ty: 3, text: '바람결 들판\n※ 소리먹이 출몰 주의. 남쪽 제단에는 큰 그림자가 산다는 소문이 있음.' }],
       enemies: [
-        { x: 26, y: 5 }, { x: 12, y: 10 }, { x: 36, y: 11 },
-        { x: 27, y: 17 }, { x: 16, y: 22 }, { x: 33, y: 24 }, { x: 20, y: 27, guard: true }
+        { x: 26, y: 5 }, { x: 12, y: 10 }, { x: 36, y: 11, kind: 'flicker' },
+        { x: 27, y: 17 }, { x: 16, y: 22, kind: 'flicker' }, { x: 33, y: 24 }, { x: 20, y: 27, kind: 'guard' }
       ],
       npcs: []
     };
   }
 
-  HB.MAPS = { town: buildTown, field: buildField };
+  // ---------- Inn: 쉬어가는 종 (interior) ----------
+  function buildInn() {
+    return {
+      id: 'inn',
+      name: '여관 쉬어가는 종',
+      theme: 'town',
+      mood: 'inside',
+      music: 'town',
+      rows: [
+        '#W##W##W##W#',
+        'ffffffffffff',
+        'fnffffffffnf',
+        'fnffkkffffnf',
+        'ffffkkffffff',
+        'ffffffffffff',
+        'ffffffffffff',
+        '#####ff#####'
+      ],
+      spawn: { x: 6, y: 6.4, dir: 'up' },
+      exits: [{ x0: 5, x1: 6, y0: 7, y1: 7, to: 'town', spawn: { x: 28.5, y: 18.8, dir: 'down' } }],
+      npcs: [
+        {
+          id: 'mio', name: '노래꾼 미오', pal: 'bard', x: 2.5, y: 5.2, dir: 'up', wander: 0, hideIf: 'mioJoined',
+          lines: ['...']
+        },
+        {
+          id: 'innkeep', name: '여관 주인', pal: 'innkeep', x: 8.5, y: 2.6, dir: 'down', wander: 0,
+          lines: [
+            '쉬었다 가게. ...라고 하고 싶은데, 오늘이 끝나질 않으니 숙박비를 받을 수가 있어야지.',
+            '저기 노래꾼 아가씨 말이야. 소리먹이한테 목소리를 먹혔다더군. 말 좀 걸어 주게.'
+          ]
+        }
+      ]
+    };
+  }
+
+  // ---------- Grove: 풍경 숲 (secret) ----------
+  function buildGrove() {
+    const W = 24, H = 16;
+    const m = new Grid(W, H, '.');
+    sprinkle(m, ',', 0.14, 41);
+    forestBorder(m, 13, [{ x0: 0, x1: 2, y0: 7, y1: 9 }]);
+    m.rect(17, 3, 4, 3, '~');
+    // three wind-chime posts, out of pitch order left to right
+    m.set(6, 5, 'q'); m.set(11, 4, 'q'); m.set(15, 7, 'q');
+    m.set(10, 9, 's');
+    m.set(12, 12, 'C'); m.set(19, 11, 'C');
+    return {
+      id: 'grove',
+      name: '풍경 숲',
+      sub: '바람이 머물다 가는 곳',
+      theme: 'field',
+      mood: 'day',
+      music: 'title',
+      rows: m.rows(),
+      spawn: { x: 1.5, y: 8.4, dir: 'right' },
+      exits: [{ x0: 0, x1: 0, y0: 7, y1: 9, to: 'field', spawn: { x: 45.5, y: 20.4, dir: 'left' } }],
+      signs: [{ tx: 10, ty: 9, text: '오래된 비석에 글이 새겨져 있다.\n"바람은 가장 낮은 곳에서 일어나, 가장 높이 올랐다가, 그 사이에서 쉰다."' }],
+      chimes: [{ tx: 6, ty: 5, note: 1 }, { tx: 11, ty: 4, note: 0 }, { tx: 15, ty: 7, note: 2 }],
+      puzzle: { order: [0, 2, 1], flag: 'grovePuzzle' },
+      pickups: [{ id: 'windflower', tx: 20, ty: 13, item: 'windflower', text: '바람도 없는데 혼자 흔들리는 꽃을 꺾었다.' }],
+      chests: [
+        { id: 'grove1', tx: 12, ty: 12, item: 'plume', locked: 'grovePuzzle' },
+        { id: 'grove2', tx: 19, ty: 11, item: 'water', count: 2 }
+      ],
+      enemies: [{ x: 8, y: 11, kind: 'flicker' }, { x: 17, y: 9, kind: 'flicker' }],
+      npcs: []
+    };
+  }
+
+  HB.MAPS = { town: buildTown, field: buildField, inn: buildInn, grove: buildGrove };
   HB.Grid = Grid;
   HB.mapTools = { sprinkle, forestBorder };
 })(window.HB);

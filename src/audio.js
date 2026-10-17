@@ -19,8 +19,8 @@
     comp.threshold.value = -14; comp.ratio.value = 3;
     master.connect(comp); comp.connect(ac.destination);
 
-    musicBus = ac.createGain(); musicBus.gain.value = 0.55; musicBus.connect(master);
-    sfxBus = ac.createGain(); sfxBus.gain.value = 0.7; sfxBus.connect(master);
+    musicBus = ac.createGain(); musicBus.gain.value = 0.55 * HB.options.music / 10; musicBus.connect(master);
+    sfxBus = ac.createGain(); sfxBus.gain.value = 0.7 * HB.options.sfx / 10; sfxBus.connect(master);
 
     // echo: the warm, roomy tail SNES soundtracks were known for
     echoIn = ac.createGain(); echoIn.gain.value = 0.22;
@@ -257,6 +257,13 @@
       s.hits('hat', 'x.o.x.o.x.o.x.ox', 16, 1, 1);
       return s.finalize();
     },
+    // the battle theme a semitone down and faster, for the shrine guardian
+    boss() {
+      const s = SONGS.battle();
+      s.bpm = 168;
+      s.events.forEach((e) => { e.midi -= 1; });
+      return s;
+    },
     victory() {
       const s = new Song({ bpm: 140, loop: false, steps: 40 });
       const run = seq('D5:0.5 F#5:0.5 A5:0.5 D6:0.5 F#6:2 E6 D6 A6:6');
@@ -359,12 +366,26 @@
     heal(t) { [69, 73, 76, 81].forEach((m, i) => tone(sfxBus, t + i * 0.07, mtof(m), 0.1, { wave: 'tri', vol: 0.1, echo: true })); },
     run(t) { [72, 67, 64, 60].forEach((m, i) => tone(sfxBus, t + i * 0.05, mtof(m), 0.05, { duty: 0.5, vol: 0.06 })); },
     vanish(t) { noise(sfxBus, t, 0.6, { vol: 0.12, type: 'bandpass', freq: 3000, sweep: 200 }); tone(sfxBus, t, 880, 0.5, { duty: 0.125, vol: 0.06, slide: 0.2 }); },
+    // the three grove chimes (low, mid, high)
+    ding0(t) { bell(sfxBus, t, mtof(62), 0.14, 2.4); },
+    ding1(t) { bell(sfxBus, t, mtof(69), 0.13, 2.2); },
+    ding2(t) { bell(sfxBus, t, mtof(78), 0.12, 2.0); },
     fragment(t) { [62, 69, 74, 78, 81].forEach((m, i) => bell(sfxBus, t + i * 0.12, mtof(m + 12), 0.08, 2.4)); }
   };
   HB.sfx = function (name) {
     if (!ac || muted || !SFX[name]) return;
     SFX[name](ac.currentTime + 0.01);
   };
+
+  HB.setVolume = function () {
+    if (!ac) return; // init() reads HB.options
+    musicBus.gain.setTargetAtTime(0.55 * HB.options.music / 10, ac.currentTime, 0.05);
+    sfxBus.gain.setTargetAtTime(0.7 * HB.options.sfx / 10, ac.currentTime, 0.05);
+  };
+  // silent while the game is paused (window blurred) or the tab is hidden;
+  // the key or tap that unpauses calls HB.onUserGesture, which resumes
+  window.addEventListener('blur', () => { if (ac) ac.suspend(); });
+  document.addEventListener('visibilitychange', () => { if (ac && document.hidden) ac.suspend(); });
 
   HB.toggleMute = function () {
     muted = !muted;
