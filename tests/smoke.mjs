@@ -236,10 +236,103 @@ try {
   assert.ok(await ev(`${W}.flags.chapter2`));
   await drain();
 
+  // chapters 3-7: arrive the way a player would, then shortcut the fights
+  const walk = async (x, y, dir, code, to) => {
+    await ev(`${W}.player.x = ${x} * 16; ${W}.player.y = ${y} * 16; ${W}.player.dir = '${dir}'`);
+    await key(code, 1200); await sleep(1500);
+    assert.equal(await ev(`${W}.def.id`), to, 'walked into ' + to);
+    await ev('HB.Field.enemies.forEach((e) => { e.dead = true; })');
+  };
+  const tower = async (to) => {
+    await ev(`HB.Chapter.interact(${W}, 16, 11)`); await drain(); await sleep(2500); await drain();
+    assert.equal(await ev(`${W}.def.id`), to, 'the tower leads to ' + to);
+    await ev('HB.Field.enemies.forEach((e) => { e.dead = true; })');
+  };
+  const joinBy = async (npc, item, ally) => {
+    await talkTo(npc); await drain();
+    await ev(`HB.party.items.${item} = 3`);
+    await talkTo(npc); await drain();
+    assert.ok(await ev(`HB.party.allies.some((a) => a.id === '${ally}')`), ally + ' joined');
+    assert.ok(!(await ev(`${W}.npcs.some((n) => n.def.id === '${npc}')`)), 'and left the map');
+  };
+  const bossAt = async (n, tx, ty, name) => {
+    await ev(`(() => { const P = HB.party; P.hp = P.maxHp; P.mp = P.maxMp; })()`);
+    await ev(`HB.Chapter.interact(${W}, ${tx}, ${ty})`); await drain(); await sleep(3500);
+    assert.ok(await ev('HB.Battle.isBoss')); await shot(name);
+    await winBattle(); await drain(); await sleep(800);
+    assert.ok(await ev(`${W}.flags.boss${n}`));
+    await ev(`HB.Chapter.interact(${W}, ${tx}, ${ty})`); await drain();
+    assert.ok(await ev(`${W}.flags.fragment${n}`));
+  };
+  const card = async (n, wait) => {
+    await ev(`${W}.load('town')`); await sleep(400);
+    await talkTo('keeper'); await drain(); await sleep(2500);
+    assert.equal(await ev('HB.getScene() === HB.Ending && HB.Ending.n'), n);
+    await sleep(wait || 9000); await shot('card' + n);
+    await key('KeyZ'); await sleep(2000);
+    assert.ok(await ev(`${W}.flags.chapter${n}`));
+    await drain();
+  };
+
+  step('chapter three: north road, mine, 단비 joins, 메아리왕');
+  await ev(`HB.party.allies = [{ id: 'mio', hp: HB.allyStats('mio', HB.party.lvl).maxHp }]`);
+  await walk(16.5, 0.9, 'up', 'ArrowUp', 'canyon'); await shot('15-canyon');
+  await talkTo('foreman'); await drain();
+  await ev(`${W}.load('mine', { x: 1.5, y: 16.4, dir: 'right' })`); await sleep(600);
+  await ev('HB.Field.enemies.forEach((e) => { e.dead = true; })'); await shot('16-mine');
+  await joinBy('dan', 'ore', 'dan');
+  await bossAt(3, 14, 3, '17-boss3');
+  await card(3);
+
+  step('chapter four: the tower into the past, 하루 joins, 시간갉기');
+  await tower('pasttown'); await shot('18-pasttown');
+  await talkTo('youngkeeper'); await drain();
+  await joinBy('haru', 'cog', 'haru');
+  assert.equal(await ev('HB.party.allies.length'), 3);
+  await walk(16.5, 23.9, 'down', 'ArrowDown', 'pastwood'); await shot('19-pastwood');
+  await bossAt(4, 28, 21, '20-boss4');
+  await ev(`${W}.load('pasttown', { x: 16.5, y: 12.8, dir: 'up' })`); await sleep(600);
+  await tower('town');
+  await card(4);
+
+  step('chapter five: over the canyon into the snow, 서리날개');
+  await ev(`${W}.load('canyon', { x: 20.5, y: 2, dir: 'up' })`); await sleep(600);
+  await walk(20.5, 0.9, 'up', 'ArrowUp', 'snowroad'); await shot('21-snowroad');
+  await talkTo('hunter'); await drain();
+  await talkTo('snowkid'); await drain(); await ev('HB.party.items.icebloom = 3'); await talkTo('snowkid'); await drain();
+  assert.ok(await ev(`${W}.flags.bloomDone`));
+  await walk(20.5, 0.9, 'up', 'ArrowUp', 'snowpeak'); await shot('22-snowpeak');
+  await bossAt(5, 14, 6, '23-boss5');
+  await card(5);
+
+  step('chapter six: the cloud bridge, the observatory, 일식');
+  await ev(`${W}.load('snowpeak', { x: 15.5, y: 2, dir: 'up' })`); await sleep(600);
+  await walk(15.5, 0.9, 'up', 'ArrowUp', 'starpath'); await shot('24-starpath');
+  await walk(31.5, 0.9, 'up', 'ArrowUp', 'observatory'); await shot('25-observatory');
+  await talkTo('astronomer'); await drain();
+  await bossAt(6, 14, 4, '26-boss6');
+  await card(6);
+
+  step('chapter seven: into the bell, 정적, credits, back to the title');
+  await tower('bellcore'); await shot('27-bellcore');
+  await talkTo('bellspirit'); await drain();
+  await bossAt(7, 12, 3, '28-boss7');
+  assert.equal(await ev('HB.fragments(' + W + '.flags)'), 7);
+  await ev(`${W}.load('town')`); await sleep(400);
+  await talkTo('keeper'); await drain(); await sleep(2500);
+  assert.equal(await ev('HB.getScene() === HB.Ending && HB.Ending.n'), 7);
+  await sleep(9000); await shot('29-final-card');
+  await sleep(14000); await shot('30-credits');
+  await sleep(12000);
+  await key('KeyZ'); await sleep(2500);
+  assert.equal(await ev('HB.getScene() === HB.Title'), true, 'the last card returns to the title');
+
   step('title: continue from the save');
   await send('Page.navigate', { url: URL_ }); await sleep(2500);
   await key('KeyZ'); await sleep(700); await shot('10-continue');
   await key('KeyZ'); await sleep(2300);
+  assert.ok(await ev(`${W}.flags.chapter7`));
+  assert.equal(await ev('HB.party.allies.length'), 3);
   assert.ok(await ev(`${W}.flags.chapter1`));
   assert.equal(await ev('HB.party.items.plume'), 1);
   assert.equal(await ev('HB.party.pet'), 'pip');

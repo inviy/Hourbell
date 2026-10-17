@@ -113,7 +113,7 @@
         HB.text(g, msg, W / 2, H - 36, '#fff4d8', { align: 'center' });
       }
       if (this.awake && !HB.touchControls) HB.text(g, 'M  소리 켜기 / 끄기', 4, H - 11, '#8a7aa8', { font: 'g9', shadow: null });
-      HB.text(g, 'prototype v0.10', W - 4, H - 11, '#8a7aa8', { align: 'right', font: 'g9', shadow: null });
+      HB.text(g, 'v1.0', W - 4, H - 11, '#8a7aa8', { align: 'right', font: 'g9', shadow: null });
     }
   };
   HB.Title = Title;
@@ -126,7 +126,7 @@
     lines: ['멈춰 있던 노을이, 아주 조금 기울었다.', '남은 여섯 소절은 다른 시대에 잠들어 있다.'],
     keeper: ['오오... 방금 그 소리, 첫 소절이로군!', '보게, 종이 아주 조금 흔들리고 있네. 나머지 소절도 분명 어딘가에 있을 걸세.', '...들리는가? 아워벨이 아주 작게, 한 번 울렸네.'],
     keeperAfter: ['종이 아주 조금 흔들리고 있네. 나머지 소절도 분명 어딘가에 있을 걸세.'],
-    next: ['종소리가 울린 뒤, 동쪽 바닷가 쪽 안개가 아주 조금 옅어졌다.', '(2장 물안개 항구는 곧 이어집니다)']
+    next: ['종소리가 울린 뒤, 동쪽 바닷가 쪽 안개가 아주 조금 옅어졌다.', '마을 동쪽 길로 나가면 항구에 닿을 수 있을 것 같다.']
   };
 
   const Ending = {
@@ -143,12 +143,15 @@
         [c.lines[1], '#f4f0e8', 6.0],
         [c.final ? '- 끝 -' : '- 다음 장에서 계속 -', '#ffe08a', 8.0]
       ];
+      // the last card rolls credits after it, a page at a time
+      this.pages = c.credits ? [this.lines].concat(c.credits.map((pg, i) => pg.map((t, j) => [t, j ? '#f4f0e8' : '#ffe6a8', 11 + i * 6 + j * 0.8]))) : [this.lines];
+      this.wait = 9 + (c.credits ? c.credits.length * 6 : 0);
       this.stars = Title.stars || [];
       HB.music.play('title', { fadeIn: 3 });
     },
     update(dt) {
       this.t += dt;
-      if (this.leaving || this.t < 9) return;
+      if (this.leaving || this.t < this.wait) return;
       if (HB.input.hit('ok') || HB.input.hit('cancel')) {
         this.leaving = true;
         HB.sfx('ok');
@@ -170,14 +173,15 @@
         g.fillStyle = 'rgba(255,244,220,' + (0.3 + 0.5 * (0.5 + 0.5 * Math.sin(this.t * 1.5 + s.p))).toFixed(2) + ')';
         g.fillRect(Math.round(s.x), Math.round(s.y), 1, 1);
       }
-      this.lines.forEach(([text, col, at], i) => {
+      const page = this.pages[this.t < 11 ? 0 : Math.min(this.pages.length - 1, 1 + Math.floor((this.t - 11) / 6))];
+      page.forEach(([text, col, at], i) => {
         const a = HB.clamp((this.t - at) / 1.2, 0, 1);
         if (!a) return;
         g.save(); g.globalAlpha = a;
         HB.text(g, text, W / 2, 50 + i * 28 + Math.round((1 - a) * 4), col, { align: 'center' });
         g.restore();
       });
-      if (this.t > 9 && Math.floor(this.t * 2) % 2 === 0) HB.text(g, this.c.final ? 'Z / Enter  타이틀로' : 'Z / Enter  계속하기', W / 2, H - 24, '#a898c0', { align: 'center', font: 'g9' });
+      if (this.t > this.wait && Math.floor(this.t * 2) % 2 === 0) HB.text(g, this.c.final ? 'Z / Enter  타이틀로' : 'Z / Enter  계속하기', W / 2, H - 24, '#a898c0', { align: 'center', font: 'g9' });
     }
   };
   HB.Ending = Ending;

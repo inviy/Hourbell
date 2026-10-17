@@ -7,6 +7,9 @@
 //   npc.fetch     { item, count, start, flag, ask[], wait, thanks[], reward }
 //   npc.linesBy   [{ flag, lines }] the last one whose flag is set speaks
 //   npc.setFlag   flag set after talking to them
+//   npc.fetch.join  companion id who joins the party when the fetch is done
+//   map.portals   [{ tx, ty, w, h, need, until, to, spawn, lines }] talk to
+//                 travel (the town tower into the past, into the bell)
 (function (HB) {
   'use strict';
 
@@ -48,7 +51,20 @@
     if (have < q.count) { HB.dialog.open(q.wait.replace('{n}', q.count - have), { name }); return; }
     if ((P.items[q.item] -= q.count) <= 0) delete P.items[q.item];
     f[q.flag] = true;
-    HB.dialog.open(q.thanks, { name, onClose: () => { HB.sfx('fragment'); HB.dialog.open(HB.josa(HB.grant(P, q.reward), '을를') + ' 받았다.', { voice: 'narrate' }); } });
+    const join = () => {
+      if (!q.join || P.allies.length >= HB.MAX_ALLIES) return;
+      P.allies.push({ id: q.join, hp: HB.allyStats(q.join, P.lvl).maxHp });
+      w.npcs = w.npcs.filter((n) => n.def !== d);
+      HB.dialog.open(HB.josa(HB.ALLIES[q.join].name, '이가') + ' 동료가 되었다!', { voice: 'narrate' });
+    };
+    HB.dialog.open(q.thanks, {
+      name,
+      onClose: () => {
+        HB.sfx('fragment');
+        if (q.reward) HB.dialog.open(HB.josa(HB.grant(P, q.reward), '을를') + ' 받았다.', { voice: 'narrate', onClose: join });
+        else join();
+      }
+    });
   }
 
   let fragArt = null;
@@ -70,6 +86,12 @@
     },
 
     interact(w, tx, ty) {
+      const f0 = w.flags;
+      const gate = (w.def.portals || []).filter((p) => inArea(p, tx, ty) && (!p.need || f0[p.need]) && !(p.until && f0[p.until])).pop();
+      if (gate) {
+        HB.dialog.open(gate.lines, { voice: 'narrate', onClose: () => { HB.sfx('bell'); HB.fadeTo(() => w.load(gate.to, gate.spawn), { dur: 1.6, color: '#fff4e0' }); } });
+        return true;
+      }
       const a = w.def.altar;
       if (!a || !inArea(a, tx, ty)) return false;
       const f = w.flags, frag = 'fragment' + a.n;

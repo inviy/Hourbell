@@ -6,8 +6,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadHB, winRate } from './sim.mjs';
+import { SPEC } from './chapterspec.mjs';
 
-const HB = loadHB(['rules.js', 'sprites.js', 'tiles.js', 'maps.js', 'ch2.js']);
+const HB = loadHB(['rules.js', 'sprites.js', 'tiles.js', 'maps.js', 'ch2.js', 'ch3.js', 'ch4.js', 'ch5.js', 'ch6.js', 'ch7.js']);
 const rate = (lvl, kinds, opts, n = 600) => winRate(HB, lvl, 0, kinds, opts, n);
 const avg = (k, key) => (HB.FOES[k][key][0] + HB.FOES[k][key][1]) / 2;
 const expTo = (from, to) => { let s = 0; for (let l = from; l < to; l++) s += HB.expToNext(l); return s; };
@@ -68,3 +69,35 @@ test('chapter 2: the road pays for part of the harbour gear', () => {
   assert.ok(earned >= priceOf(['coral', 'coat']), 'a weapon and a coat by then');
   assert.ok(earned < priceOf(HB.SHOPS.port.stock.filter((id) => HB.ITEMS[id].slot)), 'but not the whole shop');
 });
+
+// chapters 3-7 share one set of rules (tests/chapterspec.mjs). The bands are a
+// little wider than the tuning targets so random runs do not flake.
+for (const [n, c] of Object.entries(SPEC(HB))) {
+  const fightAt = (lvl, gear, allies, kinds) => rate(lvl, kinds || [c.boss], { gear, allies, items: c.items });
+  test('chapter ' + n + ': the boss asks for level ' + c.lvl + ' with its own gear', () => {
+    let turns = 0;
+    const pick = HB.autoPick;
+    HB.autoPick = (...a) => { turns++; return pick(...a); };
+    const at = fightAt(c.lvl, c.gear, c.allies);
+    HB.autoPick = pick;
+    const r = { at, early: fightAt(c.lvl - 1, c.gear, c.allies), part: fightAt(c.lvl + 1, c.part, c.allies), old: fightAt(c.lvl + 2, c.prev, c.allies),
+      fewer: fightAt(c.lvl + 1, c.gear, c.allies.slice(0, -1)), turns: turns / 600 };
+    console.log('chapter ' + n + ' boss:', JSON.stringify(r));
+    assert.ok(r.at > 0.82, 'at level');
+    assert.ok(r.early < (c.early || 0.8), 'a level early is a gamble');
+    assert.ok(r.part > 0.8, 'a weapon and armour of this tier and a level more');
+    assert.ok(r.old > 0.8, 'or two levels more in the last tier of gear');
+    assert.ok(r.fewer > 0.82, 'the newest companion helps but is not required');
+    assert.ok(r.turns <= 22, 'not a slog');
+  });
+
+  test('chapter ' + n + ': the road is fair on arrival and pays for gear', () => {
+    for (const g of c.groups) assert.ok(rate(c.arrive, g, { gear: c.prev, allies: c.arriveAllies, items: c.items }) > 0.85, g.join(' '));
+    const foes = c.maps.flatMap(mapFoes);
+    const exp = foes.reduce((s, k) => s + HB.FOES[k].exp, 0), gold = foes.reduce((s, k) => s + avg(k, 'gold'), 0);
+    const clears = expTo(c.arrive, c.lvl) / exp, earned = clears * gold;
+    assert.ok(clears <= 6, clears.toFixed(1) + ' laps from level ' + c.arrive);
+    assert.ok(earned >= priceOf([c.gear[0], c.gear[2]]), 'a weapon and armour by then');
+    assert.ok(earned < priceOf(c.gear), 'but not the whole set');
+  });
+}

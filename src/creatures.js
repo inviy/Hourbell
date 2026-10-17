@@ -167,6 +167,68 @@
     return frames;
   }
 
+  // 메아리박쥐: a round body on beating wings, big ears
+  function makeBatFrames(pal) {
+    pal = Object.assign({ out: '#1a1020', dark: '#3a2a4a', mid: '#6a5288', light: '#a890c8', eye: '#f4e070', wing: '#4a3a5e' }, pal);
+    const frames = [];
+    for (let f = 0; f < 4; f++) {
+      const [c, x] = HB.makeCanvas(24, 24);
+      const put = (i, j, col) => { x.fillStyle = col; x.fillRect(i, j, 1, 1); };
+      const up = [-3, -1, 1, -1][f];
+      for (let k = 0; k < 8; k++) { // wings: a fan of struts with the membrane between
+        const y0 = 11 + Math.round(up * (k / 7));
+        for (let j = 0; j < 5 - Math.floor(k / 2); j++) { put(11 - 2 - k, y0 + j, j ? pal.wing : pal.out); put(12 + 2 + k, y0 + j, j ? pal.wing : pal.out); }
+      }
+      dome(x, 12, 12, 4, 4, pal, f);
+      put(9, 6, pal.out); put(9, 7, pal.dark); put(10, 7, pal.out); put(14, 6, pal.out); put(14, 7, pal.dark); put(13, 7, pal.out);
+      put(10, 11, pal.eye); put(14, 11, pal.eye);
+      put(11, 14, '#ffffff'); put(13, 14, '#ffffff');
+      frames.push(c);
+    }
+    return frames;
+  }
+
+  // 바위골렘: stacked boulders with a glowing core
+  function makeGolemFrames(pal) {
+    pal = Object.assign({ out: '#2a2018', dark: '#5a4a3a', mid: '#8a7a64', light: '#bcae94', eye: '#70e0f0', glow: '#70e0f0' }, pal);
+    const frames = [];
+    for (let f = 0; f < 4; f++) {
+      const [c, x] = HB.makeCanvas(24, 24);
+      const put = (i, j, col) => { x.fillStyle = col; x.fillRect(i, j, 1, 1); };
+      const bob = f % 2;
+      dome(x, 7, 20, 3, 3, pal, f); dome(x, 17, 20, 3, 3, pal, f); // feet
+      dome(x, 12, 14 + bob, 7, 5, pal, f); // body
+      dome(x, 3, 13 + bob, 2, 3, pal, f); dome(x, 21, 13 + bob, 2, 3, pal, f); // fists
+      dome(x, 12, 7 + bob, 4, 3, pal, f); // head
+      put(10, 7 + bob, pal.eye); put(14, 7 + bob, pal.eye);
+      const g = f < 2 ? pal.glow : pal.light;
+      put(12, 14 + bob, g); put(11, 14 + bob, g); put(12, 13 + bob, g); put(13, 15 + bob, pal.out);
+      frames.push(c);
+    }
+    return frames;
+  }
+
+  // 별조각: a spinning four-pointed star with an eye
+  function makeStarFrames(pal) {
+    pal = Object.assign({ out: '#2a2050', dark: '#6a5ab8', mid: '#a8a0f0', light: '#f0ecff', eye: '#2a2050' }, pal);
+    const frames = [];
+    for (let f = 0; f < 4; f++) {
+      const [c, x] = HB.makeCanvas(24, 24);
+      const put = (i, j, col) => { x.fillStyle = col; x.fillRect(i, j, 1, 1); };
+      const r = [9, 8, 7, 8][f], cx = 12, cy = 11;
+      for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) {
+        const d = Math.abs(i) * Math.abs(j);
+        const inside = d <= 6 && Math.abs(i) + Math.abs(j) <= r;
+        if (!inside) continue;
+        const edge = d > 4 || Math.abs(i) + Math.abs(j) > r - 1;
+        put(cx + i, cy + j, edge ? pal.out : (i + j < -1 ? pal.light : i + j > 2 ? pal.dark : pal.mid));
+      }
+      put(cx, cy, pal.eye); put(cx - 1, cy, pal.eye); put(cx, cy - 1, pal.light);
+      frames.push(c);
+    }
+    return frames;
+  }
+
   // shape name -> frame maker; chapter art picks one and a palette
-  HB.SHAPES = { wisp: HB.makeWispFrames, crab: makeCrabFrames, jelly: makeJellyFrames };
+  HB.SHAPES = { wisp: HB.makeWispFrames, crab: makeCrabFrames, jelly: makeJellyFrames, bat: makeBatFrames, golem: makeGolemFrames, star: makeStarFrames };
 })(window.HB);

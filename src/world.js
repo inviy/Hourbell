@@ -230,11 +230,11 @@
     updateFx(dt) {
       const mood = this.moodNow();
       const cx = this.cam.x, cy = this.cam.y;
-      const want = mood === 'sunset' ? 34 : 18;
+      const want = mood === 'sunset' ? 34 : mood === 'snow' ? 60 : 18;
       while (this.motes.length < want) {
         this.motes.push({
           x: cx + Math.random() * HB.W, y: cy + Math.random() * HB.H,
-          vx: (Math.random() - 0.3) * 6, vy: mood === 'sunset' ? -3 - Math.random() * 5 : 2 + Math.random() * 4,
+          vx: (Math.random() - 0.3) * 6, vy: mood === 'sunset' ? -3 - Math.random() * 5 : mood === 'snow' ? 10 + Math.random() * 12 : 2 + Math.random() * 4,
           ph: Math.random() * 6.28, life: 4 + Math.random() * 6, kind: mood
         });
       }
@@ -297,6 +297,35 @@
         for (const w of this.map.windows) {
           g.globalAlpha = 0.35;
           g.drawImage(this.glow, Math.round(w.x - cam.x - 14), Math.round(w.y - cam.y - 6));
+        }
+        g.restore();
+      } else if (mood === 'cave' || mood === 'night') {
+        // dark all round, a pool of light around the hero; night adds stars, cave dust
+        const sx = this.player.x - cam.x, sy = this.player.y - 8 - cam.y;
+        const grd = g.createRadialGradient(sx, sy, 24, sx, sy, mood === 'cave' ? 150 : 220);
+        grd.addColorStop(0, 'rgba(8,8,24,0)');
+        grd.addColorStop(1, mood === 'cave' ? 'rgba(8,6,12,0.68)' : 'rgba(10,14,48,0.62)');
+        g.save();
+        g.globalCompositeOperation = 'multiply';
+        g.fillStyle = mood === 'cave' ? '#ccc0dc' : '#8890d8'; g.fillRect(0, 0, HB.W, HB.H);
+        g.globalCompositeOperation = 'source-over';
+        g.fillStyle = grd; g.fillRect(0, 0, HB.W, HB.H);
+        for (const m of this.motes) {
+          const a = Math.min(1, m.life / 1.5) * (0.5 + 0.5 * Math.sin(HB.time * 2 + m.ph));
+          g.fillStyle = (mood === 'cave' ? 'rgba(200,180,140,' : 'rgba(230,236,255,') + (a * 0.7).toFixed(2) + ')';
+          g.fillRect(Math.round(m.x - cam.x), Math.round(m.y - cam.y), 1, 1);
+        }
+        g.restore();
+      } else if (mood === 'snow' || mood === 'past') {
+        // snow: cold tint and falling flakes. past: an old photograph in sepia
+        g.save();
+        g.globalCompositeOperation = 'multiply';
+        g.fillStyle = mood === 'snow' ? '#dce8f8' : '#f0d8b0'; g.fillRect(0, 0, HB.W, HB.H);
+        g.globalCompositeOperation = 'source-over';
+        if (mood === 'past') { g.fillStyle = 'rgba(120,90,50,0.12)'; g.fillRect(0, 0, HB.W, HB.H); }
+        for (const m of this.motes) {
+          g.fillStyle = mood === 'snow' ? '#ffffff' : 'rgba(255,240,200,0.6)';
+          g.fillRect(Math.round(m.x - cam.x), Math.round(m.y - cam.y), mood === 'snow' && m.ph > 3 ? 2 : 1, mood === 'snow' && m.ph > 3 ? 2 : 1);
         }
         g.restore();
       } else if (mood === 'day') {

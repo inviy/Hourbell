@@ -39,7 +39,7 @@
       this.cursor = 0; this.target = 0;
       this.shake = 0; this.distort = 0; this.flash = 0;
       this.co = null; this.wait = 0;
-      this.turn = 0; this.guarding = false; this.silenced = 0; this.buff = 0; this.fog = 0;
+      this.turn = 0; this.guarding = false; this.silenced = 0; this.buff = 0; this.fog = 0; this.fogName = '안개';
       this.isBoss = foes.some((e) => HB.FOES[e.kind] && HB.FOES[e.kind].boss);
       HB.party.battles++;
       const count = {}, seen = {};
@@ -126,7 +126,7 @@
     toMenu() {
       this.phase = 'menu'; this.msg = '';
       this.turn++; this.guarding = false;
-      if (this.fog > 0 && --this.fog === 0) this.msg = '안개가 걷혔다.';
+      if (this.fog > 0 && --this.fog === 0) this.msg = HB.josa(this.fogName, '이가') + ' 걷혔다.';
       const boss = this.alive().find((f) => HB.waveNext(f, this.turn));
       if (boss) this.msg = HB.josa(boss.name, '이가') + ' 깊게 숨을 들이마신다... (방어하면 파동 피해 절반)';
     },
@@ -187,7 +187,7 @@
     *clearFog(what) {
       if (!this.fog) return;
       this.fog = 0;
-      this.msg = what + '에 안개가 걷혔다!';
+      this.msg = what + '에 ' + HB.josa(this.fogName, '이가') + ' 걷혔다!';
       yield 0.6;
     },
 
@@ -296,7 +296,8 @@
       const P = HB.party, p = this.w.player;
       let intent = HB.foeIntent(f, this.turn, P, { silenced: this.silenced > 0, fog: this.fog > 0 });
       if (intent === 'fog') { // a free action: the attack still comes
-        this.msg = HB.josa(f.name, '이가') + ' 짙은 안개를 뿜었다! (평범한 공격은 반감, 소리나 바람으로 걷어 낼 수 있다)';
+        this.fogName = f.fogName || '안개'; // chapters name their own: 눈보라, 별먼지...
+        this.msg = HB.josa(f.name, '이가') + ' 짙은 ' + HB.josa(this.fogName, '을를') + ' 뿜었다! (평범한 공격은 반감, 소리나 바람으로 걷어 낼 수 있다)';
         HB.sfx('vanish');
         f.hitShake = 0.4;
         this.fog = HB.FOG_TURNS;
@@ -756,7 +757,7 @@
         });
       }
       const n = this.allies.length, ah = n ? 6 + n * 11 : 0, ay = 127 - ah;
-      const marks = (this.fog ? '안개 ' + this.fog + '  ' : '') + (this.silenced ? '침묵 ' + this.silenced + '  ' : '') + (this.buff ? '공격↑ ' + this.buff : '');
+      const marks = (this.fog ? this.fogName + ' ' + this.fog + '  ' : '') + (this.silenced ? '침묵 ' + this.silenced + '  ' : '') + (this.buff ? '공격↑ ' + this.buff : '');
       if (marks) HB.text(g, marks, 300, ay - 12, '#c8a0ff', { font: 'g9', align: 'right' });
       if (n) HB.drawWindow(g, 126, ay, 188, ah);
       this.allies.forEach((a, i) => {
