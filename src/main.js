@@ -165,6 +165,20 @@
   };
   HB.Ending = Ending;
 
+  // ?gift=lv5 writes a level 5 save with gear, items and 5000 gold, then drops the param
+  // ponytail: anyone with the link gets it; remove once saves can be exported / imported
+  if (new URLSearchParams(location.search).get('gift') === 'lv5') {
+    const P = HB.newParty();
+    while (P.lvl < 5) HB.levelUp(P);
+    P.hp = P.maxHp; P.mp = P.maxMp; P.gold = 5000;
+    Object.assign(P.items, { herb: 5, herb2: 2, drop: 3, water: 2, mallet: 1, vest: 1, quill: 1 });
+    ['mallet', 'vest', 'quill'].forEach((id) => HB.equip(P, id));
+    let store = null;
+    try { store = window.localStorage; } catch (e) { /* blocked storage: saveGame returns false */ }
+    HB.saveGame(store, { party: P, flags: { metKeeper: true }, map: 'town', x: 16.5, y: 18, dir: 'up' });
+    history.replaceState(null, '', location.pathname);
+  }
+
   HB.fontsReady.then(() => {
     HB.setScene(Title);
     HB.start();
