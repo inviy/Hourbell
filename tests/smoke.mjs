@@ -188,6 +188,54 @@ try {
   assert.equal(await ev('HB.getScene() === HB.World'), true, 'back on the map, not the title');
   await drain();
 
+  step('chapter two: mist road, port, pearls');
+  await ev(`${W}.player.x = 32.5 * 16; ${W}.player.y = 13.9 * 16; ${W}.player.dir = 'right'`);
+  await key('ArrowRight', 1200); await sleep(1500);
+  assert.equal(await ev(`${W}.def.id`), 'mistroad', 'the east gate opens after chapter one');
+  await ev('HB.Field.enemies.forEach((e) => { e.dead = true; })'); await shot('11-mistroad');
+  await ev(`${W}.player.x = 38.5 * 16; ${W}.player.y = 9.4 * 16; ${W}.player.dir = 'right'`);
+  await key('ArrowRight', 1200); await sleep(1500);
+  assert.equal(await ev(`${W}.def.id`), 'port');
+  assert.ok(await ev(`${W}.flags.portArrived`));
+  await shot('12-port');
+  await talkTo('harbor'); await drain();
+  assert.ok(await ev(`${W}.flags.metHarbor`));
+  await talkTo('oldnet'); await drain();
+  assert.ok(await ev(`${W}.flags.pearlAsked`));
+  await ev('HB.party.items.pearl = 3');
+  await talkTo('oldnet'); await drain();
+  assert.ok(await ev(`${W}.flags.pearlDone`));
+  assert.equal(await ev('HB.party.items.pearl'), undefined);
+  assert.equal(await ev('HB.party.items.pearlear'), 1);
+
+  step('chapter two boss on auto battle, fragment, card');
+  await ev(`(() => { const P = HB.party; while (P.lvl < 9) HB.levelUp(P); P.hp = P.maxHp; P.mp = P.maxMp;
+    ['coral', 'coat', 'hood'].forEach((id) => { P.items[id] = 1; HB.equip(P, id); });
+    P.items.soup = 5; P.items.bigdrop = 5;
+    P.allies.forEach((a) => { a.hp = HB.allyStats(a.id, P.lvl).maxHp; });
+    HB.Field.enemies.forEach((e) => { e.dead = true; }); })()`);
+  await ev(`HB.Chapter.interact(${W}, 29, 6)`); await drain(); await sleep(3500);
+  assert.ok(await ev('HB.Battle.isBoss')); await shot('13-boss2');
+  await ev('HB.Battle.keepAuto = true; HB.Battle.auto = true');
+  for (let i = 0; i < 600 && await ev('HB.Battle.active'); i++) {
+    if (await ev('!!HB.Battle.waitingOk')) await key('KeyZ');
+    await sleep(250);
+  }
+  assert.ok(!(await ev('HB.Battle.active')), 'auto battle finishes the boss fight');
+  assert.ok(await ev(`${W}.flags.boss2`), 'and wins it');
+  await drain(); await sleep(800);
+  await ev(`HB.Chapter.interact(${W}, 29, 6)`); await drain();
+  assert.ok(await ev(`${W}.flags.fragment2`));
+  assert.equal(await ev('HB.fragments(' + W + '.flags)'), 2);
+  await ev(`${W}.load('town')`); await sleep(400);
+  await talkTo('keeper'); await drain(); await sleep(2500);
+  assert.equal(await ev('HB.getScene() === HB.Ending && HB.Ending.n'), 2);
+  await sleep(9000); await shot('14-ending2');
+  await key('KeyZ'); await sleep(2000);
+  assert.equal(await ev('HB.getScene() === HB.World'), true);
+  assert.ok(await ev(`${W}.flags.chapter2`));
+  await drain();
+
   step('title: continue from the save');
   await send('Page.navigate', { url: URL_ }); await sleep(2500);
   await key('KeyZ'); await sleep(700); await shot('10-continue');

@@ -45,8 +45,8 @@
     jelly: { name: '물방울해파리', hp: 36, atk: 17, def: 4, spd: 10, exp: 18, gold: [12, 20], drop: ['pearl', 0.45], swallow: 0.4, weak: 'wind', resist: 'sound' },
     crab: { name: '갯바위게', hp: 52, atk: 21, def: 11, spd: 4, exp: 24, gold: [18, 26], drop: ['soup', 0.2], resist: 'wind' },
     mistking: {
-      name: '안개삼킴이', hp: 570, atk: 31, def: 10, spd: 9, exp: 420, gold: [400, 400], drop: ['soup', 1], boss: true, weak: 'sound',
-      flag: 'boss2', waveEvery: 3, fogEvery: 4, intro: '바다 안개가 모든 소리를 집어삼켰다...', won: '안개가 흩어지고, 파도 소리가 돌아왔다!'
+      name: '안개삼킴이', hp: 380, atk: 35, def: 6, spd: 9, exp: 420, gold: [400, 400], drop: ['soup', 1], boss: true, weak: 'sound',
+      flag: 'boss2', waveEvery: 4, fogEvery: 4, intro: '바다 안개가 모든 소리를 집어삼켰다...', won: '안개가 흩어지고, 파도 소리가 돌아왔다!'
     }
   });
   HB.FOE_ART = Object.assign(HB.FOE_ART || {}, {

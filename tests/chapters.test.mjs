@@ -23,22 +23,34 @@ test('chapter 2: the fog-eater asks for level 8 with harbour gear', () => {
   const boss = (lvl, gear, allies) => rate(lvl, ['mistking'], { gear, allies, items: it });
   const r = { t2_7: boss(7, T2, ['mio']), t2_8: boss(8, T2, ['mio']), part9: boss(9, PART, ['mio']), t1_10: boss(10, T1, ['mio']), solo9: boss(9, T2, []) };
   console.log('chapter 2 boss:', JSON.stringify(r));
-  assert.ok(r.t2_7 < 0.5, 'level 7 is early even fully geared');
+  assert.ok(r.t2_7 < 0.75, 'level 7 is a gamble even fully geared');
   assert.ok(r.t2_8 > 0.85, 'level 8 with harbour gear');
   assert.ok(r.part9 > 0.85, 'or level 9 with a weapon and a coat');
   assert.ok(r.t1_10 > 0.85, 'or level 10 in chapter one gear: levels can stand in for gear');
   assert.ok(r.solo9 > 0.85, '미오 is optional');
 });
 
+test('chapter 2: the boss fight with 미오 is not a slog', () => {
+  // a turn is one auto pick; chapter one's boss takes about 6
+  let turns = 0;
+  const pick = HB.autoPick;
+  HB.autoPick = (...a) => { turns++; return pick(...a); };
+  const T2 = ['coral', 'coat', 'hood', 'net', 'reefboots', 'pearlear', 'fieldsong'];
+  rate(8, ['mistking'], { gear: T2, allies: ['mio'], items: { soup: 3, herb2: 2, water: 1 } }, 300);
+  HB.autoPick = pick;
+  assert.ok(turns / 300 <= 22, 'average ' + (turns / 300).toFixed(1) + ' turns');
+});
+
 test('chapter 2: the fog matters', () => {
   const T2 = ['coral', 'coat', 'hood', 'net', 'reefboots', 'pearlear', 'fieldsong'];
   const o = { gear: T2, allies: ['mio'], items: { soup: 3, herb2: 2, water: 1 } };
-  const withFog = rate(8, ['mistking'], o, 1000);
+  // at level 7, where the fight is in doubt (at 8 the win rate is near its ceiling)
+  const withFog = rate(7, ['mistking'], o, 1000);
   const every = HB.FOES.mistking.fogEvery;
   delete HB.FOES.mistking.fogEvery;
-  const without = rate(8, ['mistking'], o, 1000);
+  const without = rate(7, ['mistking'], o, 1000);
   HB.FOES.mistking.fogEvery = every;
-  assert.ok(without > withFog + 0.02, 'fog ' + withFog + ' vs none ' + without);
+  assert.ok(without > withFog + 0.05, 'fog ' + withFog + ' vs none ' + without);
 });
 
 test('chapter 2: the misty road is fair for someone who just finished chapter one', () => {
