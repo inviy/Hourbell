@@ -33,8 +33,11 @@
     wisp: { name: '소리먹이', hp: 18, atk: 6, def: 1, spd: 5, exp: 4, gold: [4, 7], drop: ['herb', 0.25], swallow: 0.22, weak: 'sound' },
     flicker: { name: '떨림이', hp: 12, atk: 5, def: 0, spd: 9, exp: 4, gold: [5, 10], drop: ['drop', 0.35], swallow: 0.45, weak: 'wind', resist: 'sound' },
     guard: { name: '울림삼킴이', hp: 34, atk: 9, def: 3, spd: 3, exp: 12, gold: [14, 20], drop: ['herb2', 0.6], swallow: 0.15, resist: 'wind' },
-    boss: { name: '침묵의 파수꾼', hp: 220, atk: 14, def: 4, spd: 6, exp: 50, gold: [80, 80], drop: ['herb2', 1], swallow: 0, boss: true, weak: 'wind', resist: 'sound' }
+    boss: { name: '침묵의 파수꾼', hp: 220, atk: 14, def: 4, spd: 6, exp: 50, gold: [80, 80], drop: ['herb2', 1], swallow: 0, boss: true, weak: 'wind', resist: 'sound',
+      flag: 'boss1', waveEvery: 3, silenceEvery: 6 }
   };
+  // bell fragments held (fragment1 .. fragment7 flags)
+  HB.fragments = (flags) => [1, 2, 3, 4, 5, 6, 7].filter((n) => flags && flags['fragment' + n]).length;
 
   HB.ITEMS = {
     herb: { name: '약초', hp: 30, price: 8, desc: 'HP를 30 회복한다.' },
@@ -194,8 +197,12 @@
     const low = P.hp < P.maxHp * 0.45;
     if (c.waveNext && P.hp < P.maxHp * 0.8) return { act: 'guard' };
     if (low && can('heal')) return { act: 'skill', id: 'heal' };
-    if (low) { const it = ['herb2', 'herb'].find((k) => P.items[k]); if (it) return { act: 'item', id: it }; }
+    const best = (stat) => Object.keys(P.items).filter((k) => P.items[k] > 0 && HB.ITEMS[k][stat] && !HB.ITEMS[k].slot).sort((a, b) => HB.ITEMS[b][stat] - HB.ITEMS[a][stat])[0];
+    if (low) { const it = best('hp'); if (it) return { act: 'item', id: it }; }
+    if (P.mp < 4 && P.lvl >= 3) { const it = best('mp'); if (it) return { act: 'item', id: it }; }
     if (c.silenced && P.items.water) return { act: 'item', id: 'water' };
+    if (c.fog && can('chime')) return { act: 'skill', id: 'chime' }; // sound clears the fog
+    if (c.fog && can('gust')) return { act: 'skill', id: 'gust', target: foes.find((f) => f.weak === 'wind') || foes[0] };
     if (can('ring') && !c.buff && foes.some((f) => f.boss)) return { act: 'skill', id: 'ring' };
     if (foes.length > 1 && can('chime') && foes.filter((f) => f.resist !== 'sound').length > 1) return { act: 'skill', id: 'chime' };
     const t = foes.find((f) => f.weak === 'wind') || foes[0];
@@ -205,21 +212,24 @@
   HB.healAmt = (P) => Math.round((15 + P.lvl * 3 + rnd(0, 3)) * powMul(P));
   HB.critChance = 0.1;
 
-  // what a foe does this turn: 'attack' | 'swallow' | 'wave' | 'silence'
-  // the boss's wave comes every third turn; the battle warns a turn ahead
-  HB.waveNext = (f, turn) => !!f.boss && turn % 3 === 2;
-  HB.foeIntent = function (f, turn, P, silenced) {
-    if (f.boss) {
-      if (HB.waveNext(f, turn)) return 'wave';
-      if (f.hp < f.maxHp / 2 && !silenced && turn % 6 === 0) return 'silence';
-      return 'attack';
-    }
-    if (Math.random() < f.swallow && P.mp > 0) return 'swallow';
+  // what a foe does this turn: 'attack' | 'swallow' | 'wave' | 'silence' | 'fog'.
+  // Patterns are data: waveEvery (the battle warns a turn ahead), silenceEvery
+  // (below half HP), fogEvery. ctx: { silenced, fog }
+  HB.waveNext = (f, turn) => !!f.waveEvery && turn % f.waveEvery === f.waveEvery - 1;
+  HB.foeIntent = function (f, turn, P, ctx) {
+    ctx = ctx || {};
+    if (HB.waveNext(f, turn)) return 'wave';
+    if (f.fogEvery && !ctx.fog && turn % f.fogEvery === 1) return 'fog';
+    if (f.silenceEvery && f.hp < f.maxHp / 2 && !ctx.silenced && turn % f.silenceEvery === 0) return 'silence';
+    if (!f.boss && Math.random() < (f.swallow || 0) && P.mp > 0) return 'swallow';
     return 'attack';
   };
+  // fog: rounds it lasts; plain hits are halved until a sound or wind skill clears it
+  HB.FOG_TURNS = 3;
+  HB.fogged = (d, fog) => (fog ? Math.max(1, Math.floor(d / 2)) : d);
   // damage a foe deals ('wave' ignores defence; guarding halves both)
   HB.foeDmg = function (f, P, intent, guarding) {
-    const d = intent === 'wave' ? Math.round(f.atk * 1.2) + rnd(0, 3) : HB.hitDmg(f.atk, HB.eff(P).def);
+    const d = intent === 'wave' ? Math.round(f.atk * (f.waveMul || 1.2)) + rnd(0, 3) : HB.hitDmg(f.atk, HB.eff(P).def);
     return guarding ? Math.max(1, Math.floor(d / 2)) : d;
   };
 

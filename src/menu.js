@@ -198,7 +198,7 @@
         ['펫', P.pet ? HB.PETS[P.pet].name : '-'],
         ['다음 레벨까지', HB.expToNext(P.lvl) - P.exp],
         ['골드', P.gold],
-        ['종소리 조각', (w.flags.fragment1 ? 1 : 0) + ' / 7'],
+        ['종소리 조각', HB.fragments(w.flags) + ' / 7'],
         ['플레이 시간', fmtTime(P.time)]
       ];
       rows.forEach(([k, v], i) => {

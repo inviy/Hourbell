@@ -45,7 +45,7 @@
     const W = 34, H = 24;
     const m = new Grid(W, H, '.');
     sprinkle(m, ',', 0.07, 7);
-    forestBorder(m, 3, [{ x0: 16, x1: 17, y0: 20, y1: 23 }]);
+    forestBorder(m, 3, [{ x0: 16, x1: 17, y0: 20, y1: 23 }, { x0: 30, x1: 33, y0: 13, y1: 14 }, { x0: 16, x1: 17, y0: 0, y1: 2 }]);
 
     // plaza with the tower
     m.rect(11, 9, 12, 7, '_');
@@ -60,10 +60,12 @@
     // paths
     m.vline(6, 7, 11, '='); m.hline(6, 10, 11, '=');
     m.vline(27, 7, 11, '='); m.hline(23, 27, 11, '=');
+    // the road east to the coast (2장)
+    m.vline(27, 11, 13, '='); m.hline(27, 33, 13, '=');
     m.vline(5, 19, 20, '='); m.hline(5, 15, 20, '=');
     m.vline(28, 19, 20, '='); m.hline(18, 28, 20, '=');
     m.vline(16, 16, 23, '='); m.vline(17, 16, 23, '=');
-    m.vline(16, 6, 8, '='); m.vline(17, 6, 8, '=');
+    m.vline(16, 0, 8, '='); m.vline(17, 0, 8, '='); // north to the canyon (3장)
 
     // pond
     m.rect(28, 9, 4, 3, '~');
@@ -90,7 +92,20 @@
       rows: m.rows(),
       spawn: { x: 16.5, y: 18, dir: 'up' },
       tower: { tx: 15, ty: 10 },
-      exits: [{ x0: 16, x1: 17, y0: 23, y1: 23, to: 'field', spawn: { x: 20.5, y: 1.5, dir: 'down' } }],
+      exits: [
+        { x0: 16, x1: 17, y0: 23, y1: 23, to: 'field', spawn: { x: 20.5, y: 1.5, dir: 'down' } },
+        { x0: 33, x1: 33, y0: 13, y1: 14, to: 'mistroad', spawn: { x: 1.5, y: 9.4, dir: 'right' }, need: 'chapter1',
+          blocked: '짙은 안개가 길을 막고 있다. 먼저 들판의 종소리를 찾아야 할 것 같다.' },
+        { x0: 16, x1: 17, y0: 0, y1: 0, to: 'canyon', spawn: { x: 20.5, y: 28.4, dir: 'up' }, need: 'chapter2',
+          blocked: '북쪽 길은 무너진 바위로 막혀 있다. 항구 사람들이 길을 치워 줄지도 모른다.' }
+      ],
+      // the tower: into the past after chapter three, into the bell after six
+      portals: [
+        { tx: 15, ty: 10, w: 3, h: 2, need: 'chapter3', until: 'chapter6', to: 'pasttown', spawn: { x: 16.5, y: 12.8, dir: 'down' },
+          lines: ['시계탑의 바늘이 거꾸로 돌기 시작한다...', '종소리 세 소절이 겹쳐 울리자, 노을빛이 한 장씩 벗겨져 나간다.'] },
+        { tx: 15, ty: 10, w: 3, h: 2, need: 'chapter6', to: 'bellcore', spawn: { x: 12.5, y: 22.4, dir: 'up' },
+          lines: ['여섯 소절이 모이자 아워벨이 낮게 울린다.', '종의 입구가 열렸다. 마지막 소절은 종 안에서 기다리고 있다.'] }
+      ],
       signs: [
         { tx: 18, ty: 21, text: '남쪽 - 바람결 들판\n해가 지기 전에 돌아오시오.' },
         { tx: 13, ty: 8, text: '울림골 - 아워벨이 시간을 지키는 마을\n왼쪽 아래 꽃집, 오른쪽 위 대장간, 오른쪽 아래 여관' }
@@ -202,6 +217,7 @@
       theme: 'field',
       mood: 'day',
       music: 'field',
+      musicAfter: { flag: 'fragment1', music: 'fieldBell' },
       rows: m.rows(),
       spawn: { x: 20.5, y: 1.5, dir: 'down' },
       shrine: { tx: 22, ty: 24 },

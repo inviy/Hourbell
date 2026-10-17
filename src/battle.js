@@ -39,8 +39,8 @@
       this.cursor = 0; this.target = 0;
       this.shake = 0; this.distort = 0; this.flash = 0;
       this.co = null; this.wait = 0;
-      this.turn = 0; this.guarding = false; this.silenced = 0; this.buff = 0;
-      this.isBoss = foes.some((e) => e.kind === 'boss');
+      this.turn = 0; this.guarding = false; this.silenced = 0; this.buff = 0; this.fog = 0; this.fogName = '안개';
+      this.isBoss = foes.some((e) => HB.FOES[e.kind] && HB.FOES[e.kind].boss);
       HB.party.battles++;
       const count = {}, seen = {};
       foes.forEach((e) => { count[e.kind] = (count[e.kind] || 0) + 1; });
@@ -100,7 +100,8 @@
     // ---------- sequences ----------
     *introSeq() {
       HB.sfx('encounter');
-      HB.music.play(this.isBoss ? 'boss' : 'battle', { fadeOut: 0.15, fadeIn: 0 });
+      const lead = this.foes[0];
+      HB.music.play(this.isBoss ? lead.music || 'boss' : 'battle', { fadeOut: 0.15, fadeIn: 0 });
       this.distort = 0.55; this.flash = 0.12;
       yield 0.2;
       this.flash = 0.1;
@@ -118,13 +119,14 @@
       p.dir = 'right';
       this.msg = this.foes.length > 1 ? '소리를 먹는 것들이 나타났다!' : HB.josa(this.foes[0].name, '이가') + ' 나타났다!';
       yield 0.8;
-      if (this.isBoss) { this.msg = '주변의 모든 소리가 숨을 죽였다...'; yield 1.2; }
+      if (this.isBoss) { this.msg = this.foes[0].intro || '주변의 모든 소리가 숨을 죽였다...'; yield 1.2; }
       this.toMenu();
     },
 
     toMenu() {
       this.phase = 'menu'; this.msg = '';
       this.turn++; this.guarding = false;
+      if (this.fog > 0 && --this.fog === 0) this.msg = HB.josa(this.fogName, '이가') + ' 걷혔다.';
       const boss = this.alive().find((f) => HB.waveNext(f, this.turn));
       if (boss) this.msg = HB.josa(boss.name, '이가') + ' 깊게 숨을 들이마신다... (방어하면 파동 피해 절반)';
     },
@@ -139,6 +141,7 @@
       const crit = Math.random() < HB.critChance;
       let dmg = HB.hitDmg(HB.effAtk(P, this.buff > 0), t.def);
       if (crit) dmg = Math.round(dmg * 1.8);
+      dmg = HB.fogged(dmg, this.fog > 0);
       HB.sfx('hit');
       this.fx.push({ kind: 'slash', x: t.x, y: t.y - 14, t: 0 });
       t.hp -= dmg; t.flash = 0.2; t.hitShake = 0.3;
@@ -176,7 +179,16 @@
       }
       yield 0.35;
       for (const f of targets) if (f.hp <= 0) yield* this.kill(f);
+      yield* this.clearFog('종소리');
       yield 0.15;
+    },
+
+    // sound and wind blow the fog away
+    *clearFog(what) {
+      if (!this.fog) return;
+      this.fog = 0;
+      this.msg = what + '에 ' + HB.josa(this.fogName, '이가') + ' 걷혔다!';
+      yield 0.6;
     },
 
     *heroGust(t) {
@@ -195,6 +207,7 @@
       this.elemNote(t, 'wind');
       yield 0.6;
       if (t.hp <= 0) yield* this.kill(t);
+      yield* this.clearFog('바람');
       yield 0.15;
     },
 
@@ -281,7 +294,16 @@
 
     *foeAct(f) {
       const P = HB.party, p = this.w.player;
-      const intent = HB.foeIntent(f, this.turn, P, this.silenced > 0);
+      let intent = HB.foeIntent(f, this.turn, P, { silenced: this.silenced > 0, fog: this.fog > 0 });
+      if (intent === 'fog') { // a free action: the attack still comes
+        this.fogName = f.fogName || '안개'; // chapters name their own: 눈보라, 별먼지...
+        this.msg = HB.josa(f.name, '이가') + ' 짙은 ' + HB.josa(this.fogName, '을를') + ' 뿜었다! (평범한 공격은 반감, 소리나 바람으로 걷어 낼 수 있다)';
+        HB.sfx('vanish');
+        f.hitShake = 0.4;
+        this.fog = HB.FOG_TURNS;
+        yield 1.3;
+        intent = 'attack';
+      }
       if (intent === 'silence') {
         this.msg = HB.josa(f.name, '이가') + ' 정적을 내리깔았다! 기술을 쓸 수 없다!';
         HB.sfx('vanish');
@@ -375,13 +397,14 @@
         if (i.el) this.elemNote(t, i.el);
         yield 0.5;
         if (t.hp <= 0) yield* this.kill(t);
+        if (i.el) yield* this.clearFog(a.name + '의 주문');
         yield 0.1;
         return;
       }
       const t = i.target, home = { x: A.x, y: A.y };
       this.msg = a.name + '의 공격!';
       yield* this.moveTo(A, t.x - 22, t.y, 0.16, 'right');
-      const dmg = HB.hitDmg(a.atk, t.def);
+      const dmg = HB.fogged(HB.hitDmg(a.atk, t.def), this.fog > 0);
       HB.sfx('hit');
       this.fx.push({ kind: 'slash', x: t.x, y: t.y - 14, t: 0 });
       t.hp -= dmg; t.flash = 0.2; t.hitShake = 0.3;
@@ -417,8 +440,8 @@
     *win() {
       const P = HB.party;
       HB.music.play('victory', { fadeOut: 0.1, fadeIn: 0 });
-      this.msg = this.isBoss ? '정적이 깨지고, 바람 소리가 돌아왔다!' : '모두 물리쳤다!';
-      if (this.isBoss) this.w.flags.boss1 = true;
+      this.msg = this.isBoss ? this.foes[0].won || '정적이 깨지고, 바람 소리가 돌아왔다!' : '모두 물리쳤다!';
+      for (const f of this.foes) if (f.flag) this.w.flags[f.flag] = true;
       yield 1.2;
       const exp = this.foes.reduce((s, f) => s + f.exp, 0);
       const gold = this.foes.reduce((s, f) => s + rnd(f.gold[0], f.gold[1]), 0);
@@ -562,7 +585,7 @@
     // auto battle: the same picks the balance tests play with (HB.autoPick)
     autoAct() {
       const alive = this.alive();
-      const pick = HB.autoPick(HB.party, alive, { silenced: this.silenced > 0, buff: this.buff, waveNext: alive.some((f) => HB.waveNext(f, this.turn)) });
+      const pick = HB.autoPick(HB.party, alive, { silenced: this.silenced > 0, buff: this.buff, fog: this.fog > 0, waveNext: alive.some((f) => HB.waveNext(f, this.turn)) });
       const t = pick.target || alive[0];
       if (pick.act === 'guard') { this.guarding = true; this.run(this.round(this.heroGuard())); }
       else if (pick.act === 'item') this.run(this.round(this.heroItem(pick.id)));
@@ -666,6 +689,15 @@
       grd.addColorStop(1, 'rgba(10,0,30,0.45)');
       g.fillStyle = grd; g.fillRect(0, 0, HB.W, HB.H);
 
+      // fog veil while it lasts
+      if (this.fog > 0) {
+        g.fillStyle = 'rgba(220,228,240,0.28)'; g.fillRect(0, 0, HB.W, HB.H);
+        for (let k = 0; k < 5; k++) {
+          const fx = ((HB.time * 14 + k * 113) % (HB.W + 160)) - 80, fy = 60 + k * 34;
+          g.fillStyle = 'rgba(240,244,250,0.18)';
+          g.beginPath(); g.ellipse(fx, fy, 80, 18, 0, 0, Math.PI * 2); g.fill();
+        }
+      }
       this.drawEffects(g, cam);
       if (this.flash > 0 && HB.options.flash) { g.fillStyle = 'rgba(255,255,255,' + Math.min(1, this.flash * 8).toFixed(2) + ')'; g.fillRect(0, 0, HB.W, HB.H); }
 
@@ -725,7 +757,7 @@
         });
       }
       const n = this.allies.length, ah = n ? 6 + n * 11 : 0, ay = 127 - ah;
-      const marks = (this.silenced ? '침묵 ' + this.silenced + '  ' : '') + (this.buff ? '공격↑ ' + this.buff : '');
+      const marks = (this.fog ? this.fogName + ' ' + this.fog + '  ' : '') + (this.silenced ? '침묵 ' + this.silenced + '  ' : '') + (this.buff ? '공격↑ ' + this.buff : '');
       if (marks) HB.text(g, marks, 300, ay - 12, '#c8a0ff', { font: 'g9', align: 'right' });
       if (n) HB.drawWindow(g, 126, ay, 188, ah);
       this.allies.forEach((a, i) => {
