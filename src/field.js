@@ -98,12 +98,12 @@
         return true;
       }
       if (id === 'florist') {
-        HB.dialog.open('바람결에 나갈 거야? 약초랑 울림방울, 맑은물도 챙겨 가!', { name: npc.def.name, onClose: () => HB.Menu.openShop('꽃집 아이라의 가게', ['herb', 'drop', 'water']) });
+        HB.dialog.open('바람결에 나갈 거야? 약초랑 울림방울, 맑은물도 챙겨 가!', { name: npc.def.name, onClose: () => HB.Menu.openShop(HB.SHOPS.florist.title, HB.SHOPS.florist.stock) });
         return true;
       }
       if (id === 'smith') {
         HB.dialog.open(w.flags.boss1 ? '파수꾼을 쓰러뜨렸다며? 좋은 걸로 골라 봐.' : '맨손으로 들판에 나가면 안 되지. 하나 장만하고 가!', {
-          name: npc.def.name, onClose: () => HB.Menu.openShop('대장장이 브론의 대장간', ['mallet', 'vest', 'cloak', 'quill', 'amulet'])
+          name: npc.def.name, onClose: () => HB.Menu.openShop(HB.SHOPS.smith.title, HB.SHOPS.smith.stock)
         });
         return true;
       }

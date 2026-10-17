@@ -67,12 +67,21 @@ for (const [id, m] of Object.entries(maps)) {
       assert.ok(c.gold || HB.ITEMS[c.item], 'chest ' + c.id + ' holds something real');
     }
     for (const c of m.chimes || []) assert.equal(m.rows[c.ty][c.tx], 'q');
+    for (const b of m.boards || []) assert.equal(m.rows[b.ty][b.tx], 'D', 'sign ' + b.name + ' hangs over a door');
+    for (const d of (m.doors || []).filter((d) => d.shop)) {
+      assert.ok(HB.SHOPS[d.shop], 'shop ' + d.shop);
+      assert.ok(nextTo(reach(m), d.tx, d.ty), 'shop door ' + d.shop + ' is reachable');
+    }
     for (const p of m.pickups || []) assert.ok(HB.ITEMS[p.item], 'pickup item ' + p.item);
     if (m.puzzle) assert.deepEqual([...m.puzzle.order].sort(), [...(m.chimes || []).map((c) => c.note)].sort(), 'puzzle uses each chime once');
     for (const e of m.enemies || []) assert.ok(HB.FOES[e.kind || 'wisp'], 'foe ' + e.kind);
     for (const n of m.npcs || []) assert.ok(HB.PALETTES[n.pal], 'palette ' + n.pal);
   });
 }
+
+test('shops sell real items', () => {
+  for (const [id, s] of Object.entries(HB.SHOPS)) for (const it of s.stock) assert.ok(HB.ITEMS[it], id + ': ' + it);
+});
 
 test('chest ids are unique across maps', () => {
   const ids = Object.values(maps).flatMap((m) => (m.chests || []).map((c) => c.id));

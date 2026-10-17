@@ -93,17 +93,23 @@
       exits: [{ x0: 16, x1: 17, y0: 23, y1: 23, to: 'field', spawn: { x: 20.5, y: 1.5, dir: 'down' } }],
       signs: [
         { tx: 18, ty: 21, text: '남쪽 - 바람결 들판\n해가 지기 전에 돌아오시오.' },
-        { tx: 13, ty: 8, text: '울림골 - 아워벨이 시간을 지키는 마을' }
+        { tx: 13, ty: 8, text: '울림골 - 아워벨이 시간을 지키는 마을\n왼쪽 아래 꽃집, 오른쪽 위 대장간, 오른쪽 아래 여관' }
       ],
       doors: [
         { tx: 6, ty: 5, text: '문이 잠겨 있다. 안에서 냄비 끓는 소리가 들린다.' },
-        { tx: 27, ty: 5, text: '문틈으로 오래된 오르골 소리가 새어 나온다.' },
-        { tx: 5, ty: 17, text: '"지금은 바빠요! 꽃 포장 중이에요!"' },
+        { tx: 27, ty: 5, text: '대장간. 안에서 쇠를 두드리는 소리가 울린다.', shop: 'smith' },
+        { tx: 5, ty: 17, text: '꽃집 "바람꽃". 문을 열자 꽃향기가 번진다.', shop: 'florist' },
         { tx: 28, ty: 17, text: '여관 "쉬어가는 종"', to: 'inn', spawn: { x: 6, y: 6.4, dir: 'up' } }
+      ],
+      // hanging shop signs over the doors
+      boards: [
+        { tx: 27, ty: 5, icon: 'anvil', name: '대장간' },
+        { tx: 5, ty: 17, icon: 'flower', name: '꽃집' },
+        { tx: 28, ty: 17, icon: 'bell', name: '여관' }
       ],
       npcs: [
         {
-          id: 'smith', name: '대장장이 브론', pal: 'smith', x: 24.5, y: 7.6, dir: 'down', wander: 0,
+          id: 'smith', name: '대장장이 브론', pal: 'smith', x: 25.5, y: 6.8, dir: 'down', wander: 0,
           lines: ['쇠 두드리는 소리도 종소리 비슷하지 않나?']
         },
         {
@@ -115,7 +121,7 @@
           ]
         },
         {
-          id: 'florist', name: '꽃집 아이라', pal: 'florist', x: 9.5, y: 12.5, dir: 'right', wander: 2.5,
+          id: 'florist', name: '꽃집 아이라', pal: 'florist', x: 6.5, y: 18.8, dir: 'down', wander: 0,
           lines: [
             '들판에 나가면 바람 소리가 꼭 노래처럼 들려.',
             '그런데 요즘엔 소리를 먹는 이상한 것들이 떠다닌대. 조심해!'

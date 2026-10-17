@@ -52,6 +52,10 @@
     amulet: { name: '수호 부적', slot: 'charm', def: 2, price: 45, desc: '방어 +2' }
   };
   HB.SLOTS = { weapon: '무기', armor: '방어구', charm: '장신구' };
+  HB.SHOPS = {
+    florist: { title: '꽃집 아이라의 가게', stock: ['herb', 'drop', 'water'] },
+    smith: { title: '대장장이 브론의 대장간', stock: ['mallet', 'vest', 'cloak', 'quill', 'amulet'] }
+  };
 
   // stats with equipment applied
   HB.eff = function (P) {
