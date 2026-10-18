@@ -4,10 +4,15 @@
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
-// load src files (DOM-free ones) into a fresh HB; returns window.HB
+const src = (f) => readFileSync(new URL('../src/' + f, import.meta.url), 'utf8');
+
+// load src files (DOM-free ones) into a fresh HB; returns window.HB.
+// core.js needs a DOM, so only its seeded RNG comes along (the maps use it).
 export function loadHB(files = ['rules.js']) {
-  const window = { HB: {} };
-  for (const f of files) vm.runInNewContext(readFileSync(new URL('../src/' + f, import.meta.url), 'utf8'), { window, Math, JSON, Object, Number });
+  const window = { HB: {} }, ctx = { window, Math, JSON, Object, Number };
+  const rng = /HB\.rng = function[\s\S]*?\n  \};/.exec(src('core.js'))[0];
+  vm.runInNewContext('(function (HB) {' + rng + '})(window.HB);', ctx);
+  for (const f of files) vm.runInNewContext(src(f), ctx);
   return window.HB;
 }
 
@@ -15,7 +20,7 @@ export function loadHB(files = ['rules.js']) {
 export function partyAt(HB, lvl, herbs, opts = {}) {
   const P = HB.newParty();
   while (P.lvl < lvl) HB.levelUp(P);
-  P.hp = P.maxHp; P.mp = P.maxMp; P.items = { herb: herbs };
+  P.hp = P.maxHp; P.mp = P.maxMp; P.items = Object.assign({ herb: herbs }, opts.items);
   for (const id of opts.gear || []) { P.items[id] = (P.items[id] || 0) + 1; HB.equip(P, id); }
   if (opts.bare) P.mp = P.maxMp = 0; // attack only: no skills
   return P;
@@ -25,7 +30,7 @@ export function partyAt(HB, lvl, herbs, opts = {}) {
 export function fight(HB, P, kinds, allies = []) {
   const foes = kinds.map((k) => HB.makeFoe(k));
   const team = allies.map((id) => Object.assign(HB.allyStats(id, P.lvl), { hp: HB.allyStats(id, P.lvl).maxHp }));
-  let silenced = 0, buff = 0;
+  let silenced = 0, buff = 0, fog = 0;
   const alive = () => foes.filter((f) => f.hp > 0);
   const cast = (id) => { P.mp -= HB.SKILLS[id].cost; };
 
@@ -39,12 +44,12 @@ export function fight(HB, P, kinds, allies = []) {
       cast(pick.id);
       if (pick.id === 'heal') P.hp = Math.min(P.maxHp, P.hp + HB.healAmt(P));
       else if (pick.id === 'ring') { buff = HB.SKILLS.ring.buff; ring = true; }
-      else if (pick.id === 'chime') a.forEach((f) => { f.hp -= HB.chimeDmg(P, f); });
-      else if (pick.id === 'gust') t.hp -= HB.gustDmg(P, t, buff > 0);
+      else if (pick.id === 'chime') { a.forEach((f) => { f.hp -= HB.chimeDmg(P, f); }); fog = 0; }
+      else if (pick.id === 'gust') { t.hp -= HB.gustDmg(P, t, buff > 0); fog = 0; }
     } else {
       let d = HB.hitDmg(HB.effAtk(P, buff > 0), t.def);
       if (Math.random() < HB.critChance) d = Math.round(d * 1.8);
-      t.hp -= d;
+      t.hp -= HB.fogged(d, fog > 0);
     }
     if (silenced) silenced--;
     if (buff && !ring) buff--;
@@ -56,13 +61,14 @@ export function fight(HB, P, kinds, allies = []) {
     m.sang = i.act === 'song';
     if (i.act === 'song') i.target.hp = Math.min(i.target.maxHp, i.target.hp + HB.songAmt(P.lvl));
     else if (i.act === 'cover') { m.covering = true; m.covered = true; }
-    else if (i.act === 'spell') i.target.hp -= HB.spellDmg(m, i.target, i.el);
-    else i.target.hp -= HB.hitDmg(m.atk, i.target.def);
+    else if (i.act === 'spell') { i.target.hp -= HB.spellDmg(m, i.target, i.el); if (i.el) fog = 0; }
+    else i.target.hp -= HB.fogged(HB.hitDmg(m.atk, i.target.def), fog > 0);
   }
 
   function foe(f, turn, guarding) {
-    const intent = HB.foeIntent(f, turn, P, silenced > 0);
+    let intent = HB.foeIntent(f, turn, P, { silenced: silenced > 0, fog: fog > 0 });
     if (intent === 'silence') { silenced = 2; return; }
+    if (intent === 'fog') { fog = HB.FOG_TURNS; intent = 'attack'; } // fog is a free action
     if (intent === 'swallow') { P.mp = Math.max(0, P.mp - 2); return; }
     if (intent === 'wave') {
       P.hp -= HB.foeDmg(f, P, intent, guarding);
@@ -75,7 +81,8 @@ export function fight(HB, P, kinds, allies = []) {
   }
 
   for (let turn = 1; turn < 120; turn++) {
-    const pick = HB.autoPick(P, alive(), { silenced: silenced > 0, buff, waveNext: alive().some((f) => HB.waveNext(f, turn)) });
+    if (fog > 0) fog--;
+    const pick = HB.autoPick(P, alive(), { silenced: silenced > 0, buff, fog: fog > 0, waveNext: alive().some((f) => HB.waveNext(f, turn)) });
     const guarding = pick.act === 'guard';
     for (const who of HB.turnOrder(P, alive(), team)) {
       if (who === 'hero') hero(pick);

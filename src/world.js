@@ -134,6 +134,13 @@
           const edgeT = ty === 0 && p.dir === 'up';
           const edgeX = (tx === 0 && p.dir === 'left') || (tx === this.map.w - 1 && p.dir === 'right');
           if (!(edgeY || edgeT || edgeX)) continue;
+          // some roads open only after a chapter: step back and say why
+          if (e.need && !this.flags[e.need]) {
+            const [dx, dy] = DIRS[p.dir];
+            p.x -= dx * 8; p.y -= dy * 8;
+            HB.dialog.open(e.blocked || '아직 이 길로는 갈 수 없다.');
+            return;
+          }
           HB.sfx && HB.sfx('step');
           HB.fadeTo(() => this.load(e.to, e.spawn));
           return;
@@ -214,14 +221,20 @@
     },
 
     // ---------- atmosphere ----------
+    // def.moodAfter: { flag, mood } e.g. the port's fog lifts after its chapter
+    moodNow() {
+      const a = this.def.moodAfter;
+      return a && this.flags[a.flag] ? a.mood : this.def.mood;
+    },
+
     updateFx(dt) {
-      const mood = this.def.mood;
+      const mood = this.moodNow();
       const cx = this.cam.x, cy = this.cam.y;
-      const want = mood === 'sunset' ? 34 : 18;
+      const want = mood === 'sunset' ? 34 : mood === 'snow' ? 60 : 18;
       while (this.motes.length < want) {
         this.motes.push({
           x: cx + Math.random() * HB.W, y: cy + Math.random() * HB.H,
-          vx: (Math.random() - 0.3) * 6, vy: mood === 'sunset' ? -3 - Math.random() * 5 : 2 + Math.random() * 4,
+          vx: (Math.random() - 0.3) * 6, vy: mood === 'sunset' ? -3 - Math.random() * 5 : mood === 'snow' ? 10 + Math.random() * 12 : 2 + Math.random() * 4,
           ph: Math.random() * 6.28, life: 4 + Math.random() * 6, kind: mood
         });
       }
@@ -231,17 +244,17 @@
         m.life -= dt;
       }
       this.motes = this.motes.filter((m) => m.life > 0 && m.x > cx - 20 && m.x < cx + HB.W + 20 && m.y > cy - 20 && m.y < cy + HB.H + 20);
-      if (mood === 'day') {
-        while (this.clouds.length < 3) {
+      if (mood === 'day' || mood === 'fog') {
+        while (this.clouds.length < (mood === 'fog' ? 8 : 3)) {
           this.clouds.push({ x: cx - 140 - Math.random() * 200, y: cy + Math.random() * HB.H, s: 0.7 + Math.random() * 0.7 });
         }
-        for (const c of this.clouds) c.x += 9 * dt;
+        for (const c of this.clouds) c.x += (mood === 'fog' ? 5 : 9) * dt;
         this.clouds = this.clouds.filter((c) => c.x < cx + HB.W + 140);
       }
     },
 
     drawMood(g) {
-      const mood = this.def.mood;
+      const mood = this.moodNow();
       const cam = this.cam;
       if (mood === 'sunset') {
         g.save();
@@ -265,6 +278,16 @@
           g.fillRect(Math.round(m.x - cam.x), Math.round(m.y - cam.y), 1, 1);
         }
         g.restore();
+      } else if (mood === 'fog') {
+        // a pale veil and slow drifting banks of mist
+        g.save();
+        g.fillStyle = 'rgba(214,224,236,0.30)'; g.fillRect(0, 0, HB.W, HB.H);
+        for (const c of this.clouds) {
+          const sx = Math.round(c.x - cam.x), sy = Math.round(c.y - cam.y);
+          g.fillStyle = 'rgba(236,242,250,0.22)';
+          g.beginPath(); g.ellipse(sx, sy, 90 * c.s, 26 * c.s, 0, 0, Math.PI * 2); g.fill();
+        }
+        g.restore();
       } else if (mood === 'inside') {
         // lamp-lit room: warm tint and a soft glow from each window
         g.save();
@@ -274,6 +297,35 @@
         for (const w of this.map.windows) {
           g.globalAlpha = 0.35;
           g.drawImage(this.glow, Math.round(w.x - cam.x - 14), Math.round(w.y - cam.y - 6));
+        }
+        g.restore();
+      } else if (mood === 'cave' || mood === 'night') {
+        // dark all round, a pool of light around the hero; night adds stars, cave dust
+        const sx = this.player.x - cam.x, sy = this.player.y - 8 - cam.y;
+        const grd = g.createRadialGradient(sx, sy, 24, sx, sy, mood === 'cave' ? 150 : 220);
+        grd.addColorStop(0, 'rgba(8,8,24,0)');
+        grd.addColorStop(1, mood === 'cave' ? 'rgba(8,6,12,0.68)' : 'rgba(10,14,48,0.62)');
+        g.save();
+        g.globalCompositeOperation = 'multiply';
+        g.fillStyle = mood === 'cave' ? '#ccc0dc' : '#8890d8'; g.fillRect(0, 0, HB.W, HB.H);
+        g.globalCompositeOperation = 'source-over';
+        g.fillStyle = grd; g.fillRect(0, 0, HB.W, HB.H);
+        for (const m of this.motes) {
+          const a = Math.min(1, m.life / 1.5) * (0.5 + 0.5 * Math.sin(HB.time * 2 + m.ph));
+          g.fillStyle = (mood === 'cave' ? 'rgba(200,180,140,' : 'rgba(230,236,255,') + (a * 0.7).toFixed(2) + ')';
+          g.fillRect(Math.round(m.x - cam.x), Math.round(m.y - cam.y), 1, 1);
+        }
+        g.restore();
+      } else if (mood === 'snow' || mood === 'past') {
+        // snow: cold tint and falling flakes. past: an old photograph in sepia
+        g.save();
+        g.globalCompositeOperation = 'multiply';
+        g.fillStyle = mood === 'snow' ? '#dce8f8' : '#f0d8b0'; g.fillRect(0, 0, HB.W, HB.H);
+        g.globalCompositeOperation = 'source-over';
+        if (mood === 'past') { g.fillStyle = 'rgba(120,90,50,0.12)'; g.fillRect(0, 0, HB.W, HB.H); }
+        for (const m of this.motes) {
+          g.fillStyle = mood === 'snow' ? '#ffffff' : 'rgba(255,240,200,0.6)';
+          g.fillRect(Math.round(m.x - cam.x), Math.round(m.y - cam.y), mood === 'snow' && m.ph > 3 ? 2 : 1, mood === 'snow' && m.ph > 3 ? 2 : 1);
         }
         g.restore();
       } else if (mood === 'day') {

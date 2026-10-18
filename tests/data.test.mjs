@@ -3,17 +3,9 @@
 // Runs the real map builders from src/maps.js. Run: node --test tests/
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import vm from 'node:vm';
+import { loadHB } from './sim.mjs';
 
-const src = (f) => readFileSync(new URL('../src/' + f, import.meta.url), 'utf8');
-const window = { HB: {} };
-const ctx = { window, Math, JSON, Object };
-// core.js needs a DOM, so take only its seeded RNG (the maps depend on it)
-const rng = /HB\.rng = function[\s\S]*?\n  \};/.exec(src('core.js'))[0];
-vm.runInNewContext('(function (HB) {' + rng + '})(window.HB);', ctx);
-['rules.js', 'sprites.js', 'tiles.js', 'maps.js'].forEach((f) => vm.runInNewContext(src(f), ctx));
-const HB = window.HB;
+const HB = loadHB(['rules.js', 'sprites.js', 'tiles.js', 'maps.js', 'ch2.js', 'ch3.js', 'ch4.js', 'ch5.js', 'ch6.js', 'ch7.js']);
 const maps = Object.fromEntries(Object.entries(HB.MAPS).map(([id, build]) => [id, build()]));
 
 const solid = (m, x, y) => { const r = m.rows[y]; return !r || r[x] === undefined || HB.SOLID.has(r[x]); };
@@ -49,6 +41,12 @@ for (const [id, m] of Object.entries(maps)) {
     for (const c of m.chimes || []) assert.ok(nextTo(seen, c.tx, c.ty), 'chime at ' + c.tx + ',' + c.ty);
     for (const p of m.pickups || []) assert.ok(seen.has(p.tx + ',' + p.ty) || nextTo(seen, p.tx, p.ty), 'pickup ' + p.id);
     for (const n of m.npcs || []) assert.ok(seen.has(Math.floor(n.x) + ',' + Math.floor(n.y)), 'npc ' + n.id);
+    if (m.altar) {
+      const a = m.altar;
+      let ok = false;
+      for (let y = a.ty; y < a.ty + (a.h || 1); y++) for (let x = a.tx; x < a.tx + (a.w || 1); x++) if (nextTo(seen, x, y)) ok = true;
+      assert.ok(ok, 'altar');
+    }
     if (m.shrine) assert.ok(nextTo(seen, m.shrine.tx + 1, m.shrine.ty + 1) || nextTo(seen, m.shrine.tx + 2, m.shrine.ty + 1), 'shrine');
   });
 
@@ -75,9 +73,41 @@ for (const [id, m] of Object.entries(maps)) {
     for (const p of m.pickups || []) assert.ok(HB.ITEMS[p.item], 'pickup item ' + p.item);
     if (m.puzzle) assert.deepEqual([...m.puzzle.order].sort(), [...(m.chimes || []).map((c) => c.note)].sort(), 'puzzle uses each chime once');
     for (const e of m.enemies || []) assert.ok(HB.FOES[e.kind || 'wisp'], 'foe ' + e.kind);
-    for (const n of m.npcs || []) assert.ok(HB.PALETTES[n.pal], 'palette ' + n.pal);
+    for (const n of m.npcs || []) {
+      assert.ok(HB.PALETTES[n.pal], 'palette ' + n.pal);
+      if (n.shop) assert.ok(HB.SHOPS[n.shop], 'shop ' + n.shop);
+      if (n.fetch) assert.ok(HB.ITEMS[n.fetch.item] && Object.keys((n.fetch.reward && n.fetch.reward.items) || {}).every((id) => HB.ITEMS[id]), 'fetch ' + n.id);
+      if (n.fetch && n.fetch.join) assert.ok(HB.ALLIES[n.fetch.join] && n.hideIf === n.fetch.flag, 'companion ' + n.fetch.join + ' leaves the map once joined');
+    }
+    if (m.altar) {
+      const a = m.altar, boss = HB.FOES[a.boss];
+      for (let y = a.ty; y < a.ty + (a.h || 1); y++) for (let x = a.tx; x < a.tx + (a.w || 1); x++) assert.equal(m.rows[y][x], 'X', 'altar tile');
+      assert.ok(boss && boss.boss && boss.flag, 'altar boss ' + a.boss);
+      assert.ok(HB.FOE_ART[a.boss], 'boss art');
+      assert.ok(!a.art || HB.ALTAR_ART[a.art], 'altar art ' + a.art);
+      assert.ok(a.n >= 2 && a.n <= 7 && a.intro && a.take && a.taken, 'altar text');
+    }
+    for (const e of m.enemies || []) assert.ok(HB.FOE_ART[e.kind || 'wisp'] || ['wisp', 'flicker', 'guard'].includes(e.kind || 'wisp'), 'art for ' + e.kind);
+    for (const p of m.portals || []) {
+      assert.ok(maps[p.to] && !solid(maps[p.to], Math.floor(p.spawn.x), Math.floor(p.spawn.y)), 'portal lands on walkable ground in ' + p.to);
+      let ok = false;
+      for (let y = p.ty; y < p.ty + (p.h || 1); y++) for (let x = p.tx; x < p.tx + (p.w || 1); x++) if (nextTo(reach(m), x, y)) ok = true;
+      assert.ok(ok, 'portal to ' + p.to + ' is reachable');
+    }
   });
 }
+
+test('the story: seven chapters, one altar per fragment, roads open in order', () => {
+  const altars = Object.values(maps).filter((m) => m.altar).map((m) => m.altar.n).sort();
+  assert.deepEqual(altars, [2, 3, 4, 5, 6, 7], 'fragments 2-7 each have one altar (1 is the shrine)');
+  for (let n = 2; n <= 7; n++) assert.ok(HB.CHAPTERS[n] && HB.CHAPTERS[n].keeper && HB.CHAPTERS[n].lines, 'chapter card ' + n + ' (1 is in main.js)');
+  assert.ok(HB.CHAPTERS[7].final && HB.CHAPTERS[7].credits, 'the last card ends the game with credits');
+  const gates = Object.values(maps).flatMap((m) => (m.exits || []).concat(m.portals || [])).map((e) => e.need).filter(Boolean);
+  for (const g of gates) assert.match(g, /^chapter[1-6]$/, 'gates open on a finished chapter');
+  for (let n = 2; n <= 7; n++) assert.ok(HB.QUESTS.find((q) => q.id === 'ch' + n), 'journal entry for chapter ' + n);
+  const joins = Object.values(maps).flatMap((m) => m.npcs || []).filter((n) => n.fetch && n.fetch.join).map((n) => n.fetch.join).sort();
+  assert.deepEqual(joins, ['dan', 'haru'], '단비 and 하루 join through their quests');
+});
 
 test('shops sell real items', () => {
   for (const [id, s] of Object.entries(HB.SHOPS)) for (const it of s.stock) assert.ok(HB.ITEMS[it], id + ': ' + it);
