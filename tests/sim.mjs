@@ -100,3 +100,21 @@ export function winRate(HB, lvl, herbs, kinds, opts = {}, n = 1500) {
   for (let i = 0; i < n; i++) if (fight(HB, partyAt(HB, lvl, herbs, opts), kinds, opts.allies)) w++;
   return w / n;
 }
+
+// players who do not play like the auto battle (a playtest lost at Lv8 in full
+// gear by pressing 공격 with no money left for items).
+// mash: attack, nothing else. plain: attack, an HP item when low.
+export const mashPick = () => (P, foes) => ({ act: 'attack', target: foes[0] });
+export const plainPick = (HB) => (P, foes) => {
+  if (P.hp < P.maxHp * 0.35) {
+    const it = Object.keys(P.items).filter((k) => P.items[k] > 0 && HB.ITEMS[k].hp).sort((a, b) => HB.ITEMS[b].hp - HB.ITEMS[a].hp)[0];
+    if (it) return { act: 'item', id: it };
+  }
+  return { act: 'attack', target: foes[0] };
+};
+// win rate with HB.autoPick swapped for another player
+export function winRateAs(HB, pick, lvl, kinds, opts, n) {
+  const auto = HB.autoPick;
+  HB.autoPick = pick;
+  try { return winRate(HB, lvl, 0, kinds, opts, n); } finally { HB.autoPick = auto; }
+}
