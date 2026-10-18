@@ -5,7 +5,7 @@
 // Run: node --test tests/*.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadHB, winRate } from './sim.mjs';
+import { loadHB, winRate, winRateAs, mashPick, plainPick } from './sim.mjs';
 import { SPEC } from './chapterspec.mjs';
 
 const HB = loadHB(['rules.js', 'sprites.js', 'tiles.js', 'maps.js', 'ch2.js', 'ch3.js', 'ch4.js', 'ch5.js', 'ch6.js', 'ch7.js']);
@@ -22,13 +22,16 @@ test('chapter 2: the fog-eater asks for level 6 with all the harbour gear', () =
   const PART = ['coral', 'coat', 'cap', 'gloves', 'sandals', 'amulet', 'oldscore'];
   const it = { soup: 3, herb2: 2, water: 1 };
   const boss = (lvl, gear, allies) => rate(lvl, ['mistking'], { gear, allies, items: it });
-  const r = { t2_5: boss(5, T2, ['mio']), t2_6: boss(6, T2, ['mio']), part7: boss(7, PART, ['mio']), t1_8: boss(8, T1, ['mio']), solo7: boss(7, T2, []) };
+  const as = (pick, lvl, items) => winRateAs(HB, pick, lvl, ['mistking'], { gear: T2, allies: ['mio'], items }, 600);
+  const r = { t2_6: boss(6, T2, ['mio']), part7: boss(7, PART, ['mio']), t1_8: boss(8, T1, ['mio']), solo7: boss(7, T2, []),
+    plain6: as(plainPick(HB), 6, it), mash8: as(mashPick(), 8, {}) };
   console.log('chapter 2 boss:', JSON.stringify(r));
-  assert.ok(r.t2_5 < 0.75, 'level 5 is a gamble even fully geared');
-  assert.ok(r.t2_6 > 0.8, 'level 6 with harbour gear (a playtest: buying it all should pay off)');
+  assert.ok(r.t2_6 > 0.85, 'level 6 with harbour gear (a playtest: buying it all should pay off)');
   assert.ok(r.part7 > 0.85, 'or level 7 with a weapon and a coat');
   assert.ok(r.t1_8 > 0.85, 'or level 8 in chapter one gear: levels can stand in for gear');
   assert.ok(r.solo7 > 0.85, '미오 is optional');
+  assert.ok(r.plain6 > 0.8, 'attacking and healing when low is enough at level 6');
+  assert.ok(r.mash8 > 0.55, 'pressing 공격 with no items is enough at level 8 (the playtest)');
 });
 
 test('chapter 2: the boss fight with 미오 is not a slog', () => {
@@ -43,13 +46,13 @@ test('chapter 2: the boss fight with 미오 is not a slog', () => {
 });
 
 test('chapter 2: the fog matters', () => {
+  // to a player who just attacks: fog halves plain hits until sound or wind clears it
   const T2 = ['coral', 'coat', 'hood', 'net', 'reefboots', 'pearlear', 'fieldsong'];
-  const o = { gear: T2, allies: ['mio'], items: { soup: 3, herb2: 2, water: 1 } };
-  // at level 5, where the fight is in doubt (at 6 the win rate is near its ceiling)
-  const withFog = rate(5, ['mistking'], o, 1000);
+  const o = { gear: T2, allies: ['mio'], items: { soup: 3, herb2: 2 } };
+  const withFog = winRateAs(HB, plainPick(HB), 5, ['mistking'], o, 1000);
   const every = HB.FOES.mistking.fogEvery;
   delete HB.FOES.mistking.fogEvery;
-  const without = rate(5, ['mistking'], o, 1000);
+  const without = winRateAs(HB, plainPick(HB), 5, ['mistking'], o, 1000);
   HB.FOES.mistking.fogEvery = every;
   assert.ok(without > withFog + 0.05, 'fog ' + withFog + ' vs none ' + without);
 });
@@ -80,15 +83,17 @@ for (const [n, c] of Object.entries(SPEC(HB))) {
     HB.autoPick = (...a) => { turns++; return pick(...a); };
     const at = fightAt(c.lvl, c.gear, c.allies);
     HB.autoPick = pick;
-    const r = { at, early: fightAt(c.lvl - 1, c.gear, c.allies), part: fightAt(c.lvl + 1, c.part, c.allies), old: fightAt(c.lvl + 2, c.prev, c.allies),
-      fewer: fightAt(c.lvl + 1, c.gear, c.allies.slice(0, -1)), turns: turns / 600 };
+    const as = (p, lvl, items) => winRateAs(HB, p, lvl, [c.boss], { gear: c.gear, allies: c.allies, items }, 600);
+    const r = { at, part: fightAt(c.lvl + 1, c.part, c.allies), old: fightAt(c.lvl + 2, c.prev, c.allies),
+      fewer: fightAt(c.lvl + 1, c.gear, c.allies.slice(0, -1)), turns: turns / 600, plain: as(plainPick(HB), c.lvl, c.items), mash: as(mashPick(), c.lvl + 2, {}) };
     console.log('chapter ' + n + ' boss:', JSON.stringify(r));
-    assert.ok(r.at > 0.82, 'at level');
-    assert.ok(r.early < (c.early || 0.8), 'a level early is a gamble');
+    assert.ok(r.at > 0.85, 'at level');
     assert.ok(r.part > 0.8, 'a weapon and armour of this tier and a level more');
     assert.ok(r.old > 0.8, 'or two levels more in the last tier of gear');
     assert.ok(r.fewer > 0.82, 'the newest companion helps but is not required');
     assert.ok(r.turns <= 22, 'not a slog');
+    assert.ok(r.plain > 0.8, 'attacking and healing when low is enough at level');
+    assert.ok(r.mash > 0.55, 'pressing 공격 with no items is enough two levels up');
   });
 
   test('chapter ' + n + ': the road is fair on arrival and pays for gear', () => {
