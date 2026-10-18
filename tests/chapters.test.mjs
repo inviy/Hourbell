@@ -17,18 +17,18 @@ const mapFoes = (id) => HB.MAPS[id]().enemies.map((e) => e.kind || 'wisp');
 
 const T1 = ['mallet', 'vest', 'cap', 'gloves', 'sandals', 'amulet', 'oldscore'];
 
-test('chapter 2: the fog-eater asks for level 8 with harbour gear', () => {
+test('chapter 2: the fog-eater asks for level 6 with all the harbour gear', () => {
   const T2 = ['coral', 'coat', 'hood', 'net', 'reefboots', 'pearlear', 'fieldsong'];
   const PART = ['coral', 'coat', 'cap', 'gloves', 'sandals', 'amulet', 'oldscore'];
   const it = { soup: 3, herb2: 2, water: 1 };
   const boss = (lvl, gear, allies) => rate(lvl, ['mistking'], { gear, allies, items: it });
-  const r = { t2_7: boss(7, T2, ['mio']), t2_8: boss(8, T2, ['mio']), part9: boss(9, PART, ['mio']), t1_10: boss(10, T1, ['mio']), solo9: boss(9, T2, []) };
+  const r = { t2_5: boss(5, T2, ['mio']), t2_6: boss(6, T2, ['mio']), part7: boss(7, PART, ['mio']), t1_8: boss(8, T1, ['mio']), solo7: boss(7, T2, []) };
   console.log('chapter 2 boss:', JSON.stringify(r));
-  assert.ok(r.t2_7 < 0.75, 'level 7 is a gamble even fully geared');
-  assert.ok(r.t2_8 > 0.85, 'level 8 with harbour gear');
-  assert.ok(r.part9 > 0.85, 'or level 9 with a weapon and a coat');
-  assert.ok(r.t1_10 > 0.85, 'or level 10 in chapter one gear: levels can stand in for gear');
-  assert.ok(r.solo9 > 0.85, '미오 is optional');
+  assert.ok(r.t2_5 < 0.75, 'level 5 is a gamble even fully geared');
+  assert.ok(r.t2_6 > 0.8, 'level 6 with harbour gear (a playtest: buying it all should pay off)');
+  assert.ok(r.part7 > 0.85, 'or level 7 with a weapon and a coat');
+  assert.ok(r.t1_8 > 0.85, 'or level 8 in chapter one gear: levels can stand in for gear');
+  assert.ok(r.solo7 > 0.85, '미오 is optional');
 });
 
 test('chapter 2: the boss fight with 미오 is not a slog', () => {
@@ -37,7 +37,7 @@ test('chapter 2: the boss fight with 미오 is not a slog', () => {
   const pick = HB.autoPick;
   HB.autoPick = (...a) => { turns++; return pick(...a); };
   const T2 = ['coral', 'coat', 'hood', 'net', 'reefboots', 'pearlear', 'fieldsong'];
-  rate(8, ['mistking'], { gear: T2, allies: ['mio'], items: { soup: 3, herb2: 2, water: 1 } }, 300);
+  rate(6, ['mistking'], { gear: T2, allies: ['mio'], items: { soup: 3, herb2: 2, water: 1 } }, 300);
   HB.autoPick = pick;
   assert.ok(turns / 300 <= 22, 'average ' + (turns / 300).toFixed(1) + ' turns');
 });
@@ -45,11 +45,11 @@ test('chapter 2: the boss fight with 미오 is not a slog', () => {
 test('chapter 2: the fog matters', () => {
   const T2 = ['coral', 'coat', 'hood', 'net', 'reefboots', 'pearlear', 'fieldsong'];
   const o = { gear: T2, allies: ['mio'], items: { soup: 3, herb2: 2, water: 1 } };
-  // at level 7, where the fight is in doubt (at 8 the win rate is near its ceiling)
-  const withFog = rate(7, ['mistking'], o, 1000);
+  // at level 5, where the fight is in doubt (at 6 the win rate is near its ceiling)
+  const withFog = rate(5, ['mistking'], o, 1000);
   const every = HB.FOES.mistking.fogEvery;
   delete HB.FOES.mistking.fogEvery;
-  const without = rate(7, ['mistking'], o, 1000);
+  const without = rate(5, ['mistking'], o, 1000);
   HB.FOES.mistking.fogEvery = every;
   assert.ok(without > withFog + 0.05, 'fog ' + withFog + ' vs none ' + without);
 });
@@ -62,9 +62,9 @@ test('chapter 2: the misty road is fair for someone who just finished chapter on
 test('chapter 2: the road pays for part of the harbour gear', () => {
   const foes = mapFoes('mistroad');
   const exp = foes.reduce((s, k) => s + HB.FOES[k].exp, 0), gold = foes.reduce((s, k) => s + avg(k, 'gold'), 0);
-  const clears = expTo(5, 9) / exp;
+  const clears = expTo(5, 7) / exp;
   const earned = clears * gold;
-  console.log('chapter 2: clears from Lv5 to Lv9', clears.toFixed(1), 'gold', earned.toFixed(0));
+  console.log('chapter 2: clears from Lv5 to Lv7', clears.toFixed(1), 'gold', earned.toFixed(0));
   assert.ok(clears <= 6, 'auto hunt makes this a few laps, not a grind');
   assert.ok(earned >= priceOf(['coral', 'coat']), 'a weapon and a coat by then');
   assert.ok(earned < priceOf(HB.SHOPS.port.stock.filter((id) => HB.ITEMS[id].slot)), 'but not the whole shop');

@@ -15,14 +15,14 @@ export const TIERS = {
 };
 const part = (t) => [TIERS[t][0], TIERS[t - 1][1], TIERS[t][2]].concat(TIERS[t - 1].slice(3));
 export const SPEC = () => ({
-  3: { boss: 'echoking', lvl: 11, gear: TIERS[3], part: part(3), prev: TIERS[2], allies: ['mio', 'dan'], items: { soup: 4, bigdrop: 2, water: 2 },
-    arrive: 8, arriveAllies: ['mio'], maps: ['canyon'], groups: [['echobat', 'dustwisp', 'rockgolem'], ['rockgolem', 'rockgolem', 'echobat']] },
-  4: { boss: 'timeeater', lvl: 14, gear: TIERS[4], part: part(4), prev: TIERS[3], allies: ['mio', 'dan', 'haru'], items: { honeycake: 3, soup: 2, bigdrop: 2, water: 2 },
-    arrive: 11, arriveAllies: ['mio', 'dan'], maps: ['pastwood'], groups: [['tickwisp', 'duskbat', 'cogolem'], ['cogolem', 'cogolem', 'duskbat']] },
-  5: { boss: 'frostwing', lvl: 17, gear: TIERS[5], part: part(5), prev: TIERS[4], allies: ['mio', 'dan', 'haru'], items: { honeycake: 4, gingertea: 2, water: 2 },
-    arrive: 14, arriveAllies: ['mio', 'dan', 'haru'], maps: ['snowroad'], groups: [['snowjelly', 'frostbat', 'icegolem'], ['icegolem', 'icegolem', 'frostbat']] },
-  6: { boss: 'eclipse', lvl: 20, early: 0.88, gear: TIERS[6], part: part(6), prev: TIERS[5], allies: ['mio', 'dan', 'haru'], items: { starhoney: 4, gingertea: 2, water: 2 },
-    arrive: 17, arriveAllies: ['mio', 'dan', 'haru'], maps: ['starpath'], groups: [['starbit', 'nightbat', 'moonwisp'], ['starbit', 'starbit', 'nightbat']] },
-  7: { boss: 'hush', lvl: 23, early: 0.88, gear: TIERS[7], part: part(7), prev: TIERS[6], allies: ['mio', 'dan', 'haru'], items: { starhoney: 5, gingertea: 3, water: 2 },
-    arrive: 20, arriveAllies: ['mio', 'dan', 'haru'], maps: ['bellcore'], groups: [['bellwisp', 'timestar', 'clockgolem'], ['clockgolem', 'clockgolem', 'timestar']] }
+  3: { boss: 'echoking', lvl: 9, gear: TIERS[3], part: part(3), prev: TIERS[2], allies: ['mio', 'dan'], items: { soup: 4, bigdrop: 2, water: 2 },
+    arrive: 7, arriveAllies: ['mio'], maps: ['canyon'], groups: [['echobat', 'dustwisp', 'rockgolem'], ['rockgolem', 'rockgolem', 'echobat']] },
+  4: { boss: 'timeeater', lvl: 12, gear: TIERS[4], part: part(4), prev: TIERS[3], allies: ['mio', 'dan', 'haru'], items: { honeycake: 3, soup: 2, bigdrop: 2, water: 2 },
+    arrive: 9, arriveAllies: ['mio', 'dan'], maps: ['pastwood'], groups: [['tickwisp', 'duskbat', 'cogolem'], ['cogolem', 'cogolem', 'duskbat']] },
+  5: { boss: 'frostwing', lvl: 15, gear: TIERS[5], part: part(5), prev: TIERS[4], allies: ['mio', 'dan', 'haru'], items: { honeycake: 4, gingertea: 2, water: 2 },
+    arrive: 12, arriveAllies: ['mio', 'dan', 'haru'], maps: ['snowroad'], groups: [['snowjelly', 'frostbat', 'icegolem'], ['icegolem', 'icegolem', 'frostbat']] },
+  6: { boss: 'eclipse', lvl: 18, early: 0.88, gear: TIERS[6], part: part(6), prev: TIERS[5], allies: ['mio', 'dan', 'haru'], items: { starhoney: 4, gingertea: 2, water: 2 },
+    arrive: 15, arriveAllies: ['mio', 'dan', 'haru'], maps: ['starpath'], groups: [['starbit', 'nightbat', 'moonwisp'], ['starbit', 'starbit', 'nightbat']] },
+  7: { boss: 'hush', lvl: 21, early: 0.88, gear: TIERS[7], part: part(7), prev: TIERS[6], allies: ['mio', 'dan', 'haru'], items: { starhoney: 5, gingertea: 3, water: 2 },
+    arrive: 18, arriveAllies: ['mio', 'dan', 'haru'], maps: ['bellcore'], groups: [['bellwisp', 'timestar', 'clockgolem'], ['clockgolem', 'clockgolem', 'timestar']] }
 });

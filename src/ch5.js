@@ -26,11 +26,11 @@
 
   // ---------- foes ----------
   Object.assign(HB.FOES, {
-    snowjelly: { name: '눈송이해파리', hp: 126, atk: 58, def: 18, spd: 13, exp: 46, gold: [40, 52], drop: ['icebloom', 0.45], swallow: 0.35, weak: 'wind' },
-    icegolem: { name: '얼음골렘', hp: 172, atk: 62, def: 30, spd: 6, exp: 60, gold: [50, 62], drop: ['honeycake', 0.25], weak: 'sound', resist: 'wind' },
-    frostbat: { name: '서리박쥐', hp: 116, atk: 59, def: 16, spd: 18, exp: 44, gold: [38, 50], drop: ['gingertea', 0.2], swallow: 0.3, weak: 'sound' },
+    snowjelly: { name: '눈송이해파리', hp: 126, atk: 58, def: 18, spd: 13, exp: 46, gold: [48, 62], drop: ['icebloom', 0.45], swallow: 0.35, weak: 'wind' },
+    icegolem: { name: '얼음골렘', hp: 172, atk: 62, def: 30, spd: 6, exp: 60, gold: [60, 74], drop: ['honeycake', 0.25], weak: 'sound', resist: 'wind' },
+    frostbat: { name: '서리박쥐', hp: 116, atk: 59, def: 16, spd: 18, exp: 44, gold: [46, 60], drop: ['gingertea', 0.2], swallow: 0.3, weak: 'sound' },
     frostwing: {
-      name: '서리날개', hp: 1450, atk: 99, def: 24, spd: 14, exp: 1600, gold: [1300, 1300], drop: ['honeycake', 2], boss: true,
+      name: '서리날개', hp: 1200, atk: 92, def: 24, spd: 14, exp: 1600, gold: [1300, 1300], drop: ['honeycake', 2], boss: true,
       flag: 'boss5', fogEvery: 4, silenceEvery: 5, fogName: '눈보라',
       intro: '얼음 종이 갈라지며, 하얀 날개가 산마루를 뒤덮었다!', won: '눈보라가 그치고, 얼음 종이 맑게 한 번 울렸다.'
     }
