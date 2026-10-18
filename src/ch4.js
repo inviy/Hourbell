@@ -28,11 +28,11 @@
 
   // ---------- foes ----------
   Object.assign(HB.FOES, {
-    tickwisp: { name: '째깍먹이', hp: 96, atk: 44, def: 14, spd: 12, exp: 40, gold: [30, 40], drop: ['honeycake', 0.15], swallow: 0.3, weak: 'sound' },
-    cogolem: { name: '태엽골렘', hp: 130, atk: 48, def: 24, spd: 5, exp: 52, gold: [38, 48], drop: ['cog', 0.5], weak: 'wind', resist: 'sound' },
-    duskbat: { name: '노을박쥐', hp: 88, atk: 45, def: 12, spd: 16, exp: 38, gold: [28, 38], drop: ['bigdrop', 0.25], swallow: 0.3, weak: 'wind' },
+    tickwisp: { name: '째깍먹이', hp: 96, atk: 44, def: 14, spd: 12, exp: 40, gold: [40, 54], drop: ['honeycake', 0.15], swallow: 0.3, weak: 'sound' },
+    cogolem: { name: '태엽골렘', hp: 130, atk: 48, def: 24, spd: 5, exp: 52, gold: [51, 65], drop: ['cog', 0.5], weak: 'wind', resist: 'sound' },
+    duskbat: { name: '노을박쥐', hp: 88, atk: 45, def: 12, spd: 16, exp: 38, gold: [38, 51], drop: ['bigdrop', 0.25], swallow: 0.3, weak: 'wind' },
     timeeater: {
-      name: '시간갉기', hp: 900, atk: 62, def: 18, spd: 10, exp: 1100, gold: [900, 900], drop: ['honeycake', 2], boss: true,
+      name: '시간갉기', hp: 800, atk: 56, def: 18, spd: 10, exp: 1100, gold: [900, 900], drop: ['honeycake', 2], boss: true,
       flag: 'boss4', waveEvery: 4, fogEvery: 5, fogName: '시간 먼지',
       intro: '째깍, 째깍... 시간을 갉아 먹는 소리가 숲을 채운다.', won: '멈칫하던 해시계 그림자가 다시 움직이기 시작했다!'
     }

@@ -37,7 +37,7 @@ await rm(OUT, { recursive: true, force: true });
 await mkdir(OUT, { recursive: true });
 const PORT = 9300 + Math.floor(Math.random() * 500);
 const chrome = spawn(CHROME, ['--headless=new', '--remote-debugging-port=' + PORT, '--user-data-dir=' + join(OUT, 'profile'),
-  '--window-size=960,540', '--autoplay-policy=no-user-gesture-required', 'about:blank']);
+  '--window-size=960,540', '--autoplay-policy=no-user-gesture-required', '--mute-audio', 'about:blank']);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let page;
 for (let i = 0; i < 50 && !page; i++) {
@@ -122,7 +122,11 @@ try {
   step('smith: buy and equip');
   await ev('HB.party.gold = 200');
   await talkTo('smith'); await drain();
-  await key('KeyZ'); await sleep(200); await key('KeyX');
+  await key('KeyZ'); await sleep(200);
+  assert.match(await ev('HB.Menu.note'), /샀다/);
+  await key('ArrowDown'); await sleep(200);
+  assert.equal(await ev('HB.Menu.note'), '', 'moving on shows the next item, not the old message');
+  await key('KeyX');
   assert.equal(await ev('HB.party.items.mallet'), 1);
   assert.ok(await ev("HB.equip(HB.party, 'mallet')"));
 

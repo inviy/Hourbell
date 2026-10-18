@@ -126,8 +126,9 @@
       if (m.id === 'shop' && (inp.hit('left') || inp.hit('right'))) { m.tab ^= 1; m.cur = 0; this.note = ''; HB.sfx('move'); }
       const row = rows[m.cur];
       if (row && row.adjust && (inp.hit('left') || inp.hit('right'))) row.adjust(inp.hit('left') ? -1 : 1);
-      if (n && inp.hit('up')) { m.cur = (m.cur + n - 1) % n; HB.sfx('move'); }
-      if (n && inp.hit('down')) { m.cur = (m.cur + 1) % n; HB.sfx('move'); }
+      // moving the cursor drops the last message so the new row's description shows
+      if (n && inp.hit('up')) { m.cur = (m.cur + n - 1) % n; this.note = ''; HB.sfx('move'); }
+      if (n && inp.hit('down')) { m.cur = (m.cur + 1) % n; this.note = ''; HB.sfx('move'); }
       if (inp.hit('cancel')) { this.back(); return true; }
       if (inp.hit('ok') && rows[m.cur]) rows[m.cur].act(); // each act plays its own sound
       return true;

@@ -26,11 +26,11 @@
 
   // ---------- foes ----------
   Object.assign(HB.FOES, {
-    bellwisp: { name: '종먹이', hp: 210, atk: 96, def: 30, spd: 18, exp: 78, gold: [68, 84], drop: ['starhoney', 0.2], swallow: 0.35, weak: 'sound' },
-    clockgolem: { name: '시계골렘', hp: 280, atk: 102, def: 42, spd: 8, exp: 96, gold: [84, 100], drop: ['gingertea', 0.3], weak: 'wind', resist: 'sound' },
-    timestar: { name: '시간별', hp: 200, atk: 98, def: 30, spd: 22, exp: 76, gold: [66, 82], drop: ['starhoney', 0.2], weak: 'sound', resist: 'wind' },
+    bellwisp: { name: '종먹이', hp: 210, atk: 96, def: 30, spd: 18, exp: 78, gold: [82, 101], drop: ['starhoney', 0.2], swallow: 0.35, weak: 'sound' },
+    clockgolem: { name: '시계골렘', hp: 280, atk: 102, def: 42, spd: 8, exp: 96, gold: [101, 120], drop: ['gingertea', 0.3], weak: 'wind', resist: 'sound' },
+    timestar: { name: '시간별', hp: 200, atk: 98, def: 30, spd: 22, exp: 76, gold: [79, 98], drop: ['starhoney', 0.2], weak: 'sound', resist: 'wind' },
     hush: {
-      name: '정적', hp: 2000, atk: 114, def: 36, spd: 18, exp: 3000, gold: [2000, 2000], drop: ['starhoney', 1], boss: true,
+      name: '정적', hp: 1700, atk: 106, def: 36, spd: 18, exp: 3000, gold: [2000, 2000], drop: ['starhoney', 1], boss: true,
       flag: 'boss7', waveEvery: 4, waveMul: 0.75, fogEvery: 5, fogName: '정적', music: 'finalBoss',
       intro: '모든 소리가 사라졌다. 심장 소리마저...', won: '정적이 깨지고, 아워벨 안에 일곱 소절이 한꺼번에 울려 퍼졌다!'
     }
