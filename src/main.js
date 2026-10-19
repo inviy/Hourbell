@@ -165,16 +165,26 @@
         [c.lines[1], '#f4f0e8', 6.0],
         [c.final ? '- 끝 -' : '- 다음 장에서 계속 -', '#ffe08a', 8.0]
       ];
-      // the last card rolls credits after it, a page at a time
-      this.pages = c.credits ? [this.lines].concat(c.credits.map((pg, i) => pg.map((t, j) => [t, j ? '#f4f0e8' : '#ffe6a8', 11 + i * 6 + j * 0.8]))) : [this.lines];
-      this.wait = 9 + (c.credits ? c.credits.length * 6 : 0);
+      // the last card looks back over the seven chapters, then rolls credits, a page at a time
+      const recap = c.credits ? [['지나온 길'].concat([1, 2, 3, 4, 5, 6, 7].map((k) => k + '장  ' + HB.CHAPTERS[k].title))] : [];
+      const credits = recap.concat(c.credits || []);
+      this.pages = [this.lines].concat(credits.map((pg, i) => pg.map((t, j) => [t, j ? '#f4f0e8' : '#ffe6a8', 11 + i * 6 + j * (pg.length > 4 ? 0.4 : 0.8)])));
+      this.wait = 9 + credits.length * 6;
       this.stars = Title.stars || [];
       HB.music.play('title', { fadeIn: 3 });
     },
+    // the page showing at time t (page 0 until 11s, then one every 6s)
+    pageAt(t) { return t < 11 ? 0 : Math.min(this.pages.length - 1, 1 + Math.floor((t - 11) / 6)); },
     update(dt) {
       this.t += dt;
-      if (this.leaving || this.t < this.wait) return;
-      if (HB.input.hit('ok') || HB.input.hit('cancel')) {
+      if (this.leaving) return;
+      const press = HB.input.hit('ok') || HB.input.hit('cancel');
+      if (this.t < this.wait) {
+        // a press skips ahead: to the next page, or to the end of the last one
+        if (press && this.t > 1.5) { const p = this.pageAt(this.t); this.t = Math.min(this.wait, p + 1 < this.pages.length ? 11 + p * 6 : this.wait); }
+        return;
+      }
+      if (press) {
         this.leaving = true;
         HB.sfx('ok');
         HB.music.stop(1.2);
@@ -188,19 +198,21 @@
     },
     draw(g) {
       const W = HB.W, H = HB.H;
-      const sky = g.createLinearGradient(0, 0, 0, H);
-      sky.addColorStop(0, '#0e0e2a'); sky.addColorStop(0.7, '#3a2450'); sky.addColorStop(1, '#a85a5a');
+      // each page a different sky, from the sunset towards night and morning
+      const tones = [['#0e0e2a', '#3a2450', '#a85a5a'], ['#101a34', '#2a3a60', '#6a7aa8'], ['#0a0c22', '#1c2048', '#3a3a70'], ['#141030', '#3a2a58', '#8a6a9a'], ['#1a2440', '#4a5a80', '#c8a888'], ['#0e0e2a', '#3a2450', '#e8b880']];
+      const tone = tones[this.pageAt(this.t) % tones.length], sky = g.createLinearGradient(0, 0, 0, H);
+      sky.addColorStop(0, tone[0]); sky.addColorStop(0.7, tone[1]); sky.addColorStop(1, tone[2]);
       g.fillStyle = sky; g.fillRect(0, 0, W, H);
       for (const s of this.stars) {
         g.fillStyle = 'rgba(255,244,220,' + (0.3 + 0.5 * (0.5 + 0.5 * Math.sin(this.t * 1.5 + s.p))).toFixed(2) + ')';
         g.fillRect(Math.round(s.x), Math.round(s.y), 1, 1);
       }
-      const page = this.pages[this.t < 11 ? 0 : Math.min(this.pages.length - 1, 1 + Math.floor((this.t - 11) / 6))];
+      const page = this.pages[this.pageAt(this.t)], gap = page.length > 6 ? 22 : 28;
       page.forEach(([text, col, at], i) => {
         const a = HB.clamp((this.t - at) / 1.2, 0, 1);
         if (!a) return;
         g.save(); g.globalAlpha = a;
-        HB.text(g, text, W / 2, 50 + i * 28 + Math.round((1 - a) * 4), col, { align: 'center' });
+        HB.text(g, text, W / 2, (page.length > 6 ? 34 : 50) + i * gap + Math.round((1 - a) * 4), col, { align: 'center' });
         g.restore();
       });
       if (this.t > this.wait && Math.floor(this.t * 2) % 2 === 0) HB.text(g, this.c.final ? 'Z / Enter  타이틀로' : 'Z / Enter  계속하기', W / 2, H - 24, '#a898c0', { align: 'center', font: 'g9' });

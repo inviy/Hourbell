@@ -172,7 +172,9 @@
       if (!a || !inArea(a, tx, ty)) return false;
       const f = w.flags, frag = 'fragment' + a.n;
       if (!f[HB.FOES[a.boss].flag]) {
-        HB.dialog.open(a.intro, {
+        const again = f['tried_' + a.boss]; // a retry gets one line, not the whole scene
+        f['tried_' + a.boss] = true;
+        HB.dialog.open(again ? ['다시 맞선다. ' + HB.josa(HB.FOES[a.boss].name, '이가') + ' 깨어난다!'] : a.intro, {
           voice: 'narrate',
           onClose: () => {
             const x = (a.tx + (a.w || 1) / 2) * T, y = (a.ty + (a.h || 1)) * T + 10;

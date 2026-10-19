@@ -97,7 +97,8 @@
         return true;
       }
       if (id === 'smith') {
-        HB.dialog.open(w.flags.boss1 ? '파수꾼을 쓰러뜨렸다며? 좋은 걸로 골라 봐.' : '맨손으로 들판에 나가면 안 되지. 하나 장만하고 가!', {
+        HB.dialog.open(w.flags.chapter7 ? '밤에 들리는 종소리에 맞춰 망치질을 하니 손이 가볍군! 골라 봐.'
+          : w.flags.boss1 ? '파수꾼을 쓰러뜨렸다며? 좋은 걸로 골라 봐.' : '맨손으로 들판에 나가면 안 되지. 하나 장만하고 가!', {
           name: npc.def.name, onClose: () => HB.Menu.openShop(HB.SHOPS.smith.title, HB.SHOPS.smith.stock)
         });
         return true;
@@ -129,7 +130,9 @@
     interact(w, tx, ty) {
       if (w.map.at(tx, ty) !== 'X' || !this.shrine) return false;
       if (!w.flags.boss1) {
-        HB.dialog.open([
+        const again = w.flags.tried_boss; // a retry gets one line, not the whole scene
+        w.flags.tried_boss = true;
+        HB.dialog.open(again ? ['다시 제단 앞에 섰다. 그림자가 일어선다!'] : [
           '제단 위에 금빛 조각이 떠 있다.',
           '손을 뻗는 순간, 바람이 뚝 멎었다. 제단 뒤에서 커다란 그림자가 일어선다!'
         ], {
