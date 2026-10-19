@@ -1,7 +1,7 @@
 // Rules and balance checks. Run: node --test tests/*.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadHB, partyAt as party, fight as play, winRate as rate } from './sim.mjs';
+import { loadHB, partyAt as party, fight as play, winRate as rate, winRateAs, mashPick, plainPick } from './sim.mjs';
 
 const HB = loadHB();
 const partyAt = (lvl, herbs, opts) => party(HB, lvl, herbs, opts);
@@ -194,6 +194,14 @@ test('balance: the boss asks for a few levels', () => {
   assert.ok(r[3] > 0.85, 'level 4 should usually win');
 });
 
+test('balance: the chapter one boss without the wind trick', () => {
+  // the boss teaches its wind weakness: herbs carry you at level 6, bare attacks need level 7
+  const plain6 = winRateAs(HB, plainPick(HB), 6, ['boss'], { items: { herb: 3 } }, 1000), mash7 = winRateAs(HB, mashPick(), 7, ['boss'], {}, 1000);
+  console.log('chapter 1 boss, attack + herbs Lv6:', plain6.toFixed(2), ' attack only Lv7:', mash7.toFixed(2));
+  assert.ok(plain6 > 0.85, 'attacking and healing when low is enough at level 6');
+  assert.ok(mash7 > 0.55, 'pressing 공격 with no items is enough at level 7');
+});
+
 test('balance: hitting the boss weakness matters', () => {
   const withWeak = winRate(3, 3, ['boss']);
   const weak = HB.FOES.boss.weak;
@@ -320,4 +328,15 @@ test('the save before the last one is kept, and a damaged save falls back to it'
   broken.getItem = (k) => broken.mem[k] ?? null;
   assert.ok(HB.saveGame(broken, at(3, 'town')) && HB.saveGame(broken, at(4, 'town')), 'a failed backup does not stop the save');
   assert.equal(HB.loadGame(broken).party.lvl, 4);
+});
+
+test('a warned big move is what the foe does', () => {
+  const f = HB.makeFoe('boss');
+  f.fogEvery = 4;
+  assert.equal(HB.foeWarn(f, 1, {}), 'fog');
+  assert.equal(HB.foeWarn(f, 1, { fog: true }), null, 'no new fog while one hangs');
+  assert.equal(HB.foeIntent(f, HB.newParty(), 'fog'), 'fog');
+  f.hp = 1;
+  assert.equal(HB.foeWarn(f, 6, {}), 'silence', 'below half HP on its turn');
+  assert.equal(HB.foeIntent(f, HB.newParty(), null), 'attack', 'unwarned: a plain attack');
 });

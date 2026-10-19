@@ -23,6 +23,8 @@
         P.hp = P.maxHp; P.mp = P.maxMp;
         P.allies.forEach((a) => { a.hp = HB.allyStats(a.id, P.lvl).maxHp; });
         HB.sfx('heal');
+        const p = w.player; // a lost battle in this chapter wakes you here (battle.js lose)
+        w.flags.restAt = { map: w.def.id, x: p.x / T, y: p.y / T, dir: p.dir };
         const saved = HB.save(w);
         HB.dialog.open((rest || '푹 쉬었다. HP와 울림이 모두 회복되었다.') + (saved ? '\n(모험을 기록했다)' : ''));
       }
