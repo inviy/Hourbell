@@ -76,6 +76,7 @@ python3 -m http.server 8000   # 또는 npx serve .
 node --test tests/*.test.mjs   # 규칙, 밸런스, 맵 데이터 (CI에서도 실행)
 node tests/smoke.mjs           # 헤드리스 Chrome으로 처음부터 엔딩까지 (Chrome 필요, CHROME=경로로 지정 가능)
 node tests/real.mjs 2 8 mash   # 실제 게임으로 보스전을 치러 시뮬레이션 승률과 비교 (장, 레벨, auto|mash, 횟수)
+node tests/layout.mjs          # 휴대폰 세로·가로, 태블릿, PC 1080p·4K에서 화면 배치와 배율 확인
 ```
 
 전투 난수는 `HB.rand`를 거치므로 `HB.seedRandom(숫자)`로 같은 전투를 그대로 다시 볼 수 있습니다.
