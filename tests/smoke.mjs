@@ -337,8 +337,32 @@ try {
   for (let i = 0; i < 60 && await ev('HB.Battle.active'); i++) { if (await ev('!!HB.Battle.waitingOk')) await key('KeyZ'); await sleep(250); }
   assert.ok(await ev('HB.Battle.foes[1].fled'), '떨림이 runs away');
   assert.equal(await ev('HB.party.exp') - exp0, await ev('HB.FOES.starbit.exp'), 'the spent star pays, the runaway does not');
-  await ev('HB.foeIntent = HB.realIntent; const P = HB.party; P.hp = P.maxHp; P.allies.forEach((a) => { a.hp = HB.allyStats(a.id, P.lvl).maxHp; })');
+  await ev('HB.foeIntent = HB.realIntent; (() => { const P = HB.party; P.hp = P.maxHp; P.allies.forEach((a) => { a.hp = HB.allyStats(a.id, P.lvl).maxHp; }); })()');
   await drain();
+
+  step('bosses: a warned call for help, winding back, echoes');
+  const bossRound = async (kind, setup) => {
+    await ev(`(() => { const p = ${W}.player, B = HB.Battle; B.start(${W}, [{ kind: '${kind}', x: p.x + 48, y: p.y }]);
+      B.allies.forEach((m) => { m.hp = 0; }); const f = B.foes[0]; f.atk = 1; f.maxHp = 9999; f.waveEvery = f.fogEvery = f.silenceEvery = 0; ${setup} })()`);
+    await sleep(3200);
+    await ev('HB.Battle.turn = 0; HB.Battle.toMenu()');
+    const warn = await ev('HB.Battle.msg');
+    await ev('HB.Battle.cursor = 0'); await key('KeyZ'); await sleep(400);
+    for (let i = 0; i < 40 && await ev("HB.Battle.phase !== 'menu' || !!HB.Battle.co"); i++) { if (await ev('!!HB.Battle.waitingOk')) await key('KeyZ'); await sleep(250); }
+    return warn;
+  };
+  assert.match(await bossRound('boss', 'f.hp = 1000;'), /동료를 부르려 한다/);
+  assert.equal(await ev('HB.Battle.foes.length'), 2, '파수꾼 calls a 떨림이');
+  await shot('20b-summon');
+  await ev('HB.Battle.end(true)'); await drain();
+  assert.match(await bossRound('timeeater', 'f.hp = 1000; f.spd = 1;'), /되감으려 한다/);
+  assert.ok(await ev('HB.Battle.foes[0].rewound'), '시간갉기 winds back once');
+  await ev('HB.Battle.end(true)'); await drain();
+  const heroHp = await ev('HB.party.hp');
+  assert.match(await bossRound('echoking', 'f.hp = 9999; f.echoEvery = 2;'), /메아리를 모은다/);
+  assert.ok(await ev('HB.party.hp') < heroHp, '메아리왕 sends part of the hit back');
+  await ev('HB.Battle.end(true)'); await drain();
+  await ev('(() => { const P = HB.party; P.hp = P.maxHp; P.allies.forEach((a) => { a.hp = HB.allyStats(a.id, P.lvl).maxHp; }); })()');
   await ev(`${W}.load('pastwood', { x: ${woodAt[0]}, y: ${woodAt[1]}, dir: 'down' }); HB.Field.enemies.forEach((e) => { e.dead = true; })`); await sleep(500);
   await bossAt(4, 28, 21, '20-boss4');
   await ev(`${W}.load('pasttown', { x: 16.5, y: 12.8, dir: 'up' })`); await sleep(600);

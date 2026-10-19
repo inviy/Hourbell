@@ -383,3 +383,23 @@ test('field foe families each have their own move', () => {
   const bat = foe('duskbat'), P12 = partyAt(12, 0);
   assert.equal(HBall.autoPick(P12, [g, bat], {}).target, bat);
 });
+
+test('boss moves of their own are warned and happen once', () => {
+  const HBall = loadHB(['rules.js', 'sprites.js', 'tiles.js', 'maps.js', 'ch2.js', 'ch3.js', 'ch4.js', 'ch5.js', 'ch6.js', 'ch7.js']);
+  const guard = HBall.makeFoe('boss');
+  guard.waveEvery = guard.silenceEvery = 0;
+  assert.equal(HBall.foeWarn(guard, 1, {}), null);
+  guard.hp = 10;
+  assert.equal(HBall.foeWarn(guard, 1, {}), 'summon', '파수꾼 calls for help when nearly beaten');
+  guard.summoned = true;
+  assert.equal(HBall.foeWarn(guard, 1, {}), null, 'once');
+  const eater = Object.assign(HBall.makeFoe('timeeater'), { waveEvery: 0, fogEvery: 0 });
+  eater.hp = 10;
+  assert.equal(HBall.foeWarn(eater, 1, {}), 'rewind');
+  eater.roundHp = 110;
+  assert.equal(HBall.rewindAmt(eater), Math.round(100 * HBall.REWIND), 'winds back part of this round');
+  const king = HBall.makeFoe('echoking');
+  assert.ok([1, 2, 3, 4, 5, 6].some((t) => HBall.echoNow(king, t)) && ![2, 3, 4, 5].some((t) => HBall.echoNow(king, t)), 'echoes come every few rounds');
+  assert.equal(HBall.echoBack(100), Math.floor(100 * HBall.ECHO));
+  assert.ok(HBall.FOES.mistking.fogMend > 0, '안개삼킴이 heals in its fog');
+});

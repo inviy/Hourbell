@@ -46,7 +46,7 @@
     crab: { name: '갯바위게', hp: 52, atk: 21, def: 11, spd: 4, exp: 24, gold: [36, 52], drop: ['soup', 0.2], resist: 'wind', trait: 'curl' },
     mistking: {
       name: '안개삼킴이', hp: 270, atk: 24, def: 6, spd: 9, exp: 420, gold: [400, 400], drop: ['soup', 1], boss: true, weak: 'sound',
-      flag: 'boss2', waveEvery: 4, fogEvery: 4, intro: '바다 안개가 모든 소리를 집어삼켰다...', won: '안개가 흩어지고, 파도 소리가 돌아왔다!'
+      flag: 'boss2', waveEvery: 4, fogEvery: 4, fogMend: 0.02, intro: '바다 안개가 모든 소리를 집어삼켰다...', won: '안개가 흩어지고, 파도 소리가 돌아왔다!'
     }
   });
   HB.FOE_ART = Object.assign(HB.FOE_ART || {}, {

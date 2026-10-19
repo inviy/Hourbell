@@ -132,13 +132,16 @@
       if (this.fog > 0 && --this.fog === 0) this.msg = HB.josa(this.fogName, '이가') + ' 걷혔다.';
       // the big moves are picked now and warned about before you choose
       const ctx = { silenced: this.silenced > 0, fog: this.fog > 0 };
-      this.alive().forEach((f) => { f.warned = HB.foeWarn(f, this.turn, ctx); });
-      const boss = this.alive().find((f) => f.warned);
+      this.alive().forEach((f) => { f.warned = HB.foeWarn(f, this.turn, ctx); f.echo = HB.echoNow(f, this.turn); f.roundHp = f.hp; });
+      const boss = this.alive().find((f) => f.warned) || this.alive().find((f) => f.echo);
       if (!boss) return;
       const who = HB.josa(boss.name, '이가');
       this.msg = boss.warned === 'wave' ? who + ' 깊게 숨을 들이마신다... (방어하면 파동 피해 절반)'
         : boss.warned === 'fog' ? who + ' ' + HB.josa(boss.fogName || '안개', '을를') + ' 머금는다... (끼면 공격 반감)'
-        : who + ' 소리를 거둬들이려 한다... (곧 기술 봉인)';
+        : boss.warned === 'silence' ? who + ' 소리를 거둬들이려 한다... (곧 기술 봉인)'
+        : boss.warned === 'summon' ? who + ' 동료를 부르려 한다...'
+        : boss.warned === 'rewind' ? who + ' 시곗바늘을 되감으려 한다... (이번 턴 피해 일부 복구)'
+        : who + ' 메아리를 모은다... (때리면 일부가 되돌아온다)';
     },
 
     *heroAttack(t) {
@@ -155,12 +158,21 @@
       HB.sfx('hit');
       this.fx.push({ kind: 'slash', x: t.x, y: t.y - 14, t: 0 });
       t.hp -= dmg; t.flash = 0.2; t.hitShake = 0.3;
+      this.echoed(t, dmg);
       if (crit) { this.shake = 0.3; this.msg = '회심의 일격!'; }
       this.num(t.x, t.y - (t.boss ? 36 : 26), dmg, crit ? '#ffb040' : '#fff4c0');
       yield 0.35;
       yield* this.moveTo(p, home.x, home.y, 0.2, 'right');
       if (t.hp <= 0) yield* this.kill(t);
       yield 0.15;
+    },
+
+    // a foe gathering echoes (HB.echoNow) sends part of the hero's damage back
+    echoed(f, dmg) {
+      if (!f.echo) return;
+      const P = HB.party, p = this.w.player, back = Math.min(P.hp, HB.echoBack(dmg));
+      P.hp -= back; this.heroFlash = 0.2;
+      this.num(p.x, p.y - 34, '메아리 ' + back, '#c8a8ff');
     },
 
     // x1.5 / x0.5 feedback above the target
@@ -181,6 +193,7 @@
       for (const f of targets) {
         const dmg = HB.curled(f, HB.chimeDmg(P, f));
         f.hp -= dmg; f.flash = 0.25; f.hitShake = 0.25;
+        this.echoed(f, dmg);
         this.fx.push({ kind: 'sparkle', x: f.x, y: f.y - 14, t: 0 });
         this.num(f.x, f.y - (f.boss ? 36 : 26), dmg, '#ffe680');
         this.elemNote(f, 'sound');
@@ -212,6 +225,7 @@
       yield 0.4;
       const dmg = HB.curled(t, HB.gustDmg(P, t, this.buff > 0));
       t.hp -= dmg; t.flash = 0.25; t.hitShake = 0.35;
+      this.echoed(t, dmg);
       HB.sfx('hit');
       this.num(t.x, t.y - (t.boss ? 36 : 26), dmg, '#b8f0d0');
       this.elemNote(t, 'wind');
@@ -307,6 +321,31 @@
       let intent = HB.foeIntent(f, P, f.warned);
       f.curl = false;
       const who = HB.josa(f.name, '이가');
+      if (this.fog > 0 && f.fogMend) {
+        const heal = Math.min(f.maxHp - f.hp, Math.round(f.maxHp * f.fogMend));
+        f.hp += heal;
+        this.msg = HB.josa(f.name, '은는') + ' ' + this.fogName + ' 속에서 상처를 아물린다.';
+        this.num(f.x, f.y - 40, '+' + heal, '#8af0a0');
+        yield 0.7;
+      }
+      if (intent === 'summon') {
+        f.summoned = true;
+        this.msg = who + ' 동료를 불렀다!';
+        HB.sfx('vanish'); f.hitShake = 0.4;
+        for (const kind of f.summon) if (this.alive().length < 3) yield* this.addFoe(kind, f);
+        yield 0.6;
+        return;
+      }
+      if (intent === 'rewind') {
+        const heal = Math.min(f.maxHp - f.hp, HB.rewindAmt(f));
+        f.rewound = true; f.hp += heal; this.distort = 0.4;
+        this.msg = who + ' 시곗바늘을 되감았다! 상처가 일부 사라졌다.';
+        HB.sfx('chime');
+        this.fx.push({ kind: 'rings', x: f.x, y: f.y - 8, t: 0 });
+        this.num(f.x, f.y - 40, '+' + heal, '#8af0a0');
+        yield 1.1;
+        return;
+      }
       if (intent === 'flee') {
         this.msg = who + ' 달아났다!';
         HB.sfx('run');
@@ -377,6 +416,18 @@
       // a bat's 'double' is two lighter hits, each at its own target
       for (let n = intent === 'double' ? 2 : 1; n > 0; n--) yield* this.foeHit(f, intent);
       if (intent === 'burst') { f.hp = 0; yield* this.kill(f); } // the star is spent
+    },
+
+    // a boss calls a helper into the fight (it walks in from the boss)
+    *addFoe(kind, from) {
+      const i = this.foes.length;
+      const e = { x: from.x, y: from.y, kind, ph: 0, cool: 0, dead: false, inBattle: true, flash: 0, hitShake: 0, dying: 0 };
+      Object.assign(e, HB.makeFoe(kind));
+      e.hp = e.maxHp;
+      e.slot = { x: this.cam.x + HB.W / 2 + SLOTS[i % SLOTS.length][0], y: this.cam.y + HB.H / 2 + SLOTS[i % SLOTS.length][1] };
+      HB.Field.enemies.push(e);
+      this.foes.push(e);
+      yield* this.moveTo(e, e.slot.x, e.slot.y, 0.35);
     },
 
     *foeHit(f, intent) {
@@ -477,6 +528,7 @@
           const wasSilenced = this.silenced > 0;
           yield* action;
           if (!this.active) return; // fled
+          if (HB.party.hp <= 0) { yield* this.lose(); return; } // an echo came back
           if (wasSilenced && this.silenced > 0 && --this.silenced === 0) { this.msg = '목소리가 돌아왔다.'; yield 0.7; }
           if (this.buff > 0 && !this.castRing && --this.buff === 0) { this.msg = '맑은울림이 잦아들었다.'; yield 0.6; }
         } else if (!who.dead && who.hp > 0) {
@@ -641,7 +693,8 @@
     // auto battle: the same picks the balance tests play with (HB.autoPick)
     autoAct() {
       const alive = this.alive();
-      const pick = HB.autoPick(HB.party, alive, { silenced: this.silenced > 0, buff: this.buff, fog: this.fog > 0, waveNext: alive.some((f) => HB.waveNext(f, this.turn)) });
+      const pick = HB.autoPick(HB.party, alive, { silenced: this.silenced > 0, buff: this.buff, fog: this.fog > 0, waveNext: alive.some((f) => HB.waveNext(f, this.turn)),
+        hold: alive.some((f) => f.echo || f.warned === 'rewind') });
       const t = pick.target || alive[0];
       if (pick.act === 'guard') { this.guarding = true; this.run(this.round(this.heroGuard())); }
       else if (pick.act === 'item') this.run(this.round(this.heroItem(pick.id)));
