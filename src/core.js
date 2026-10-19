@@ -116,20 +116,36 @@ window.HB = window.HB || {};
   HB.isFading = () => !!fade;
 
   // ---------- loop ----------
+  // a thrown error must not freeze the game: it goes to the console, the next
+  // frame still comes, and an error repeating every frame gets a note on screen
+  // count: how many times the most repeated error has come up in a row
+  const err = { seen: {}, count: 0, quiet: 0 };
+  HB.loopError = err;
+  function report(e) {
+    const msg = String((e && e.message) || e);
+    const n = err.seen[msg] = (err.seen[msg] || 0) + 1;
+    if (n === 1) console.error('게임 오류: ' + msg, e);
+    else if (n % 600 === 0) console.error('같은 오류가 ' + n + '번 반복됨: ' + msg);
+    err.count = Math.max(err.count, n);
+    err.quiet = 0;
+  }
+
   const STEP = 1 / 60;
   let last = performance.now(), acc = 0;
   function tick(now) {
+    requestAnimationFrame(tick); // first, so nothing below can stop the loop
     let dt = (now - last) / 1000;
     last = now;
     if (dt > 0.25) dt = 0.25;
     acc += dt;
     if (HB.paused) acc = 0;
     while (acc >= STEP) {
-      update(STEP);
+      try { update(STEP); } catch (e) { report(e); }
       acc -= STEP;
     }
-    render();
-    requestAnimationFrame(tick);
+    try { render(); } catch (e) { report(e); }
+    err.quiet += dt;
+    if (err.quiet > 1) { err.seen = {}; err.count = 0; }
   }
   function update(dt) {
     HB.time += dt;
@@ -143,14 +159,17 @@ window.HB = window.HB || {};
         fade = null;
       }
     }
-    if (scene && scene.update) scene.update(dt, !!fade);
-    input.pressed = {};
+    try {
+      if (scene && scene.update) scene.update(dt, !!fade);
+    } finally { input.pressed = {}; } // a throw must not leave a key pressed every frame
   }
   function render() {
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.globalAlpha = 1;
     g.globalCompositeOperation = 'source-over';
-    if (scene && scene.draw) scene.draw(g);
+    try {
+      if (scene && scene.draw) scene.draw(g);
+    } catch (e) { report(e); g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; }
     if (fade) {
       const p = HB.clamp(fade.t / fade.dur, 0, 1);
       const a = fade.dir === 1 ? p : 1 - p;
@@ -164,6 +183,10 @@ window.HB = window.HB || {};
       g.fillStyle = 'rgba(10,8,24,0.6)'; g.fillRect(0, 0, W, H);
       HB.text(g, '일시정지', W / 2, H / 2 - 12, '#fff4d8', { align: 'center' });
       HB.text(g, '아무 키나 누르거나 화면을 누르면 계속', W / 2, H / 2 + 6, '#c8c0e0', { align: 'center', font: 'g9' });
+    }
+    if (err.count >= 30) {
+      g.fillStyle = 'rgba(60,10,20,0.85)'; g.fillRect(2, 2, 236, 14);
+      HB.text(g, '오류가 반복되고 있어요. 새로고침해 주세요.', 6, 4, '#ffd0d0', { font: 'g9' });
     }
     ctx.drawImage(buf, 0, 0, canvas.width, canvas.height);
   }

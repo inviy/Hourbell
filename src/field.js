@@ -152,6 +152,7 @@
         voice: 'narrate',
         onClose: () => {
           w.flags.fragment1 = true;
+          HB.saveSoon();
           HB.sfx('fragment');
           HB.music.play('fieldBell', { fadeOut: 1.2, fadeIn: 2.0 });
           HB.dialog.open(['종소리 조각을 손에 넣었다!  (1 / 7)', '들판의 노래에 첫 소절이 돌아왔다.'], {

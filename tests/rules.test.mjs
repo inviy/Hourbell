@@ -301,3 +301,23 @@ test('a seed replays the same fights exactly', () => {
   assert.equal(a, b);
   assert.ok(new Set(a.split(' ')).size > 1, 'and the fights still differ from each other');
 });
+
+test('the save before the last one is kept, and a damaged save falls back to it', () => {
+  const store = memStore();
+  const at = (lvl, map) => ({ party: partyAt(lvl, 0), flags: {}, map, x: 1, y: 1, dir: 'up' });
+  // an existing save from before backups still loads on its own
+  store.mem['hourbell.save1'] = JSON.stringify(Object.assign({ v: HB.SAVE_VERSION }, at(2, 'town')));
+  assert.equal(HB.loadGame(store).party.lvl, 2);
+  assert.ok(HB.saveGame(store, at(5, 'field')));
+  assert.equal(JSON.parse(store.mem['hourbell.save1.bak']).party.lvl, 2, 'the previous save is the backup');
+  store.mem['hourbell.save1'] = '{"v":3,"party":';
+  const d = HB.loadGame(store);
+  assert.equal(d.party.lvl, 2, 'a damaged save loads the backup');
+  assert.ok(HB.saveGame(store, at(6, 'port')));
+  assert.equal(JSON.parse(store.mem['hourbell.save1.bak']).party.lvl, 2, 'a damaged save never replaces a good backup');
+  assert.equal(HB.loadGame(store).party.lvl, 6);
+  const broken = { mem: {}, getItem: () => null, setItem(k, v) { if (k.endsWith('.bak')) throw new Error('quota'); this.mem[k] = v; } };
+  broken.getItem = (k) => broken.mem[k] ?? null;
+  assert.ok(HB.saveGame(broken, at(3, 'town')) && HB.saveGame(broken, at(4, 'town')), 'a failed backup does not stop the save');
+  assert.equal(HB.loadGame(broken).party.lvl, 4);
+});

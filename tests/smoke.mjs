@@ -141,15 +141,32 @@ try {
   await ev(`HB.Chapter.interact(${W}, 29, 6)`); await drain(); await sleep(3500);
   assert.ok(await ev('HB.Battle.isBoss')); await shot('13-boss2');
   await ev('HB.Battle.keepAuto = true; HB.Battle.auto = true');
+  const savedFlag = (flag) => ev(`!!((JSON.parse(localStorage.getItem('hourbell.save1')) || { flags: {} }).flags.${flag})`);
+  let savedMidBattle = null;
   for (let i = 0; i < 600 && await ev('HB.Battle.active'); i++) {
+    if (savedMidBattle === null && await ev(`${W}.flags.boss2`)) savedMidBattle = await savedFlag('boss2');
     if (await ev('!!HB.Battle.waitingOk')) await key('KeyZ');
     await sleep(250);
   }
   assert.ok(!(await ev('HB.Battle.active')), 'auto battle finishes the boss fight');
   assert.ok(await ev(`${W}.flags.boss2`), 'and wins it');
+  assert.equal(savedMidBattle, false, 'no autosave while the battle is still on screen');
   await drain(); await sleep(800);
-  await ev(`HB.Chapter.interact(${W}, 29, 6)`); await drain();
+  assert.ok(await savedFlag('boss2'), 'autosaved once control came back');
+  // reload right after the boss: the win is still there
+  const reloadAndContinue = async () => {
+    await send('Page.navigate', { url: URL_ }); await sleep(2500);
+    await key('KeyZ'); await sleep(700); await key('KeyZ'); await sleep(2300); await drain();
+  };
+  await reloadAndContinue();
+  assert.ok(await ev(`${W}.flags.boss2`), 'the boss win survives a reload');
+  assert.equal(await ev(`${W}.def.id`), 'port');
+  await ev('HB.Field.enemies.forEach((e) => { e.dead = true; })');
+  await ev(`HB.Chapter.interact(${W}, 29, 6)`); await drain(); await sleep(600);
   assert.ok(await ev(`${W}.flags.fragment2`));
+  assert.ok(await savedFlag('fragment2'), 'the fragment is autosaved too');
+  await reloadAndContinue();
+  assert.ok(await ev(`${W}.flags.fragment2`), 'and survives a reload');
   assert.equal(await ev('HB.fragments(' + W + '.flags)'), 2);
   await ev(`${W}.load('town')`); await sleep(400);
   await talkTo('keeper'); await drain(); await sleep(2500);
@@ -283,6 +300,30 @@ try {
   await key('KeyZ'); await sleep(2300);
   assert.ok(await ev(`${W}.flags.chapter7`), 'the whole adventure came across');
   assert.equal(await ev('HB.party.pet'), 'pip');
+
+  step('a damaged save falls back to the one before it');
+  await ev(`HB.save(${W})`); // the imported save becomes the backup
+  await ev(`localStorage.setItem('hourbell.save1', '{"v":3,"party":')`);
+  await send('Page.navigate', { url: URL_ }); await sleep(2500);
+  await key('KeyZ'); await sleep(700);
+  assert.deepEqual(await ev('HB.Title.opts'), ['continue', 'new', 'code'], 'continue is still offered');
+  await key('KeyZ'); await sleep(2300); await drain();
+  assert.ok(await ev(`${W}.flags.chapter7`), 'from the backup');
+
+  step('an error thrown every frame does not stop the game');
+  const time0 = await ev('HB.time');
+  await ev("HB.worldPlugins.push(window.boom = { update() { throw new Error('smoke: boom in update'); }, drawables() { throw new Error('smoke: boom in draw'); } })");
+  await sleep(1500); await shot('32-error-note');
+  assert.ok(await ev('HB.time') > time0 + 1, 'the loop keeps running');
+  assert.ok(await ev('HB.loopError.count') >= 30, 'and the repeating error is noted on screen');
+  await ev('HB.worldPlugins.splice(HB.worldPlugins.indexOf(window.boom), 1)');
+  await sleep(1500);
+  assert.equal(await ev('HB.loopError.count'), 0, 'the note goes away once the error stops');
+  await key('ArrowLeft', 400);
+  assert.equal(await ev(`${W}.player.dir`), 'left', 'and the game still plays');
+  const thrown = errors.filter((e) => /smoke: boom/.test(e));
+  assert.ok(thrown.length >= 2 && thrown.length <= 4, 'each error logged once, not every frame (' + thrown.length + ')');
+  errors.splice(0, errors.length, ...errors.filter((e) => !/smoke: boom/.test(e)));
 
   assert.deepEqual(errors, [], 'no JS errors');
   console.log('ok, screenshots in ' + OUT);
