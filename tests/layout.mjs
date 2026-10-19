@@ -1,7 +1,7 @@
 // Screen layout on phones, tablets and PCs: the game must not sit under the
 // on-screen D-pad or A / B buttons, phones in portrait fill the width, and
 // PCs and tablets keep whole-number pixel scaling. Saves a screenshot of each
-// with a dialog open. Run: node tests/layout.mjs   (about a minute)
+// with a dialog open, and of the map screen. Run: node tests/layout.mjs   (about a minute)
 import assert from 'node:assert/strict';
 import { openGame } from './browser.mjs';
 
@@ -32,6 +32,11 @@ try {
     await ev(`HB.setScene(HB.World, { map: 'town' })`); await sleep(1500);
     await ev(`HB.dialog.open('대화창이 버튼에 가리지 않는지 확인하는 문장입니다. 끝까지 보여야 합니다.')`); await sleep(1500);
     await shot('layout-' + name);
+    // the map screen late in the story (most regions shown), for legibility
+    await ev(`(() => { HB.dialog.close(); Object.assign(HB.World.flags, { chapter1: true, chapter2: true, chapter3: true, chapter4: true, chapter5: true, chapter6: true, grovePuzzle: true });
+      HB.Menu.open = true; HB.Menu.stack = []; HB.Menu.push({ id: 'main' }); HB.Menu.push({ id: 'map' }); })()`);
+    await sleep(400); await shot('map-' + name);
+    await ev('HB.Menu.close()');
     const m = await ev(`(() => {
       const box = (el) => { const r = el.getBoundingClientRect(); return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height }; };
       const c = document.getElementById('screen');

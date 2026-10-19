@@ -158,11 +158,11 @@
           HB.dialog.open(['종소리 조각을 손에 넣었다!  (1 / 7)', '들판의 노래에 첫 소절이 돌아왔다.'], {
             voice: 'narrate',
             onClose: () => {
-              if (HB.party.pet) return;
+              if (HB.party.pet) { HB.offerReturn(w); return; }
               HB.party.pet = 'pip';
               HB.sfx('chime');
               HB.dialog.open(['조각에서 작은 빛 한 점이 떨어져 나왔다.', '빛은 정화된 아기 소리먹이가 되어 리안의 곁을 맴돈다.',
-                '방울이 함께하게 되었다!  (전투 뒤 물건을 물어 오고, 걷는 동안 HP를 채워 준다)'], { voice: 'narrate' });
+                '방울이 함께하게 되었다!  (전투 뒤 물건을 물어 오고, 걷는 동안 HP를 채워 준다)'], { voice: 'narrate', onClose: () => HB.offerReturn(w) });
             }
           });
         }

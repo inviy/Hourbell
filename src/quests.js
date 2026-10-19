@@ -32,6 +32,16 @@
     }
   ].concat(HB.QUESTS || []); // chapter files may have added theirs already
 
+  // the story's next step (the latest chapter still open), for the map screen
+  // and the line shown on continue
+  HB.currentGoal = function (f, P) {
+    const open = HB.QUESTS.filter((q) => q.id === 'main' || /^ch\d$/.test(q.id))
+      .map((q) => HB.questState(q, f, P)).filter((s) => s.started && !s.done);
+    if (!open.length) return '아워벨이 다시 울린다. 울림골을 마음껏 걸어 보자';
+    const s = open[open.length - 1];
+    return s.label(s.step);
+  };
+
   // { started, step: index of the first unfinished step, done, label(i) }
   HB.questState = function (q, f, P) {
     let step = q.steps.findIndex(([, done]) => !done(f, P));

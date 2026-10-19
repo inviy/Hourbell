@@ -71,6 +71,8 @@
           w.flags = d ? d.flags : {};
           w.visited = d ? { intro: true } : {};
           HB.setScene(w, d ? { map: d.map, spawn: { x: d.x, y: d.y, dir: d.dir } } : { map: 'town' });
+          // back after a while: the place and, under it, what to do next
+          if (d) HB.showBanner(w.def.name, '지금 할 일: ' + HB.currentGoal(w.flags, HB.party), 6);
         }, { dur: 0.9 });
       }
     },

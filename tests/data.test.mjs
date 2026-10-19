@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadHB } from './sim.mjs';
 
-const HB = loadHB(['rules.js', 'sprites.js', 'tiles.js', 'maps.js', 'ch2.js', 'ch3.js', 'ch4.js', 'ch5.js', 'ch6.js', 'ch7.js']);
+const HB = loadHB(['rules.js', 'sprites.js', 'tiles.js', 'maps.js', 'ch2.js', 'ch3.js', 'ch4.js', 'ch5.js', 'ch6.js', 'ch7.js', 'worldmap.js']);
 const maps = Object.fromEntries(Object.entries(HB.MAPS).map(([id, build]) => [id, build()]));
 
 const solid = (m, x, y) => { const r = m.rows[y]; return !r || r[x] === undefined || HB.SOLID.has(r[x]); };
@@ -116,4 +116,23 @@ test('shops sell real items', () => {
 test('chest ids are unique across maps', () => {
   const ids = Object.values(maps).flatMap((m) => (m.chests || []).map((c) => c.id));
   assert.equal(new Set(ids).size, ids.length);
+});
+
+test('the map screen knows every region and every road between them', () => {
+  const R = HB.REGIONS, region = HB.regionOf;
+  const linked = (a, b) => [[a, b], [b, a]].some(([x, y]) => (R[x].links || []).concat(R[x].tower || []).includes(y));
+  for (const id of Object.keys(maps)) assert.ok(R[region(id)], 'region for ' + id);
+  for (const [id, m] of Object.entries(maps)) {
+    for (const e of (m.exits || []).concat(m.portals || [])) {
+      const a = region(id), b = region(e.to);
+      if (a !== b) assert.ok(linked(a, b), 'map link ' + a + ' - ' + b);
+    }
+  }
+  // a new game shows the town and the roads out of it as ???, never the secret grove
+  const start = HB.mapNodes({});
+  assert.equal(start.town, 'seen');
+  assert.equal(start.field, 'unknown');
+  assert.ok(!start.grove);
+  // an old save without visit flags still shows the chapters it finished
+  assert.equal(HB.mapNodes({ chapter1: true, chapter2: true }).port, 'seen');
 });

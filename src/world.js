@@ -88,7 +88,21 @@
     tryMove(a, dx, dy) {
       // move per axis so walls slide nicely
       if (dx && !this.blocked(a.x + dx, a.y, a)) a.x += dx;
+      else if (dx && !dy) this.slide(a, dx, 0);
       if (dy && !this.blocked(a.x, a.y + dy, a)) a.y += dy;
+      else if (dy && !dx) this.slide(a, 0, dy);
+    },
+    // walking straight into the corner of a wall: if stepping up to 4px to the
+    // side clears it, ease that way instead of stopping dead
+    slide(a, dx, dy) {
+      const step = Math.abs(dx || dy);
+      for (let off = 1; off <= 4; off++) for (const s of [-1, 1]) {
+        const ox = dx ? 0 : s * off, oy = dx ? s * off : 0;
+        if (this.blocked(a.x + ox + dx, a.y + oy + dy, a)) continue;
+        const mx = Math.sign(ox) * Math.min(step, off), my = Math.sign(oy) * Math.min(step, off);
+        if (!this.blocked(a.x + mx, a.y + my, a)) { a.x += mx; a.y += my; }
+        return;
+      }
     },
 
     // ---------- update ----------
