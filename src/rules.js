@@ -225,8 +225,10 @@
   // what a foe does this turn: 'attack' | 'swallow' | 'wave' | 'silence' | 'fog'.
   // Patterns are data: waveEvery (the battle warns a turn ahead), silenceEvery
   // (below half HP), fogEvery; per boss: summonAt + summon (kinds it calls),
-  // rewindAt, echoEvery, fogMend (HP share healed each turn in its fog).
-  // ctx: { silenced, fog }
+  // rewindAt, echoEvery, fogMend (HP share healed each turn in its fog),
+  // freezeEvery (freezes a companion for a turn), swapEvery (trades its weak
+  // and resist elements), twiceAt + twiceEvery (two full attacks in a round).
+  // ctx: { silenced, fog, allies (companions still up) }
   // foeWarn decides the big moves at the start of a round, so the battle can
   // warn about them and the foe does exactly what was warned
   HB.waveNext = (f, turn) => !!f.waveEvery && turn % f.waveEvery === f.waveEvery - 1;
@@ -238,7 +240,15 @@
     // each boss's own move, once: calls helpers / winds back this round's wounds
     if (f.summon && !f.summoned && f.hp < f.maxHp * f.summonAt) return 'summon';
     if (f.rewindAt && !f.rewound && f.hp < f.maxHp * f.rewindAt) return 'rewind';
+    if (f.freezeEvery && ctx.allies && turn % f.freezeEvery === 2) return 'freeze';
+    if (f.twiceAt && f.hp < f.maxHp * f.twiceAt && turn % f.twiceEvery === 2) return 'twice';
     return null;
+  };
+  // 일식: every few rounds its light turns over and its weak and resist trade places
+  HB.swapNow = (f, turn) => {
+    if (!f.swapEvery || turn % f.swapEvery !== 0) return false;
+    [f.weak, f.resist] = [f.resist, f.weak];
+    return true;
   };
   // 메아리왕: some rounds it gathers echoes, and half of what the hero deals comes back
   HB.echoNow = (f, turn) => !!f.echoEvery && turn % f.echoEvery === 1;

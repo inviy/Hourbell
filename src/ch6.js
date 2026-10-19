@@ -32,7 +32,7 @@
     moonwisp: { name: '달먹이', hp: 160, atk: 76, def: 22, spd: 14, exp: 50, gold: [56, 72], drop: ['starshard', 0.45], swallow: 0.35, weak: 'sound' },
     eclipse: {
       name: '일식', hp: 980, atk: 75, def: 30, spd: 16, exp: 2400, gold: [1800, 1800], drop: ['starhoney', 2], boss: true,
-      flag: 'boss6', waveEvery: 4, waveMul: 0.75, fogEvery: 5, fogName: '별먼지',
+      flag: 'boss6', waveEvery: 4, waveMul: 0.75, fogEvery: 5, weak: 'sound', resist: 'wind', swapEvery: 3, fogName: '별먼지',
       intro: '망원경 너머의 별들이 하나씩 꺼져 간다...', won: '그림자가 걷히고, 멈춰 있던 별들이 다시 돌기 시작했다!'
     }
   });

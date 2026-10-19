@@ -131,16 +131,21 @@
       this.turn++; this.guarding = false;
       if (this.fog > 0 && --this.fog === 0) this.msg = HB.josa(this.fogName, '이가') + ' 걷혔다.';
       // the big moves are picked now and warned about before you choose
-      const ctx = { silenced: this.silenced > 0, fog: this.fog > 0 };
+      const ctx = { silenced: this.silenced > 0, fog: this.fog > 0, allies: this.allies.filter((m) => m.hp > 0).length };
+      const swapped = this.alive().find((f) => HB.swapNow(f, this.turn));
+      if (swapped) this.msg = swapped.name + '의 빛이 뒤집혔다! (이제 ' + (swapped.weak === 'wind' ? '바람' : '소리') + '에 약하다)';
       this.alive().forEach((f) => { f.warned = HB.foeWarn(f, this.turn, ctx); f.echo = HB.echoNow(f, this.turn); f.roundHp = f.hp; });
       const boss = this.alive().find((f) => f.warned) || this.alive().find((f) => f.echo);
       if (!boss) return;
       const who = HB.josa(boss.name, '이가');
+      if (swapped && !boss.warned) return; // the swap note stands
       this.msg = boss.warned === 'wave' ? who + ' 깊게 숨을 들이마신다... (방어하면 파동 피해 절반)'
         : boss.warned === 'fog' ? who + ' ' + HB.josa(boss.fogName || '안개', '을를') + ' 머금는다... (끼면 공격 반감)'
         : boss.warned === 'silence' ? who + ' 소리를 거둬들이려 한다... (곧 기술 봉인)'
         : boss.warned === 'summon' ? who + ' 동료를 부르려 한다...'
         : boss.warned === 'rewind' ? who + ' 시곗바늘을 되감으려 한다... (이번 턴 피해 일부 복구)'
+        : boss.warned === 'freeze' ? who + ' 차가운 숨을 모은다... (동료 하나가 얼어붙는다)'
+        : boss.warned === 'twice' ? who + ' 시간을 멈추려 한다... (이번 턴 두 번 공격)'
         : who + ' 메아리를 모은다... (때리면 일부가 되돌아온다)';
     },
 
@@ -371,6 +376,24 @@
         yield 1.0;
         return;
       }
+      if (intent === 'freeze') { // a free action: the attack still comes
+        const up = this.allies.filter((m) => m.hp > 0), m = up[Math.floor(HB.rand() * up.length)];
+        if (m) {
+          m.frozen = true;
+          this.msg = who + ' 서리를 내뿜었다! ' + HB.josa(m.name, '이가') + ' 얼어붙었다!';
+          HB.sfx('vanish');
+          this.fx.push({ kind: 'sparkle', x: m.actor.x, y: m.actor.y - 14, t: 0, color: '#c8f0ff' });
+          yield 1.1;
+        }
+        intent = 'attack';
+      }
+      if (intent === 'twice') {
+        this.msg = who + ' 시간을 멈췄다!';
+        this.distort = 0.4; HB.sfx('vanish');
+        yield 0.8;
+        yield* this.foeHit(f, 'attack');
+        intent = 'attack';
+      }
       if (intent === 'burst') {
         this.msg = who + ' 남은 빛을 터뜨렸다!';
         HB.sfx('vanish');
@@ -464,6 +487,12 @@
     *allyAct(a) {
       const A = a.actor, P = HB.party, p = this.w.player;
       a.covering = false;
+      if (a.frozen) { // 서리날개's freeze: this turn is lost
+        a.frozen = false;
+        this.msg = HB.josa(a.name, '은는') + ' 얼어붙어 움직일 수 없다!';
+        yield 0.8;
+        return;
+      }
       const i = HB.allyIntent(a, [P].concat(this.allies), this.alive(), this.silenced > 0);
       a.sang = i.act === 'song';
       if (i.act === 'song') {

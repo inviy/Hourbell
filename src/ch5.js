@@ -31,7 +31,7 @@
     frostbat: { name: '서리박쥐', hp: 116, atk: 59, def: 16, spd: 18, exp: 44, gold: [46, 60], drop: ['gingertea', 0.2], weak: 'sound', trait: 'double' },
     frostwing: {
       name: '서리날개', hp: 840, atk: 81, def: 24, spd: 14, exp: 1600, gold: [1300, 1300], drop: ['honeycake', 2], boss: true,
-      flag: 'boss5', fogEvery: 4, silenceEvery: 5, fogName: '눈보라',
+      flag: 'boss5', fogEvery: 4, silenceEvery: 5, freezeEvery: 4, fogName: '눈보라',
       intro: '얼음 종이 갈라지며, 하얀 날개가 산마루를 뒤덮었다!', won: '눈보라가 그치고, 얼음 종이 맑게 한 번 울렸다.'
     }
   });

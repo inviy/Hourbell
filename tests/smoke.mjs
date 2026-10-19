@@ -341,11 +341,11 @@ try {
   await drain();
 
   step('bosses: a warned call for help, winding back, echoes');
-  const bossRound = async (kind, setup) => {
+  const bossRound = async (kind, setup, turn0 = 0) => {
     await ev(`(() => { const p = ${W}.player, B = HB.Battle; B.start(${W}, [{ kind: '${kind}', x: p.x + 48, y: p.y }]);
       B.allies.forEach((m) => { m.hp = 0; }); const f = B.foes[0]; f.atk = 1; f.maxHp = 9999; f.waveEvery = f.fogEvery = f.silenceEvery = 0; ${setup} })()`);
     await sleep(3200);
-    await ev('HB.Battle.turn = 0; HB.Battle.toMenu()');
+    await ev('HB.Battle.turn = ' + turn0 + '; HB.Battle.toMenu()');
     const warn = await ev('HB.Battle.msg');
     await ev('HB.Battle.cursor = 0'); await key('KeyZ'); await sleep(400);
     for (let i = 0; i < 40 && await ev("HB.Battle.phase !== 'menu' || !!HB.Battle.co"); i++) { if (await ev('!!HB.Battle.waitingOk')) await key('KeyZ'); await sleep(250); }
@@ -361,6 +361,15 @@ try {
   const heroHp = await ev('HB.party.hp');
   assert.match(await bossRound('echoking', 'f.hp = 9999; f.echoEvery = 2;'), /메아리를 모은다/);
   assert.ok(await ev('HB.party.hp') < heroHp, '메아리왕 sends part of the hit back');
+  await ev('HB.Battle.end(true)'); await drain();
+  assert.match(await bossRound('frostwing', 'f.hp = 9999; B.allies.forEach((m) => { m.hp = 999; });', 1), /차가운 숨을 모은다/);
+  await ev('HB.Battle.end(true)'); await drain();
+  assert.match(await bossRound('eclipse', 'f.hp = 9999;', 2), /빛이 뒤집혔다! \(이제 바람에 약하다\)/);
+  assert.equal(await ev('HB.Battle.foes[0].weak'), 'wind', '일식 trades its weak and resist');
+  await ev('HB.Battle.end(true)'); await drain();
+  const hpBefore = await ev('HB.party.hp');
+  assert.match(await bossRound('hush', 'f.hp = 100; f.atk = 30;', 1), /시간을 멈추려 한다/);
+  assert.ok(await ev('HB.party.hp') < hpBefore, '정적 strikes twice');
   await ev('HB.Battle.end(true)'); await drain();
   await ev('(() => { const P = HB.party; P.hp = P.maxHp; P.allies.forEach((a) => { a.hp = HB.allyStats(a.id, P.lvl).maxHp; }); })()');
   await ev(`${W}.load('pastwood', { x: ${woodAt[0]}, y: ${woodAt[1]}, dir: 'down' }); HB.Field.enemies.forEach((e) => { e.dead = true; })`); await sleep(500);
