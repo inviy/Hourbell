@@ -50,7 +50,7 @@
 - 기록: 메뉴에서 기록, 여관과 보스 승리·조각 획득 뒤 자동 기록, 타이틀에서 이어하기. 메뉴 > 세이브 코드로 다른 기기에 옮기기
 - 쓰러지면 그 장에서 마지막으로 쉰 여관에서 깨어남
 
-개선 점검표는 [docs/CHECKLIST.md](docs/CHECKLIST.md)(200항목, 진행 중)와 [docs/AUDIT-500.md](docs/AUDIT-500.md)에 있습니다.
+진행이 막히지 않는지 보는 표는 [docs/SOFTLOCK.md](docs/SOFTLOCK.md)에 있습니다. 개선 점검표는 [docs/CHECKLIST.md](docs/CHECKLIST.md)(200항목, 진행 중)와 [docs/AUDIT-500.md](docs/AUDIT-500.md)에 있습니다.
 
 버그나 의견은 [GitHub Issues](https://github.com/inviy/Hourbell/issues)에 남겨 주세요. 게임 안에서는 메뉴 > 옵션 > 의견 보내기로 열 수 있습니다.
 
