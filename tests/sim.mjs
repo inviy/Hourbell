@@ -48,7 +48,7 @@ export function fight(HB, P, kinds, allies = []) {
       else if (pick.id === 'gust') { t.hp -= HB.gustDmg(P, t, buff > 0); fog = 0; }
     } else {
       let d = HB.hitDmg(HB.effAtk(P, buff > 0), t.def);
-      if (Math.random() < HB.critChance) d = Math.round(d * 1.8);
+      if (HB.rand() < HB.critChance) d = Math.round(d * 1.8);
       t.hp -= HB.fogged(d, fog > 0);
     }
     if (silenced) silenced--;

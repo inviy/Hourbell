@@ -290,3 +290,14 @@ test('pacing: reaching level 4 takes about two field clears', () => {
   const clears = need / clear;
   assert.ok(clears >= 1.5 && clears <= 3.5, 'clears to Lv4 = ' + clears.toFixed(2));
 });
+
+test('a seed replays the same fights exactly', () => {
+  const run = () => {
+    HB.seedRandom(1234);
+    return Array.from({ length: 20 }, () => { const P = partyAt(3, 2); const won = play(HB, P, ['wisp', 'flicker', 'guard'], []); return won + ':' + P.hp; }).join(' ');
+  };
+  const a = run(), b = run();
+  HB.rand = Math.random;
+  assert.equal(a, b);
+  assert.ok(new Set(a.split(' ')).size > 1, 'and the fights still differ from each other');
+});

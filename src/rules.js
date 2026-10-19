@@ -4,7 +4,11 @@
 (function (HB) {
   'use strict';
 
-  const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+  // every roll that decides a fight goes through HB.rand; HB.seedRandom(n)
+  // makes a run repeat exactly (tests, replaying a reported fight)
+  HB.rand = Math.random;
+  HB.seedRandom = (seed) => { HB.rand = HB.rng(seed); };
+  const rnd = (a, b) => a + Math.floor(HB.rand() * (b - a + 1));
   HB.rnd = rnd;
 
   HB.newParty = () => ({
@@ -170,8 +174,8 @@
     const up = (allies || []).filter((a) => a.hp > 0);
     const cover = up.find((a) => a.covering);
     if (cover) return cover;
-    if (!up.length || Math.random() < 0.4) return 'hero';
-    return up[Math.floor(Math.random() * up.length)];
+    if (!up.length || HB.rand() < 0.4) return 'hero';
+    return up[Math.floor(HB.rand() * up.length)];
   };
 
   // ---------- pet ----------
@@ -180,8 +184,8 @@
   HB.PETS = { pip: { name: '방울', desc: '정화된 아기 소리먹이. 전투 뒤에 물건을 물어 오고, 걷는 동안 HP를 조금씩 채워 준다.' } };
   HB.PET_FIND = 0.35;
   HB.petFind = function (lvl) {
-    if (Math.random() >= HB.PET_FIND) return null;
-    const r = Math.random();
+    if (HB.rand() >= HB.PET_FIND) return null;
+    const r = HB.rand();
     if (r < 0.55) return { item: 'herb' };
     if (r < 0.8) return { item: 'drop' };
     if (r < 0.9) return { item: 'water' };
@@ -221,7 +225,7 @@
     if (HB.waveNext(f, turn)) return 'wave';
     if (f.fogEvery && !ctx.fog && turn % f.fogEvery === 1) return 'fog';
     if (f.silenceEvery && f.hp < f.maxHp / 2 && !ctx.silenced && turn % f.silenceEvery === 0) return 'silence';
-    if (!f.boss && Math.random() < (f.swallow || 0) && P.mp > 0) return 'swallow';
+    if (!f.boss && HB.rand() < (f.swallow || 0) && P.mp > 0) return 'swallow';
     return 'attack';
   };
   // fog: rounds it lasts; plain hits are halved until a sound or wind skill clears it
