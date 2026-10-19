@@ -13,7 +13,7 @@
     '.hb-pad .u{left:44px;top:0}.hb-pad .d{left:44px;bottom:0}.hb-pad .l{left:0;top:44px}.hb-pad .r{right:0;top:44px}',
     '.hb-pad div.on,.hb-btn.on{background:rgba(255,224,138,.45)}',
     '.hb-btn{position:fixed;width:58px;height:58px;border-radius:50%;background:rgba(240,236,255,.16);border:2px solid rgba(240,236,255,.4);',
-    'color:#fff4d8;font:16px Galmuri11,sans-serif;display:flex;align-items:center;justify-content:center;touch-action:none;z-index:5;user-select:none}',
+    'color:#fff4d8;font:16px HourbellText11,sans-serif;display:flex;align-items:center;justify-content:center;touch-action:none;z-index:5;user-select:none}',
     '.hb-a{right:22px;bottom:70px}.hb-b{right:92px;bottom:26px}'
   ].join('');
   document.head.appendChild(css);

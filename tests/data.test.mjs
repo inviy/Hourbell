@@ -136,3 +136,14 @@ test('the map screen knows every region and every road between them', () => {
   // an old save without visit flags still shows the chapters it finished
   assert.equal(HB.mapNodes({ chapter1: true, chapter2: true }).port, 'seen');
 });
+
+test('the subset fonts have every character the game writes', async () => {
+  // assets/fonts holds only these characters; after new text, run python tools/subset-fonts.py
+  const { readFileSync, readdirSync } = await import('node:fs');
+  const root = new URL('../', import.meta.url);
+  const have = new Set(readFileSync(new URL('assets/fonts/chars.txt', root), 'utf8'));
+  const files = readdirSync(new URL('src/', root)).filter((f) => f.endsWith('.js')).map((f) => 'src/' + f).concat('index.html');
+  const missing = new Set();
+  for (const f of files) for (const c of readFileSync(new URL(f, root), 'utf8')) if (c > '~' && !have.has(c)) missing.add(c);
+  assert.deepEqual([...missing], [], 'run python tools/subset-fonts.py');
+});
