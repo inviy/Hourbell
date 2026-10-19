@@ -59,6 +59,7 @@ export function fight(HB, P, kinds, allies = []) {
 
   function ally(m) {
     m.covering = false;
+    if (m.frozen) { m.frozen = false; return; } // frozen: skips this turn
     const i = HB.allyIntent(m, [P].concat(team), alive(), silenced > 0);
     m.sang = i.act === 'song';
     if (i.act === 'song') i.target.hp = Math.min(i.target.maxHp, i.target.hp + HB.songAmt(P.lvl));
@@ -73,6 +74,8 @@ export function fight(HB, P, kinds, allies = []) {
     if (fog > 0 && f.fogMend) f.hp = Math.min(f.maxHp, f.hp + Math.round(f.maxHp * f.fogMend));
     if (intent === 'summon') { f.summoned = true; f.summon.forEach((k) => { if (alive().length < 3) foes.push(HB.makeFoe(k)); }); return; }
     if (intent === 'rewind') { f.rewound = true; f.hp += HB.rewindAmt(f); return; }
+    if (intent === 'freeze') { const up = team.filter((m) => m.hp > 0); if (up.length) up[Math.floor(HB.rand() * up.length)].frozen = true; intent = 'attack'; } // a free action, like fog
+    if (intent === 'twice') intent = 'attack';
     if (intent === 'flee') { f.hp = 0; f.fled = true; return; }
     if (intent === 'mend') { f.mended = true; f.hp = Math.min(f.maxHp, f.hp + Math.round(f.maxHp * HB.TRAIT.mend)); return; }
     if (intent === 'curl') { f.curl = true; return; }
@@ -85,7 +88,7 @@ export function fight(HB, P, kinds, allies = []) {
       if (intent === 'burst') f.hp = 0; // the star is spent
       return;
     }
-    for (let n = intent === 'double' ? 2 : 1; n > 0; n--) {
+    for (let n = intent === 'double' || f.warned === 'twice' ? 2 : 1; n > 0; n--) {
       const t = HB.foeTarget(team);
       if (t === 'hero') P.hp -= HB.foeDmg(f, P, intent, guarding);
       else t.hp = Math.max(0, t.hp - HB.foeDmg(f, t, intent, false));
@@ -94,7 +97,7 @@ export function fight(HB, P, kinds, allies = []) {
 
   for (let turn = 1; turn < 120; turn++) {
     if (fog > 0) fog--;
-    alive().forEach((f) => { f.warned = HB.foeWarn(f, turn, { silenced: silenced > 0, fog: fog > 0 }); f.echo = HB.echoNow(f, turn); f.roundHp = f.hp; });
+    alive().forEach((f) => { HB.swapNow(f, turn); f.warned = HB.foeWarn(f, turn, { silenced: silenced > 0, fog: fog > 0, allies: team.filter((m) => m.hp > 0).length }); f.echo = HB.echoNow(f, turn); f.roundHp = f.hp; });
     const pick = HB.autoPick(P, alive(), { silenced: silenced > 0, buff, fog: fog > 0, waveNext: alive().some((f) => HB.waveNext(f, turn)),
       hold: alive().some((f) => f.echo || f.warned === 'rewind') });
     const guarding = pick.act === 'guard';

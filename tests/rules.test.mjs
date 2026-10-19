@@ -403,3 +403,18 @@ test('boss moves of their own are warned and happen once', () => {
   assert.equal(HBall.echoBack(100), Math.floor(100 * HBall.ECHO));
   assert.ok(HBall.FOES.mistking.fogMend > 0, '안개삼킴이 heals in its fog');
 });
+
+test('the late bosses: freeze a companion, trade elements, strike twice', () => {
+  const HBall = loadHB(['rules.js', 'sprites.js', 'tiles.js', 'maps.js', 'ch2.js', 'ch3.js', 'ch4.js', 'ch5.js', 'ch6.js', 'ch7.js']);
+  const wing = Object.assign(HBall.makeFoe('frostwing'), { fogEvery: 0, silenceEvery: 0 });
+  assert.equal(HBall.foeWarn(wing, 2, { allies: 2 }), 'freeze');
+  assert.equal(HBall.foeWarn(wing, 2, { allies: 0 }), null, 'nobody to freeze');
+  const ecl = HBall.makeFoe('eclipse');
+  assert.deepEqual([ecl.weak, ecl.resist], ['sound', 'wind']);
+  assert.ok(!HBall.swapNow(ecl, 2) && HBall.swapNow(ecl, 3));
+  assert.deepEqual([ecl.weak, ecl.resist], ['wind', 'sound'], 'the light turns over');
+  const hush = Object.assign(HBall.makeFoe('hush'), { waveEvery: 0, fogEvery: 0 });
+  assert.equal(HBall.foeWarn(hush, 2, {}), null, 'not while strong');
+  hush.hp = 1;
+  assert.equal(HBall.foeWarn(hush, 2, {}), 'twice');
+});
