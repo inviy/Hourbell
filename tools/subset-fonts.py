@@ -14,7 +14,7 @@ text = ''.join(open(f, encoding='utf-8').read() for f in sorted(glob.glob(os.pat
 chars = sorted(set(c for c in text if ord(c) > 0x7e) | set(chr(c) for c in range(0x20, 0x7f)))
 
 for size in ('11', '9'):
-    font = TTFont(os.path.join(root, 'tools', 'fonts', 'Galmuri' + size + '.woff2'))
+    font = TTFont(os.path.join(root, 'tools', 'fonts', 'Galmuri' + size + '.woff2'), recalcTimestamp=False)  # same text, same file
     opts = subset.Options()
     opts.flavor = 'woff2'
     opts.name_IDs = ['*']

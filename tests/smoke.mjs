@@ -32,6 +32,11 @@ try {
   await key('KeyZ'); await key('ArrowLeft'); await key('ArrowLeft'); await sleep(200); await shot('03-options');
   assert.equal(await ev('HB.options.music'), 5);
   assert.equal(JSON.parse(await ev("localStorage.getItem('hourbell.options')")).music, 5);
+  // 의견 보내기 opens the issues page; a blocked popup leaves the address on screen
+  await ev("window.open = (u) => { HB.opened = u; return null; }; HB.Menu.mode.cur = HB.Menu.rows(HB.World).findIndex((r) => r.label === '의견 보내기')");
+  await key('KeyZ'); await sleep(200);
+  assert.equal(await ev('HB.opened'), 'https://github.com/inviy/Hourbell/issues');
+  assert.match(await ev('HB.Menu.note'), /github\.com\/inviy\/Hourbell\/issues/);
   await key('KeyX'); await key('KeyX');
   assert.ok(!(await ev('HB.Menu.open')));
 
