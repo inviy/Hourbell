@@ -420,6 +420,8 @@ try {
   for (let i = 0; i < 4 && await ev('HB.Menu.open'); i++) { await key('KeyX'); await sleep(150); }
   await ev(`${W}.load('pastwood', { x: ${woodAt[0]}, y: ${woodAt[1]}, dir: 'down' }); HB.Field.enemies.forEach((e) => { e.dead = true; })`); await sleep(500);
   await bossAt(4, 28, 21, '20-boss4');
+  assert.ok(await ev(`${W}.flags.saidBye`), 'the young 노을 says goodbye on the way home');
+  assert.match(await ev("HB.seenLines.join(' ')"), /네가 다시 들으러 올 때까지/);
   await ev(`${W}.load('pasttown', { x: 16.5, y: 12.8, dir: 'up' })`); await sleep(600);
   await tower('town');
   await card(4);
