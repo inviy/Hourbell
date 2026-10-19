@@ -138,7 +138,7 @@
       this.msg = P.name + '의 공격!';
       const home = { x: p.x, y: p.y };
       yield* this.moveTo(p, t.x - 22, t.y, 0.16, 'right');
-      const crit = Math.random() < HB.critChance;
+      const crit = HB.rand() < HB.critChance;
       let dmg = HB.hitDmg(HB.effAtk(P, this.buff > 0), t.def);
       if (crit) dmg = Math.round(dmg * 1.8);
       dmg = HB.fogged(dmg, this.fog > 0);
@@ -268,7 +268,7 @@
         yield 0.9;
         return;
       }
-      if (Math.random() < 0.7) {
+      if (HB.rand() < 0.7) {
         this.msg = HB.josa(P.name, '은는') + ' 재빨리 몸을 피했다!';
         HB.sfx('run');
         p.dir = 'left';
@@ -450,7 +450,7 @@
       this.msg = '경험치 ' + exp + ', ' + gold + '골드를 얻었다.';
       yield* this.waitOk();
       for (const f of this.foes) {
-        if (Math.random() >= f.drop[1]) continue;
+        if (HB.rand() >= f.drop[1]) continue;
         P.items[f.drop[0]] = (P.items[f.drop[0]] || 0) + 1;
         this.msg = HB.josa(f.name, '이가') + ' ' + HB.josa(HB.ITEMS[f.drop[0]].name, '을를') + ' 떨어뜨렸다.';
         HB.sfx('ok');
