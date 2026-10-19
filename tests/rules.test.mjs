@@ -418,3 +418,37 @@ test('the late bosses: freeze a companion, trade elements, strike twice', () => 
   hush.hp = 1;
   assert.equal(HBall.foeWarn(hush, 2, {}), 'twice');
 });
+
+test('a new skill for each chapter, at its boss level', () => {
+  const at = { 6: 'tide', 9: 'echoshot', 12: 'windup', 15: 'frost', 18: 'starwind', 21: 'hourbell' };
+  for (const [lvl, id] of Object.entries(at)) assert.deepEqual(HB.learnedAt(+lvl), [id], 'Lv' + lvl);
+  assert.equal(HB.skillsFor(21).length, 10);
+  const P = partyAt(21, 0), f = HB.makeFoe('wisp');
+  HB.seedRandom(3); const chime = HB.chimeDmg(P, f);
+  HB.seedRandom(3); assert.equal(HB.hourbellDmg(P, f), Math.round(chime * 2));
+  HB.seedRandom(3); assert.equal(HB.echoShotDmg(P, f), Math.round(chime * 1.8));
+  assert.ok(HB.tideAmt(P) > 0 && HB.starwindDmg(P, f) >= 1);
+  // the auto battle keeps to the first four (the balance tests play it)
+  for (let i = 0; i < 50; i++) {
+    const pick = HB.autoPick(Object.assign(partyAt(21, 3), { hp: 10 + i }), [HB.makeFoe('wisp'), HB.makeFoe('flicker')], { fog: i % 2 === 0 });
+    if (pick.act === 'skill') assert.ok(['chime', 'heal', 'gust', 'ring'].includes(pick.id), pick.id);
+  }
+});
+
+test('a companion wears one 장신구', () => {
+  const HB = loadHB(['rules.js', 'sprites.js', 'tiles.js', 'maps.js', 'ch2.js']); // 진주 귀걸이 is sold in chapter 2
+  const P = party(HB, 5, 0);
+  P.allies = [{ id: 'mio', hp: 10 }];
+  P.items.amulet = 1; P.items.pearlear = 1;
+  const a = P.allies[0], base = HB.allyStats('mio', 5);
+  assert.ok(!HB.equipAlly(P, a, 'herb'), 'only a 장신구');
+  assert.ok(HB.equipAlly(P, a, 'amulet'));
+  assert.equal(P.items.amulet, undefined, 'taken from the bag');
+  const s = HB.allyFor(a, 5);
+  for (const k of ['atk', 'def', 'spd']) assert.equal(s[k], base[k] + (HB.ITEMS.amulet[k] || 0));
+  assert.ok(HB.equipAlly(P, a, 'pearlear') && P.items.amulet === 1, 'swapping puts the old one back');
+  HB.unequipAlly(P, a);
+  assert.equal(a.charm, undefined);
+  assert.equal(P.items.pearlear, 1);
+  assert.deepEqual(HB.allyFor({ id: 'mio' }, 5), base, 'no 장신구: as before');
+});

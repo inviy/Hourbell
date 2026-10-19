@@ -20,6 +20,7 @@
     { id: 'flee', label: '도망' },
     { id: 'auto', label: '자동' }
   ];
+  const LIST_ROWS = 8; // skill / item rows shown at once in battle
   // offsets from the screen centre; companions stand around the hero
   const SLOTS = [[56, 4], [80, -22], [84, 28]];
   const HERO = [-64, 14];
@@ -42,7 +43,7 @@
       this.target = 0;
       this.shake = 0; this.distort = 0; this.flash = 0;
       this.co = null; this.wait = 0;
-      this.turn = 0; this.guarding = false; this.silenced = 0; this.buff = 0; this.fog = 0; this.fogName = '안개';
+      this.turn = 0; this.guarding = this.shield = false; this.silenced = 0; this.buff = 0; this.fog = 0; this.fogName = '안개';
       this.isBoss = foes.some((e) => HB.FOES[e.kind] && HB.FOES[e.kind].boss);
       HB.party.battles++;
       const count = {}, seen = {};
@@ -62,7 +63,7 @@
       this.heroSlot = { x: this.cam.x + HB.W / 2 + HERO[0], y: this.cam.y + HB.H / 2 + HERO[1] };
       // companions step in beside the hero
       this.allies = HB.party.allies.slice(0, HB.MAX_ALLIES).map((a, i) => {
-        const m = Object.assign(HB.allyStats(a.id, HB.party.lvl), { hp: a.hp, sang: false, covering: false, covered: false });
+        const m = Object.assign(HB.allyFor(a, HB.party.lvl), { hp: a.hp, sang: false, covering: false, covered: false });
         m.actor = new HB.Actor(p.x, p.y, m.pal, 'right');
         m.slot = { x: this.heroSlot.x + ALLY_SLOTS[i][0], y: this.heroSlot.y + ALLY_SLOTS[i][1] };
         return m;
@@ -128,7 +129,7 @@
 
     toMenu() {
       this.phase = 'menu'; this.msg = '';
-      this.turn++; this.guarding = false;
+      this.turn++; this.guarding = this.shield = false;
       if (this.fog > 0 && --this.fog === 0) this.msg = HB.josa(this.fogName, '이가') + ' 걷혔다.';
       // the big moves are picked now and warned about before you choose
       const ctx = { silenced: this.silenced > 0, fog: this.fog > 0, allies: this.allies.filter((m) => m.hp > 0).length };
@@ -178,6 +179,88 @@
       const P = HB.party, p = this.w.player, back = Math.min(P.hp, HB.echoBack(dmg));
       P.hp -= back; this.heroFlash = 0.2;
       this.num(p.x, p.y - 34, '메아리 ' + back, '#c8a8ff');
+    },
+
+    // a skill's turn (t: the target of a one-foe skill)
+    skill(id, t) {
+      return id === 'gust' ? this.heroGust(t) : id === 'chime' ? this.heroChime() : id === 'heal' ? this.heroHeal() : id === 'ring' ? this.heroRing()
+        : id === 'echoshot' ? this.heroEchoShot(t) : id === 'starwind' || id === 'hourbell' ? this.heroSweep(id) : this.heroSupport(id);
+    },
+
+    *heroEchoShot(t) {
+      if (t.hp <= 0) t = this.alive()[0];
+      if (!t) return;
+      const P = HB.party, p = this.w.player;
+      P.mp -= HB.SKILLS.echoshot.cost;
+      this.msg = HB.josa(P.name, '은는') + ' 메아리를 겹쳐 쏘았다!';
+      HB.sfx('chime');
+      this.fx.push({ kind: 'rings', x: t.x, y: t.y - 8, t: 0 });
+      yield 0.45;
+      const dmg = HB.curled(t, HB.echoShotDmg(P, t));
+      t.hp -= dmg; t.flash = 0.25; t.hitShake = 0.35;
+      this.echoed(t, dmg);
+      HB.sfx('hit');
+      this.num(t.x, t.y - (t.boss ? 36 : 26), dmg, '#ffe680');
+      this.elemNote(t, 'sound');
+      yield 0.6;
+      if (t.hp <= 0) yield* this.kill(t);
+      yield* this.clearFog('메아리');
+    },
+
+    // 별바람 / 아워벨: every foe at once
+    *heroSweep(id) {
+      const P = HB.party, p = this.w.player, bell = id === 'hourbell';
+      P.mp -= HB.SKILLS[id].cost;
+      this.msg = bell ? HB.josa(P.name, '이가') + ' 아워벨의 소리를 울렸다!' : HB.josa(P.name, '은는') + ' 별바람을 일으켰다!';
+      HB.sfx(bell ? 'fragment' : 'run');
+      this.fx.push({ kind: 'rings', x: p.x, y: p.y - 8, t: 0 });
+      if (bell) this.flash = 0.15;
+      yield 0.55;
+      const targets = this.alive();
+      for (const f of targets) {
+        const dmg = HB.curled(f, bell ? HB.hourbellDmg(P, f) : HB.starwindDmg(P, f, this.buff > 0));
+        f.hp -= dmg; f.flash = 0.25; f.hitShake = 0.3;
+        this.echoed(f, dmg);
+        this.fx.push({ kind: 'sparkle', x: f.x, y: f.y - 14, t: 0, color: bell ? '#ffe680' : '#b8f0d0' });
+        this.num(f.x, f.y - (f.boss ? 36 : 26), dmg, bell ? '#ffe680' : '#b8f0d0');
+        this.elemNote(f, bell ? 'sound' : 'wind');
+        HB.sfx('hit');
+        yield 0.16;
+      }
+      yield 0.35;
+      for (const f of targets) if (f.hp <= 0) yield* this.kill(f);
+      yield* this.clearFog(HB.SKILLS[id].name);
+      if (bell && this.silenced) { this.silenced = 0; this.msg = '목소리가 돌아왔다!'; yield 0.6; }
+    },
+
+    // 물안개 노래, 태엽 감기, 서리 방패
+    *heroSupport(id) {
+      const P = HB.party, p = this.w.player;
+      P.mp -= HB.SKILLS[id].cost;
+      HB.sfx('heal');
+      this.fx.push({ kind: 'sparkle', x: p.x, y: p.y - 10, t: 0, color: id === 'frost' ? '#c8f0ff' : '#a8f0b8' });
+      if (id === 'frost') {
+        this.msg = '서리 방패가 파티를 감쌌다! (이번 턴 받는 피해 절반)';
+        yield 0.9;
+        return;
+      }
+      if (id === 'windup') {
+        const m = this.allies.find((a) => !a.hp);
+        this.msg = HB.josa(P.name, '은는') + ' 태엽을 감았다!';
+        yield 0.5;
+        if (!m) { this.msg = '쓰러진 동료가 없었다.'; yield 0.6; return; }
+        m.hp = Math.ceil(m.maxHp / 2); m.actor.dir = 'right';
+        this.num(m.actor.x, m.actor.y - 22, m.hp, '#88f0a0');
+        this.msg = HB.josa(m.name, '이가') + ' 다시 일어났다!';
+        yield 0.8;
+        return;
+      }
+      this.msg = HB.josa(P.name, '은는') + ' 물안개 노래를 불렀다.';
+      yield 0.4;
+      const heal = (who, max, x, y) => { const amt = Math.min(max - who.hp, HB.tideAmt(P)); who.hp += amt; this.num(x, y - 22, amt, '#88f0a0'); };
+      heal(P, P.maxHp, p.x, p.y);
+      for (const m of this.allies) if (m.hp > 0) heal(m, m.maxHp, m.actor.x, m.actor.y);
+      yield 0.8;
     },
 
     // x1.5 / x0.5 feedback above the target
@@ -464,7 +547,7 @@
         yield* this.moveTo(f, tgt.x + (f.boss ? 30 : 20), tgt.y, 0.15);
       }
       if (pick === 'hero') {
-        const dmg = HB.foeDmg(f, P, intent, this.guarding);
+        const dmg = HB.foeDmg(f, P, intent, this.guarding || this.shield);
         P.hp = Math.max(0, P.hp - dmg);
         this.shake = 0.25; this.heroFlash = 0.2;
         this.num(p.x, p.y - 22, dmg, '#ff8a7a');
@@ -472,7 +555,7 @@
       // the wave (and a star's burst) washes over everyone
       const hit = intent === 'wave' || intent === 'burst' ? this.allies.filter((m) => m.hp > 0) : pick === 'hero' ? [] : [pick];
       for (const m of hit) {
-        const d = HB.foeDmg(f, m, intent, false);
+        const d = HB.foeDmg(f, m, intent, this.shield); // 서리 방패 covers the companions too
         m.hp = Math.max(0, m.hp - d);
         this.num(m.actor.x, m.actor.y - 22, d, '#ff8a7a');
         if (!m.hp) { yield 0.3; this.msg = HB.josa(m.name, '이가') + ' 쓰러졌다!'; m.actor.dir = 'down'; }
@@ -700,11 +783,11 @@
       const id = COMMANDS[this.cursor].id;
       if (id === 'skill') {
         if (this.silenced) { HB.sfx('cancel'); this.msg = '정적 때문에 기술을 쓸 수 없다.'; return; }
-        this.openList('skill', HB.skillsFor(P.lvl).map((k) => ({ id: k, label: HB.SKILLS[k].name, right: String(HB.SKILLS[k].cost), dim: P.mp < HB.SKILLS[k].cost })), '어떤 기술을 쓸까?');
+        this.openList('skill', HB.skillsFor(P.lvl).map((k) => ({ id: k, label: HB.SKILLS[k].name, right: String(HB.SKILLS[k].cost), desc: HB.SKILLS[k].name + ': ' + HB.SKILLS[k].desc, dim: P.mp < HB.SKILLS[k].cost })), '어떤 기술을 쓸까?');
       } else if (id === 'item') {
         const ids = Object.keys(P.items).filter((k) => !HB.isGear(k) && !HB.isKey(k));
         if (!ids.length) { HB.sfx('cancel'); this.msg = '가진 도구가 없다.'; return; }
-        this.openList('item', ids.map((k) => ({ id: k, label: HB.ITEMS[k].name, right: 'x' + P.items[k] })), '무엇을 쓸까?');
+        this.openList('item', ids.map((k) => ({ id: k, label: HB.ITEMS[k].name, right: 'x' + P.items[k], desc: HB.ITEMS[k].name + ': ' + HB.ITEMS[k].desc })), '무엇을 쓸까?');
       } else if (id === 'attack') {
         HB.sfx('ok');
         this.aim((t) => this.heroAttack(t), '누구를 공격할까?');
@@ -729,7 +812,7 @@
       else if (pick.act === 'item') this.run(this.round(this.heroItem(pick.id)));
       else if (pick.act === 'skill') {
         const id = pick.id;
-        this.run(this.round(id === 'gust' ? this.heroGust(t) : id === 'chime' ? this.heroChime() : id === 'heal' ? this.heroHeal() : this.heroRing()));
+        this.run(this.round(this.skill(id, t)));
       } else this.run(this.round(this.heroAttack(t)));
     },
 
@@ -737,6 +820,7 @@
       HB.sfx('ok');
       this.phase = 'list'; this.listKind = kind; this.list = list; this.msg = msg;
       this.listCursor = Math.max(0, list.findIndex((e) => e.id === this.listMem[kind]));
+      this.msg = list[this.listCursor].desc || msg;
     },
 
     // pick a target (skipped when only one foe is left), then run the round
@@ -748,8 +832,8 @@
 
     updateList() {
       const inp = HB.input, n = this.list.length;
-      if (inp.hit('up')) { this.listCursor = (this.listCursor + n - 1) % n; HB.sfx('move'); }
-      if (inp.hit('down')) { this.listCursor = (this.listCursor + 1) % n; HB.sfx('move'); }
+      if (inp.hit('up')) { this.listCursor = (this.listCursor + n - 1) % n; HB.sfx('move'); this.msg = this.list[this.listCursor].desc || this.msg; }
+      if (inp.hit('down')) { this.listCursor = (this.listCursor + 1) % n; HB.sfx('move'); this.msg = this.list[this.listCursor].desc || this.msg; }
       if (inp.hit('cancel')) { HB.sfx('cancel'); this.phase = 'menu'; this.msg = ''; return; }
       if (!inp.hit('ok')) return;
       const e = this.list[this.listCursor];
@@ -757,8 +841,10 @@
       HB.sfx('ok');
       this.listMem[this.listKind] = e.id;
       if (this.listKind === 'item') { this.run(this.round(this.heroItem(e.id))); return; }
-      if (e.id === 'gust') { this.aim((t) => this.heroGust(t), '누구에게 바람을 보낼까?'); return; }
-      this.run(this.round(e.id === 'chime' ? this.heroChime() : e.id === 'heal' ? this.heroHeal() : this.heroRing()));
+      if (e.id === 'windup' && !this.allies.some((m) => !m.hp)) { HB.sfx('cancel'); this.msg = '쓰러진 동료가 없다.'; return; }
+      if (HB.SKILLS[e.id].target === 'one') { this.aim((t) => this.skill(e.id, t), e.id === 'gust' ? '누구에게 바람을 보낼까?' : '누구에게 메아리를 보낼까?'); return; }
+      if (e.id === 'frost') this.shield = true; // set now, so it covers faster foes too
+      this.run(this.round(this.skill(e.id)));
     },
 
     updateTarget() {
@@ -888,13 +974,18 @@
         if (active && i === this.cursor) HB.drawCursor(g, cx - 10, cy + 3);
       });
       if (this.phase === 'list') {
-        const h = this.list.length * 16 + 10, y = 80 - h;
+        // up to LIST_ROWS show at once; the rest scroll into view with the cursor
+        const n = Math.min(this.list.length, LIST_ROWS), top = HB.clamp(this.listCursor - n + 1, 0, this.list.length - n);
+        const h = n * 16 + 10, y = 80 - h; // (above the commands; 8 rows reach the message bar)
         HB.drawWindow(g, 6, y, 116, h);
-        this.list.forEach((e, i) => {
-          HB.text(g, e.label, 22, y + 6 + i * 16, e.dim ? '#8a8aa8' : '#f4f0e8');
-          HB.text(g, e.right, 112, y + 7 + i * 16, this.listKind === 'skill' ? '#9ab8ff' : '#c8c0e0', { font: 'g9', align: 'right' });
-          if (i === this.listCursor) HB.drawCursor(g, 12, y + 9 + i * 16);
+        this.list.slice(top, top + n).forEach((e, j) => {
+          const i = top + j;
+          HB.text(g, e.label, 22, y + 6 + j * 16, e.dim ? '#8a8aa8' : '#f4f0e8');
+          HB.text(g, e.right, 112, y + 7 + j * 16, this.listKind === 'skill' ? '#9ab8ff' : '#c8c0e0', { font: 'g9', align: 'right' });
+          if (i === this.listCursor) HB.drawCursor(g, 12, y + 9 + j * 16);
         });
+        if (top > 0) HB.text(g, '▲', 64, y - 1, '#c8c0e0', { font: 'g9', align: 'center' });
+        if (top + n < this.list.length) HB.text(g, '▼', 64, y + h - 9, '#c8c0e0', { font: 'g9', align: 'center' });
       }
       const n = this.allies.length, ah = n ? 6 + n * 11 : 0, ay = 127 - ah;
       const marks = (this.fog ? this.fogName + ' ' + this.fog + '  ' : '') + (this.silenced ? '침묵 ' + this.silenced + '  ' : '') + (this.buff ? '공격↑ ' + this.buff : '');
