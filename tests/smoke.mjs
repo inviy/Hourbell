@@ -24,6 +24,18 @@ try {
   await key('KeyZ'); await sleep(2300); await drain();
   assert.equal(await ev(`${W}.def.id`), 'town');
 
+  step('a gamepad moves and confirms like the keys');
+  await ev(`window.fakePad = { buttons: Array.from({ length: 17 }, () => ({ pressed: false })), axes: [0, 0] }; navigator.getGamepads = () => [window.fakePad]`);
+  const padY = await ev(`${W}.player.y`);
+  await ev('window.fakePad.axes[1] = 1'); await sleep(500);
+  await ev('window.fakePad.axes[1] = 0'); await sleep(200);
+  assert.ok(await ev(`${W}.player.y`) > padY, 'the stick walks');
+  assert.ok(!(await ev("HB.input.isDown('down')")), 'and letting go stops');
+  await ev("HB.dialog.open('패드로 넘기는 대사')"); await sleep(400);
+  for (let i = 0; i < 6 && await ev('HB.dialog.active'); i++) { await ev('window.fakePad.buttons[0].pressed = true'); await sleep(150); await ev('window.fakePad.buttons[0].pressed = false'); await sleep(250); }
+  assert.ok(!(await ev('HB.dialog.active')), 'A closes the dialog');
+  await ev('navigator.getGamepads = () => []');
+
   step('keeper, pause menu, status, options');
   await talkTo('keeper'); await drain();
   assert.ok(await ev(`${W}.flags.metKeeper`));

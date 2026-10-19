@@ -147,6 +147,7 @@ window.HB = window.HB || {};
     let dt = (now - last) / 1000;
     last = now;
     if (dt > 0.25) dt = 0.25;
+    try { if (HB.pollPads) HB.pollPads(); } catch (e) { report(e); } // src/gamepad.js
     acc += dt;
     if (HB.paused) acc = 0;
     while (acc >= STEP) {
