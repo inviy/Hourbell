@@ -3,8 +3,8 @@
 (function (HB) {
   'use strict';
 
-  const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-  if (!isTouch) return;
+  // the layout leaves room for these (src/core.js resize: SIDE, BELOW)
+  if (!HB.isTouch) return;
 
   const css = document.createElement('style');
   css.textContent = [

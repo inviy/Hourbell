@@ -15,13 +15,23 @@ window.HB = window.HB || {};
   g.imageSmoothingEnabled = false;
   HB.g = g;
 
+  // touch screens get the D-pad and A / B buttons (src/touch.js): in landscape
+  // they sit beside the game, in portrait below it, so the game fits the room
+  // left over. Phones use any scale to fill it; PCs, tablets and big screens
+  // keep whole-number pixels.
+  HB.isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+  const SIDE = 160, BELOW = 170; // css px the controls take (see touch.js)
   function resize() {
     const dpr = window.devicePixelRatio || 1;
-    const availW = window.innerWidth * dpr, availH = window.innerHeight * dpr;
-    const fit = Math.min(availW / W, availH / H);
-    const s = Math.max(1, Math.floor(fit));
-    // below 1x (tiny windows) shrink the canvas instead of overflowing
-    const css = Math.min(1, fit) * s / dpr;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    let aw = vw, ah = vh;
+    if (HB.isTouch) { if (vw >= vh) aw -= 2 * SIDE; else ah -= BELOW + vh * 0.12; } // 0.12: index.html portrait top padding
+    const fit = Math.max(0.1, Math.min(aw * dpr / W, ah * dpr / H));
+    const phone = HB.isTouch && Math.min(vw, vh) < 600 && window.matchMedia('(pointer: coarse)').matches;
+    const s = Math.max(1, phone ? Math.ceil(fit) : Math.floor(fit));
+    // phones: exactly the fit. Elsewhere whole pixels, and below 1x (tiny
+    // windows) shrink the canvas instead of overflowing
+    const css = (phone ? fit : Math.min(1, fit) * s) / dpr;
     canvas.width = W * s;
     canvas.height = H * s;
     canvas.style.width = (W * css) + 'px';
@@ -153,8 +163,9 @@ window.HB = window.HB || {};
     if (fade) {
       fade.t += dt;
       if (fade.dir === 1 && fade.t >= fade.dur) {
-        if (fade.cb) fade.cb();
-        fade.dir = -1; fade.t = 0;
+        const cb = fade.cb;
+        fade.dir = -1; fade.t = 0; // first: a callback that throws must not run again every frame
+        if (cb) cb();
       } else if (fade.dir === -1 && fade.t >= fade.dur) {
         fade = null;
       }

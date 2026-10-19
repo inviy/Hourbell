@@ -330,8 +330,14 @@ try {
     return [g.globalAlpha, g.globalCompositeOperation, g.imageSmoothingEnabled]; })()`), [1, 'source-over', false], 'canvas state is clean after the errors');
   await key('ArrowLeft', 400);
   assert.equal(await ev(`${W}.player.dir`), 'left', 'and the game still plays');
+  // a scene change whose callback throws: it runs once, the fade still ends
+  await ev("window.fadeCalls = 0; HB.fadeTo(() => { window.fadeCalls++; throw new Error('smoke: boom in fade'); })");
+  await sleep(2000);
+  assert.equal(await ev('window.fadeCalls'), 1, 'a throwing fade callback runs once, not every frame');
+  assert.ok(!(await ev('HB.isFading()')), 'and the fade still finishes');
+  assert.equal(errors.filter((e) => /boom in fade/.test(e)).length, 1, 'logged once');
   const thrown = errors.filter((e) => /smoke: boom/.test(e));
-  assert.ok(thrown.length >= 2 && thrown.length <= 4, 'each error logged once, not every frame (' + thrown.length + ')');
+  assert.ok(thrown.length >= 3 && thrown.length <= 5, 'each error logged once, not every frame (' + thrown.length + ')');
   errors.splice(0, errors.length, ...errors.filter((e) => !/smoke: boom/.test(e)));
 
   assert.deepEqual(errors, [], 'no JS errors');
