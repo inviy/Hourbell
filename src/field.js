@@ -88,11 +88,12 @@
     talk(w, npc) {
       const id = npc.def.id;
       if (id === 'innkeep') {
-        HB.restAtInn(w, npc.def.name, npc.def.lines.concat(['...그래도 잠깐 앉았다 가게. 차 한 잔은 공짜일세.']), '따뜻한 차를 마셨다. HP와 울림이 모두 회복되었다.');
+        HB.restAtInn(w, npc.def.name, HB.linesFor(npc.def, w.flags).concat(['...그래도 잠깐 앉았다 가게. 차 한 잔은 공짜일세.']), '따뜻한 차를 마셨다. HP와 울림이 모두 회복되었다.');
         return true;
       }
       if (id === 'florist') {
-        HB.dialog.open('바람결에 나갈 거야? 약초랑 울림방울, 맑은물도 챙겨 가!', { name: npc.def.name, onClose: () => HB.Menu.openShop(HB.SHOPS.florist.title, HB.SHOPS.florist.stock) });
+        const said = HB.linesFor(npc.def, w.flags); // a newer greeting once chapters are done
+        HB.dialog.open(said === npc.def.lines ? '바람결에 나갈 거야? 약초랑 울림방울, 맑은물도 챙겨 가!' : said, { name: npc.def.name, onClose: () => HB.Menu.openShop(HB.SHOPS.florist.title, HB.SHOPS.florist.stock) });
         return true;
       }
       if (id === 'smith') {

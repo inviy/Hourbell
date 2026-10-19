@@ -32,7 +32,7 @@
     hush: {
       name: '정적', hp: 1450, atk: 68, def: 36, spd: 18, exp: 3000, gold: [2000, 2000], drop: ['starhoney', 1], boss: true,
       flag: 'boss7', waveEvery: 4, waveMul: 0.75, fogEvery: 5, twiceAt: 0.5, twiceEvery: 4, fogName: '정적', music: 'finalBoss',
-      intro: '모든 소리가 사라졌다. 심장 소리마저...', won: '정적이 깨지고, 아워벨 안에 일곱 소절이 한꺼번에 울려 퍼졌다!'
+      intro: '모든 소리가 사라졌다. 심장 소리마저...', won: '정적이 긴 숨을 내쉬며 작아졌다. 노래 사이의 쉼표로 돌아가자, 일곱 소절이 한꺼번에 울려 퍼졌다!'
     }
   });
   HB.FOE_ART = Object.assign(HB.FOE_ART || {}, {
@@ -85,8 +85,11 @@
       npcs: [
         {
           id: 'bellspirit', name: '종의 정령', pal: 'bellspirit', x: 10.5, y: 16.6, dir: 'down', wander: 0, inn: true, setFlag: 'metSpirit',
-          lines: ['...왔구나. 여섯 소절을 데리고.', '나는 이 종에 깃든 노래. 정적이 내 마지막 소절을 삼켰어.', '여기서 쉬어 가. 준비가 되면 종추 자리로 가.'],
-          linesBy: [{ flag: 'fragment7', lines: ['고마워. 이제 나는 다시 노래가 될 수 있어.'] }]
+          lines: ['...왔구나. 여섯 소절을 데리고.', '나는 이 종에 깃든 노래. 정적이 내 마지막 소절을 삼켰어.',
+            '정적은 원래 나쁜 것이 아니었어. 노래와 노래 사이, 숨을 고르는 쉼표였지.',
+            '그런데 이 종은 아주 오랫동안 한 번도 쉬지 않고 울렸어. 쉬고 싶은 마음이 쌓이고 쌓여 그림자가 된 거야.',
+            '여기서 쉬어 가. 준비가 되면 종추 자리로 가.'],
+          linesBy: [{ flag: 'fragment7', lines: ['고마워. 이제 나는 다시 노래가 될 수 있어.', '정적도 노래 사이에서 쉬어 갈 거야. 쉼표가 있어야 노래도 숨을 쉬니까.'] }]
         },
         {
           id: 'bellshop', name: '종의 정령 (메아리)', pal: 'bellspirit', x: 15.5, y: 16.6, dir: 'down', wander: 0, shop: 'bellcore',

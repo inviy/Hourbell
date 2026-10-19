@@ -31,11 +31,11 @@
     });
   };
 
-  // [[name, text], ...] one dialog after another, then done()
+  // [[name, text], ...] one dialog after another, then done(). No name: narration
   HB.sayChain = function (list, done) {
     if (!list.length) { if (done) done(); return; }
     const [name, text] = list[0];
-    HB.dialog.open(text, { name, onClose: () => HB.sayChain(list.slice(1), done) });
+    HB.dialog.open(text, { name, voice: name ? undefined : 'narrate', onClose: () => HB.sayChain(list.slice(1), done) });
   };
   // what the companions in the party say: { mio: text, ... } -> [[name, text]]
   HB.partyLines = (by) => HB.party.allies.filter((a) => by && by[a.id]).map((a) => [HB.ALLIES[a.id].name, by[a.id]]);
@@ -82,6 +82,7 @@
     const hit = (d.linesBy || []).filter((l) => f[l.flag]).pop();
     return hit ? hit.lines : d.lines;
   };
+  HB.linesFor = linesFor;
   const inArea = (a, tx, ty) => tx >= a.tx && tx < a.tx + (a.w || 1) && ty >= a.ty && ty < a.ty + (a.h || 1);
 
   function fetchQuest(w, d) {
@@ -116,10 +117,27 @@
       choices: ['종소리를 따라 울림골로 돌아간다', '조금 더 둘러본다'],
       onChoose: (i) => {
         if (i) return;
-        HB.sfx('bell');
-        HB.fadeTo(() => w.load('town', { x: 16.5, y: 15.4, dir: 'up' }), { dur: 1.6, color: '#fff4e0' });
+        HB.farewell(w, () => {
+          HB.sfx('bell');
+          HB.fadeTo(() => w.load('town', { x: 16.5, y: 15.4, dir: 'up' }), { dur: 1.6, color: '#fff4e0' });
+        });
       }
     });
+  };
+
+  // leaving the past for good (after its fragment), the young 노을 sees you off, once
+  HB.farewell = function (w, go) {
+    const f = w.flags, region = HB.REGIONS[HB.regionOf(w.def.id)];
+    if (!f.fragment4 || f.saidBye || !region || region.ch !== 4) { go(); return; }
+    f.saidBye = true;
+    const haru = HB.party.allies.some((a) => a.id === 'haru');
+    HB.sayChain([
+      [null, '시계탑 아래에서 젊은 노을이 기다리고 있었다.'],
+      ['노을', '가는 거지? ...그 시계탑 너머, 네가 온 시간으로.'],
+      ['노을', '이상해. 처음 본 사람인데, 아주 오래 알던 사람 같아.'],
+      ['노을', '약속할게. 이 종은 내가 끝까지 지킬게. 네가 다시 들으러 올 때까지.']
+    ].concat(haru ? [['하루', '노을아, 해시계 잘 부탁해. ...나중에, 아주 나중에 또 보자.'], ['노을', '응. 하루도 꼭.']] : [])
+      .concat([[null, '젊은 종지기는 시곗바늘이 감길 때까지 손을 흔들었다.']]), go);
   };
 
   let fragArt = null;
@@ -147,7 +165,7 @@
       const f0 = w.flags;
       const gate = (w.def.portals || []).filter((p) => inArea(p, tx, ty) && (!p.need || f0[p.need]) && !(p.until && f0[p.until])).pop();
       if (gate) {
-        HB.dialog.open(gate.lines, { voice: 'narrate', onClose: () => { HB.sfx('bell'); HB.fadeTo(() => w.load(gate.to, gate.spawn), { dur: 1.6, color: '#fff4e0' }); } });
+        HB.farewell(w, () => HB.dialog.open(gate.lines, { voice: 'narrate', onClose: () => { HB.sfx('bell'); HB.fadeTo(() => w.load(gate.to, gate.spawn), { dur: 1.6, color: '#fff4e0' }); } }));
         return true;
       }
       const a = w.def.altar;
