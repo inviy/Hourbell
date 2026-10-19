@@ -442,6 +442,7 @@
       HB.music.play('victory', { fadeOut: 0.1, fadeIn: 0 });
       this.msg = this.isBoss ? this.foes[0].won || '정적이 깨지고, 바람 소리가 돌아왔다!' : '모두 물리쳤다!';
       for (const f of this.foes) if (f.flag) this.w.flags[f.flag] = true;
+      if (this.isBoss) HB.saveSoon();
       yield 1.2;
       const exp = this.foes.reduce((s, f) => s + f.exp, 0);
       const gold = this.foes.reduce((s, f) => s + rnd(f.gold[0], f.gold[1]), 0);

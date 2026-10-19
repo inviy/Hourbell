@@ -294,8 +294,28 @@
       if (d.flags && d.flags.fragment1) P.pet = 'pip';
     }
   };
+  // the save before the current one is kept under BACKUP_KEY, and a damaged
+  // save falls back to it. Only a save that still reads is kept as the backup.
+  const BACKUP_KEY = SAVE_KEY + '.bak';
+  function readSave(raw) {
+    try {
+      const d = JSON.parse(raw);
+      if (!d || !d.party) return null;
+      while (d.v < HB.SAVE_VERSION && MIGRATE[d.v]) MIGRATE[d.v++](d);
+      if (d.v !== HB.SAVE_VERSION) return null;
+      d.party = Object.assign(HB.newParty(), d.party); // fields added later get defaults
+      return d;
+    } catch (e) { return null; }
+  }
+  function writeSave(store, raw) {
+    try {
+      const prev = store.getItem(SAVE_KEY);
+      if (prev && prev !== raw && readSave(prev)) store.setItem(BACKUP_KEY, prev);
+    } catch (e) { /* no backup this time; the save itself still goes ahead */ }
+    store.setItem(SAVE_KEY, raw);
+  }
   HB.saveGame = function (store, data) {
-    try { store.setItem(SAVE_KEY, JSON.stringify(Object.assign({ v: HB.SAVE_VERSION }, data))); return true; } catch (e) { return false; }
+    try { writeSave(store, JSON.stringify(Object.assign({ v: HB.SAVE_VERSION }, data))); return true; } catch (e) { return false; }
   };
   // a save as text, to carry to another device without a server: 'HB1-' + base64
   HB.saveCode = function (store) {
@@ -309,20 +329,13 @@
     try {
       const m = /HB1-([A-Za-z0-9+/=]+)/.exec(String(code).replace(/\s/g, ''));
       const raw = m && decodeURIComponent(escape(atob(m[1])));
-      const d = raw && HB.loadGame({ getItem: () => raw });
+      const d = raw && readSave(raw);
       if (!d || (HB.MAPS && !HB.MAPS[d.map])) return false;
-      store.setItem(SAVE_KEY, raw);
+      writeSave(store, raw);
       return true;
     } catch (e) { return false; }
   };
   HB.loadGame = function (store) {
-    try {
-      const d = JSON.parse(store.getItem(SAVE_KEY));
-      if (!d || !d.party) return null;
-      while (d.v < HB.SAVE_VERSION && MIGRATE[d.v]) MIGRATE[d.v++](d);
-      if (d.v !== HB.SAVE_VERSION) return null;
-      d.party = Object.assign(HB.newParty(), d.party); // fields added later get defaults
-      return d;
-    } catch (e) { return null; }
+    try { return readSave(store.getItem(SAVE_KEY)) || readSave(store.getItem(BACKUP_KEY)); } catch (e) { return null; }
   };
 })(window.HB);

@@ -12,6 +12,18 @@
     x: w.player.x / T, y: w.player.y / T, dir: w.player.dir
   });
   HB.load = () => HB.loadGame(store());
+  // autosave after a boss win or a fragment, once play is back in the player's
+  // hands: never during a dialog, cutscene, battle, menu or screen fade
+  let saveSoon = false;
+  HB.saveSoon = () => { saveSoon = true; };
+  HB.worldPlugins.push({
+    update(w, dt, fading) {
+      if (!saveSoon || fading || HB.isFading() || HB.dialog.active || HB.Battle.active || HB.Menu.open || (HB.Cutscene && HB.Cutscene.steps)) return false;
+      saveSoon = false;
+      HB.save(w);
+      return false;
+    }
+  });
   HB.useCode = (code) => HB.useSaveCode(store(), code);
   // copy the save as a code; where the clipboard is not allowed, show it to copy by hand
   HB.copySaveCode = function (w) {

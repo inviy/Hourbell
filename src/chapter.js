@@ -110,6 +110,7 @@
           voice: 'narrate',
           onClose: () => {
             f[frag] = true;
+            HB.saveSoon();
             HB.sfx('fragment');
             HB.music.play(HB.Field.musicFor(w), { fadeOut: 1.2, fadeIn: 2.0 });
             HB.dialog.open(['종소리 조각을 손에 넣었다!  (' + HB.fragments(f) + ' / 7)'].concat(a.got || []), { voice: 'narrate' });
