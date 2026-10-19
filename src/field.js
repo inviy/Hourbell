@@ -111,13 +111,14 @@
         }
         HB.dialog.open(HB.CHAPTERS[n].keeper, {
           name: npc.def.name,
-          onClose: () => {
+          // the companions along have a word, then the chapter card
+          onClose: () => HB.sayChain(HB.partyLines(HB.CHAPTERS[n].party), () => {
             w.flags['chapter' + n] = true;
             HB.save(w);
             HB.sfx('bell');
             HB.music.stop(2.0);
             HB.fadeTo(() => HB.setScene(HB.Ending, { chapter: n }), { dur: 2.0, color: '#fff4e0' });
-          }
+          })
         });
         return true;
       }

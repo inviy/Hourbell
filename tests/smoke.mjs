@@ -301,6 +301,7 @@ try {
   await ev(`${W}.load('pasttown', { x: 27.5, y: 19.9, dir: 'up' })`); await sleep(500);
   await ev(`HB.restAtInn(${W}, '여관 주인 할멈', ['푹 쉬렴.'])`); await drain();
   assert.equal(await ev(`${W}.flags.restAt.map`), 'pasttown');
+  assert.ok(await ev(`${W}.flags.talkMioDan`), '미오 and 단비 talk over the rest');
   await ev(`${W}.load('pastwood', { x: ${woodAt[0]}, y: ${woodAt[1]}, dir: 'down' }); HB.Field.enemies.forEach((e) => { e.dead = true; })`); await sleep(500);
   const goldBefore = await ev('HB.party.gold');
   await fight(9999); await sleep(2700);
@@ -422,6 +423,7 @@ try {
   await ev(`${W}.load('pasttown', { x: 16.5, y: 12.8, dir: 'up' })`); await sleep(600);
   await tower('town');
   await card(4);
+  assert.match(await ev("HB.seenLines.join(' ')"), /노을이가 잘 지켜 왔구나/, '하루 has a word at the end of the chapter');
 
   step('chapter five: over the canyon into the snow, 서리날개');
   await ev(`${W}.load('canyon', { x: 20.5, y: 2, dir: 'up' })`); await sleep(600);

@@ -26,9 +26,48 @@
         const p = w.player; // a lost battle in this chapter wakes you here (battle.js lose)
         w.flags.restAt = { map: w.def.id, x: p.x / T, y: p.y / T, dir: p.dir };
         const saved = HB.save(w);
-        HB.dialog.open((rest || '푹 쉬었다. HP와 울림이 모두 회복되었다.') + (saved ? '\n(모험을 기록했다)' : ''));
+        HB.dialog.open((rest || '푹 쉬었다. HP와 울림이 모두 회복되었다.') + (saved ? '\n(모험을 기록했다)' : ''), { onClose: () => HB.innTalk(w) });
       }
     });
+  };
+
+  // [[name, text], ...] one dialog after another, then done()
+  HB.sayChain = function (list, done) {
+    if (!list.length) { if (done) done(); return; }
+    const [name, text] = list[0];
+    HB.dialog.open(text, { name, onClose: () => HB.sayChain(list.slice(1), done) });
+  };
+  // what the companions in the party say: { mio: text, ... } -> [[name, text]]
+  HB.partyLines = (by) => HB.party.allies.filter((a) => by && by[a.id]).map((a) => [HB.ALLIES[a.id].name, by[a.id]]);
+
+  // a rest at an inn with two companions along: they talk, each pair once
+  HB.INN_TALKS = [
+    { flag: 'talkMioDan', who: ['mio', 'dan'], lines: [
+      ['mio', '단비 씨, 아까 그 망치질... 박자가 딱딱 맞던데요?'],
+      ['dan', '광산에선 박자를 놓치면 손가락이 남아나질 않거든.'],
+      ['mio', '그럼 다음 노래 반주 부탁해도 돼요?'],
+      ['dan', '...박자만 맞춰 준다면. 노래는 안 해.']] },
+    { flag: 'talkDanHaru', who: ['dan', 'haru'], lines: [
+      ['haru', '단비 누나, 50년 뒤에도 시계탑은 그대로 있어?'],
+      ['dan', '있지. 그 앞에 종지기 할아버지가 늘 앉아 계셔.'],
+      ['haru', '그 할아버지가 노을이라니... 아직도 상상이 안 돼.'],
+      ['dan', '나도 할아버지가 젊었던 적이 있다는 게 상상이 안 돼.']] },
+    { flag: 'talkMioHaru', who: ['mio', 'haru'], lines: [
+      ['mio', '하루는 시계 소리만 들어도 몇 시인지 안다면서요?'],
+      ['haru', '응. 근데 여기 시계들은 다 같은 시각에 멈춰 있어서 좀 쓸쓸해.'],
+      ['mio', '그럼 종이 다시 울리면, 제일 먼저 하루한테 몇 시냐고 물어볼게요.']] },
+    { flag: 'talkAll', who: ['mio', 'dan', 'haru'], need: 'chapter5', lines: [
+      ['dan', '별이 이렇게 가까운 건 처음이야.'],
+      ['haru', '시계탑 꼭대기에서 보던 별보다 훨씬 커.'],
+      ['mio', '다 끝나면 넷이서 여기 다시 와요. 그땐 노래도 끝까지 부를게요.']] }
+  ];
+  HB.innTalk = function (w) {
+    const has = (id) => HB.party.allies.some((a) => a.id === id);
+    const t = HB.INN_TALKS.find((k) => !w.flags[k.flag] && k.who.every(has) && (!k.need || w.flags[k.need]));
+    if (!t) return false;
+    w.flags[t.flag] = true;
+    HB.sayChain(t.lines.map(([id, text]) => [HB.ALLIES[id].name, text]));
+    return true;
   };
 
   // { items: { id: n }, gold } -> added to the party; returns a readable list
