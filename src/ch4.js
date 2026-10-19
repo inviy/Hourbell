@@ -54,7 +54,8 @@
     tickgloves: { name: '태엽 장갑', slot: 'hands', atk: 8, price: 370, desc: '공격 +8' },
     oldboots: { name: '옛길 장화', slot: 'feet', spd: 6, def: 3, price: 390, desc: '속도 +6, 방어 +3' },
     pocketwatch: { name: '회중시계', slot: 'charm', def: 4, spd: 4, price: 490, desc: '방어 +4, 속도 +4' },
-    oldsong: { name: '오래된 노래', slot: 'score', pow: 65, price: 620, desc: '기술 위력 +65%' }
+    oldsong: { name: '오래된 노래', slot: 'score', pow: 65, price: 620, desc: '기술 위력 +65%' },
+    brasscog: { name: '놋쇠 태엽', slot: 'charm', def: 5, spd: 5, price: 560, desc: '방어 +5, 속도 +5 (숨은 보물)' }
   });
   HB.SHOPS.past = { title: '젊은 브론의 대장간', stock: ['honeycake', 'soup', 'bigdrop', 'water', 'brassmallet', 'tophat', 'oldcoat', 'tickgloves', 'oldboots', 'pocketwatch', 'oldsong'] };
 
@@ -147,7 +148,7 @@
     };
   }
 
-  Object.assign(HB.MAPS, { pasttown: buildPastTown, pastwood: buildPastWood });
+  Object.assign(HB.MAPS, { pasttown: buildPastTown, pastwood: HB.withSecret(buildPastWood, { chimes: [[33, 20], [31, 18], [32, 16]], order: [0, 1, 2], flag: 'secret4', locked: [30, 16], item: 'brasscog', hint: '시곗바늘은 낮은 곳에서 한 칸씩 위로 오른다', chest: [3, 21], loot: 'honeycake', count: 2 }) });
 
   // ---------- story ----------
   HB.QUESTS = HB.QUESTS || [];

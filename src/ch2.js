@@ -67,7 +67,8 @@
     net: { name: '그물 장갑', slot: 'hands', atk: 4, price: 150, desc: '공격 +4' },
     reefboots: { name: '갯바위 장화', slot: 'feet', spd: 4, def: 1, price: 160, desc: '속도 +4, 방어 +1' },
     pearlear: { name: '진주 귀걸이', slot: 'charm', def: 1, spd: 3, price: 210, desc: '방어 +1, 속도 +3' },
-    wavescore: { name: '파도의 악보', slot: 'score', pow: 35, price: 280, desc: '기술 위력 +35%' }
+    wavescore: { name: '파도의 악보', slot: 'score', pow: 35, price: 280, desc: '기술 위력 +35%' },
+    shellflute: { name: '조개 피리', slot: 'score', pow: 45, price: 320, desc: '기술 위력 +45% (숨은 보물)' }
   });
   HB.SHOPS.port = { title: '조개 상점', stock: ['soup', 'herb2', 'bigdrop', 'water', 'coral', 'hood', 'coat', 'net', 'reefboots', 'pearlear', 'wavescore'] };
 
@@ -187,7 +188,7 @@
     };
   }
 
-  Object.assign(HB.MAPS, { mistroad: buildMistroad, port: buildPort });
+  Object.assign(HB.MAPS, { mistroad: HB.withSecret(buildMistroad, { chimes: [[35, 14], [36, 11], [33, 14]], order: [2, 1, 0], flag: 'secret2', locked: [36, 8], item: 'shellflute', hint: '파도는 높이 솟았다가 차례로 부서진다', chest: [17, 4], loot: 'soup', count: 2 }), port: buildPort });
 
   // ---------- story ----------
   HB.QUESTS = HB.QUESTS || [];

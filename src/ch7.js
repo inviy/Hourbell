@@ -45,7 +45,8 @@
   // ---------- items: the last weapon and score ----------
   Object.assign(HB.ITEMS, {
     hourmallet: { name: '아워벨 종채', slot: 'weapon', atk: 40, spd: 2, price: 1500, desc: '공격 +40, 속도 +2' },
-    lastscore: { name: '마지막 소절', slot: 'score', pow: 125, price: 1600, desc: '기술 위력 +125%' }
+    lastscore: { name: '마지막 소절', slot: 'score', pow: 125, price: 1600, desc: '기술 위력 +125%' },
+    echoring: { name: '메아리 반지', slot: 'charm', def: 7, spd: 7, price: 1200, desc: '방어 +7, 속도 +7 (숨은 보물)' }
   });
   HB.SHOPS.bellcore = { title: '종의 정령이 모아 둔 것들', stock: ['starhoney', 'gingertea', 'water', 'hourmallet', 'lastscore'] };
 
@@ -99,7 +100,7 @@
     };
   }
 
-  HB.MAPS.bellcore = buildBellCore;
+  HB.MAPS.bellcore = HB.withSecret(buildBellCore, { chimes: [[20, 6], [18, 4], [22, 9]], order: [0, 2, 1], flag: 'secret7', locked: [20, 8], item: 'echoring', hint: '첫 바람의 노래를 기억하는가', chest: [3, 14], loot: 'starhoney', count: 3 });
 
   // ---------- story ----------
   HB.QUESTS = HB.QUESTS || [];
