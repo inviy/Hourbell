@@ -372,6 +372,51 @@ try {
   assert.ok(await ev('HB.party.hp') < hpBefore, '정적 strikes twice');
   await ev('HB.Battle.end(true)'); await drain();
   await ev('(() => { const P = HB.party; P.hp = P.maxHp; P.allies.forEach((a) => { a.hp = HB.allyStats(a.id, P.lvl).maxHp; }); })()');
+
+  step('chapter skills, a long skill list, a companion 장신구');
+  await ev(`(() => { const p = ${W}.player, B = HB.Battle; B.start(${W}, [{ kind: 'wisp', x: p.x + 48, y: p.y }, { kind: 'wisp', x: p.x + 68, y: p.y }]);
+    B.foes.forEach((f) => { f.atk = 1; f.hp = f.maxHp = 9999; }); HB.party.mp = 99; })()`);
+  await sleep(3200);
+  const settle = async () => { for (let i = 0; i < 40 && await ev("HB.Battle.phase !== 'menu' || !!HB.Battle.co"); i++) { if (await ev('!!HB.Battle.waitingOk')) await key('KeyZ'); await sleep(200); } };
+  // the list scrolls: all ten skills, the last one in view
+  await ev("HB.realSkillsFor = HB.skillsFor; HB.skillsFor = () => Object.keys(HB.SKILLS); HB.Battle.listMem = {}; HB.Battle.cursor = 1");
+  await key('KeyZ'); await sleep(200); await key('ArrowUp'); await sleep(200); await shot('20c-skill-list');
+  assert.equal(await ev('HB.Battle.list.length'), 10);
+  assert.equal(await ev('HB.Battle.list[HB.Battle.listCursor].id'), 'hourbell');
+  assert.match(await ev('HB.Battle.msg'), /아워벨: 적 전체에/, 'the bar explains the skill');
+  await key('KeyX'); await sleep(200);
+  await ev('HB.skillsFor = HB.realSkillsFor');
+  const use = async (id) => { await ev(`HB.Battle.run(HB.Battle.round(HB.Battle.skill('${id}', HB.Battle.foes[0])))`); await settle(); };
+  await ev('HB.party.hp = 50; HB.Battle.allies.forEach((m) => { m.hp = 5; })');
+  await use('tide');
+  assert.ok(await ev('HB.party.hp') > 50 && await ev('HB.Battle.allies.every((m) => m.hp > 5)'), '물안개 노래 heals everyone');
+  await ev('HB.Battle.allies[0].hp = 0');
+  await use('windup');
+  assert.ok(await ev('HB.Battle.allies[0].hp > 0'), '태엽 감기 gets a companion up');
+  const foeHp = await ev('HB.Battle.foes.map((f) => f.hp)');
+  await use('starwind');
+  assert.ok(await ev(`HB.Battle.foes.every((f, i) => f.hp < ${JSON.stringify(foeHp)}[i])`), '별바람 hits every foe');
+  await ev('HB.Battle.silenced = 2');
+  await use('hourbell');
+  assert.equal(await ev('HB.Battle.silenced'), 0, '아워벨 breaks the silence');
+  const one = await ev('HB.Battle.foes[0].hp');
+  await use('echoshot');
+  assert.ok(await ev('HB.Battle.foes[0].hp') < one, '메아리치기 hits one foe');
+  await ev("HB.Battle.listMem = {}; HB.Battle.cursor = 1; HB.realSkillsFor = HB.skillsFor; HB.skillsFor = () => ['frost']");
+  await key('KeyZ'); await sleep(200); await key('KeyZ'); await sleep(300);
+  assert.ok(await ev('HB.Battle.shield'), '서리 방패 is up for the round');
+  await settle();
+  await ev('HB.skillsFor = HB.realSkillsFor; HB.Battle.end(true)'); await drain();
+  // a 장신구 for 미오 from the equipment menu
+  await ev('HB.party.items.amulet = 1');
+  await key('KeyX'); await sleep(200);
+  await ev("HB.Menu.mode.cur = HB.Menu.rows(HB.World).findIndex((r) => r.label === '장비')"); await key('KeyZ'); await sleep(200);
+  await ev("HB.Menu.mode.cur = HB.Menu.rows(HB.World).findIndex((r) => r.label === '미오 장신구')"); await key('KeyZ'); await sleep(200);
+  await shot('20d-ally-charm');
+  await ev("HB.Menu.mode.cur = HB.Menu.rows(HB.World).findIndex((r) => r.label === '수호 부적')");
+  await key('KeyZ'); await sleep(200);
+  assert.equal(await ev("HB.party.allies.find((a) => a.id === 'mio').charm"), 'amulet', '미오 wears it');
+  for (let i = 0; i < 4 && await ev('HB.Menu.open'); i++) { await key('KeyX'); await sleep(150); }
   await ev(`${W}.load('pastwood', { x: ${woodAt[0]}, y: ${woodAt[1]}, dir: 'down' }); HB.Field.enemies.forEach((e) => { e.dead = true; })`); await sleep(500);
   await bossAt(4, 28, 21, '20-boss4');
   await ev(`${W}.load('pasttown', { x: 16.5, y: 12.8, dir: 'up' })`); await sleep(600);

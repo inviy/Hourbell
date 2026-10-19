@@ -78,7 +78,18 @@
         return Object.keys(HB.SLOTS).map((slot) => {
           const cur = P.equip[slot];
           return { label: HB.SLOTS[slot], right: cur ? HB.ITEMS[cur].name : '-', desc: cur ? HB.ITEMS[cur].desc : '비어 있음', act: () => menu.push({ id: 'gear', slot }) };
-        });
+        }).concat(P.allies.map((a) => ({ // each companion wears one 장신구
+          label: HB.ALLIES[a.id].name + ' 장신구', right: a.charm ? HB.ITEMS[a.charm].name : '-',
+          desc: a.charm ? HB.ITEMS[a.charm].desc : '동료에게 장신구를 하나 줄 수 있다', act: () => menu.push({ id: 'allygear', ally: a })
+        })));
+      }
+      if (m.id === 'allygear') {
+        const a = m.ally, name = HB.ALLIES[a.id].name;
+        const rows = bag(true).filter((id) => HB.ITEMS[id].slot === 'charm').map((id) => ({ label: HB.ITEMS[id].name, right: statLine(HB.ITEMS[id]), desc: HB.ITEMS[id].desc,
+          act: () => { HB.equipAlly(P, a, id); HB.sfx('ok'); menu.stack.pop(); menu.note = HB.josa(name, '이가') + ' ' + HB.josa(HB.ITEMS[id].name, '을를') + ' 달았다.'; } }));
+        if (a.charm) rows.push({ label: '빼기', right: '', desc: HB.ITEMS[a.charm].name + ' 해제', act: () => { HB.unequipAlly(P, a); HB.sfx('move'); menu.stack.pop(); } });
+        if (!rows.length) rows.push({ label: '(남는 장신구 없음)', dim: true, act: () => menu.fail('대장장이에게서 장신구를 살 수 있다.') });
+        return rows;
       }
       if (m.id === 'gear') {
         const ids = bag(true).filter((id) => HB.ITEMS[id].slot === m.slot);
@@ -188,11 +199,11 @@
         HB.text(g, '좌우: 사기 / 팔기', HB.W - 12, HB.H - 44, '#a898c0', { font: 'g9', align: 'right' });
         return;
       }
-      const wide = m.id === 'main' ? 72 : m.id === 'gear' ? 220 : 150;
+      const wide = m.id === 'main' ? 72 : m.id === 'gear' || m.id === 'allygear' ? 220 : 150;
       if (m.id !== 'main') this.drawList(g, this.rowsOf(w, 'main'), 8, 8, 72, -1); // backdrop, no cursor
       this.drawList(g, rows, m.id === 'main' ? 8 : 20, m.id === 'main' ? 8 : 24, wide, m.cur);
       this.drawNote(g, this.note || (sel && sel.desc) || '');
-      if (m.id === 'gear' || m.id === 'items') return; // keep the list readable
+      if (m.id === 'gear' || m.id === 'allygear' || m.id === 'items') return; // keep the list readable
       if (HB.menuDraw[m.id]) { HB.menuDraw[m.id](g, w); return; }
       this.drawStatus(g, w);
     },
@@ -215,7 +226,7 @@
       const plus = (k) => e[k] + (e[k] !== P[k] ? ' (+' + (e[k] - P[k]) + ')' : '');
       const rows = [
         ['공격', plus('atk')], ['방어', plus('def')], ['속도', plus('spd')], ['기술 위력', '+' + e.pow + '%'],
-        ['기술', HB.skillsFor(P.lvl).map((id) => HB.SKILLS[id].name).join(' ')],
+        ['기술', HB.skillsFor(P.lvl).length + '개 (전투의 기술에서 설명)'],
         ['동료', P.allies.map((a) => HB.ALLIES[a.id].name).join(' · ') || '-'],
         ['펫', P.pet ? HB.PETS[P.pet].name : '-'],
         ['다음 레벨까지', HB.expToNext(P.lvl) - P.exp],

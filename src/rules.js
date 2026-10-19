@@ -116,7 +116,14 @@
     chime: { name: '종소리', cost: 4, lvl: 1, target: 'all', el: 'sound', desc: '적 전체에 소리 피해' },
     heal: { name: '회복', cost: 3, lvl: 1, target: 'self', desc: 'HP를 회복' },
     gust: { name: '바람결', cost: 3, lvl: 3, target: 'one', el: 'wind', desc: '적 하나에 강한 바람 피해' },
-    ring: { name: '맑은울림', cost: 5, lvl: 5, target: 'self', buff: 3, desc: '3턴 동안 공격 1.5배' }
+    ring: { name: '맑은울림', cost: 5, lvl: 5, target: 'self', buff: 3, desc: '3턴 동안 공격 1.5배' },
+    // one a chapter, at its boss level. The auto battle keeps to the four above
+    tide: { name: '물안개 노래', cost: 6, lvl: 6, target: 'party', desc: '나와 동료 모두의 HP를 회복' },
+    echoshot: { name: '메아리치기', cost: 5, lvl: 9, target: 'one', el: 'sound', desc: '적 하나에 강한 소리 피해' },
+    windup: { name: '태엽 감기', cost: 6, lvl: 12, target: 'ally', desc: '쓰러진 동료를 HP 절반으로 일으킨다' },
+    frost: { name: '서리 방패', cost: 5, lvl: 15, target: 'party', desc: '이번 턴 파티가 받는 피해 절반' },
+    starwind: { name: '별바람', cost: 7, lvl: 18, target: 'all', el: 'wind', desc: '적 전체에 바람 피해' },
+    hourbell: { name: '아워벨', cost: 12, lvl: 21, target: 'all', el: 'sound', desc: '적 전체에 큰 소리 피해, 안개와 정적을 걷는다' }
   };
   HB.skillsFor = (lvl) => Object.keys(HB.SKILLS).filter((id) => HB.SKILLS[id].lvl <= lvl);
   HB.learnedAt = (lvl) => Object.keys(HB.SKILLS).filter((id) => HB.SKILLS[id].lvl === lvl);
@@ -150,6 +157,24 @@
   HB.allyStats = function (id, lvl) {
     const a = HB.ALLIES[id], s = (k) => Math.round(a[k][0] + a[k][1] * (lvl - 1));
     return { id, isAlly: true, name: a.name, pal: a.pal, role: a.role, maxHp: s('hp'), atk: s('atk'), def: s('def'), spd: s('spd') };
+  };
+  // a companion with its 장신구 (party entry { id, hp, charm })
+  HB.allyFor = function (a, lvl) {
+    const s = HB.allyStats(a.id, lvl), it = HB.ITEMS[a.charm];
+    if (it) for (const k of ['atk', 'def', 'spd']) s[k] += it[k] || 0;
+    return s;
+  };
+  HB.equipAlly = function (P, a, id) {
+    const it = HB.ITEMS[id];
+    if (!it || it.slot !== 'charm' || !P.items[id]) return false;
+    HB.unequipAlly(P, a);
+    if (--P.items[id] <= 0) delete P.items[id];
+    a.charm = id;
+    return true;
+  };
+  HB.unequipAlly = function (P, a) {
+    if (a.charm) P.items[a.charm] = (P.items[a.charm] || 0) + 1;
+    delete a.charm;
   };
   HB.songAmt = (lvl) => 6 + lvl + rnd(0, 3);
   HB.spellDmg = (a, f, el) => Math.max(1, Math.round((4 + a.atk * 1.2 + rnd(0, 3)) * HB.elemMul(f, el))); // ignores defence
@@ -220,6 +245,11 @@
     return { act: 'attack', target: t };
   };
   HB.healAmt = (P) => Math.round((15 + P.lvl * 3 + rnd(0, 3)) * powMul(P));
+  // the chapter skills, built on the first four
+  HB.tideAmt = (P) => Math.round(HB.healAmt(P) * 0.6);
+  HB.echoShotDmg = (P, f) => Math.round(HB.chimeDmg(P, f) * 1.8);
+  HB.starwindDmg = (P, f, buffed) => Math.max(1, Math.round(HB.gustDmg(P, f, buffed) * 0.8));
+  HB.hourbellDmg = (P, f) => Math.round(HB.chimeDmg(P, f) * 2);
   HB.critChance = 0.1;
 
   // what a foe does this turn: 'attack' | 'swallow' | 'wave' | 'silence' | 'fog'.
