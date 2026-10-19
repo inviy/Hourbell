@@ -463,9 +463,11 @@ try {
   await talkTo('keeper'); await drain(); await sleep(2500);
   assert.equal(await ev('HB.getScene() === HB.Ending && HB.Ending.n'), 7);
   await sleep(9000); await shot('29-final-card');
-  await sleep(14000); await shot('30-credits');
-  await sleep(12000);
-  await key('KeyZ'); await sleep(2500);
+  // a press turns the page: the seven chapters, then the credits, then back to the title
+  await key('KeyZ'); await sleep(2500); await shot('30-recap');
+  assert.equal(await ev('HB.Ending.pageAt(HB.Ending.t)'), 1, 'Z skips to the next page');
+  for (let i = 0; i < 12 && await ev('HB.getScene() === HB.Ending'); i++) { await key('KeyZ'); await sleep(700); if (i === 1) await shot('30-credits'); }
+  await sleep(2500);
   assert.equal(await ev('HB.getScene() === HB.Title'), true, 'the last card returns to the title');
 
   step('title: continue from the save');
@@ -476,6 +478,8 @@ try {
   assert.equal(await ev('HB.party.allies.length'), 3);
   assert.ok(await ev(`${W}.flags.chapter1`));
   assert.equal(await ev('HB.party.items.plume'), 1);
+  assert.equal(await ev(`${W}.moodNow()`), 'night', 'after the ending 울림골 has its first night');
+  assert.equal(await ev(`HB.Field.musicFor(${W})`), 'townNight', 'with its own song');
 
   step('save code: copy on one device, load it on a fresh one');
   await ev("navigator.clipboard.writeText = (t) => { window.copied = t; return Promise.resolve(); }");

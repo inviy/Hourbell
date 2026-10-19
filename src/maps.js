@@ -89,6 +89,9 @@
       theme: 'town',
       mood: 'sunset',
       music: 'town',
+      // after the last chapter the endless sunset finally gives way to night
+      moodAfter: { flag: 'chapter7', mood: 'night' },
+      musicAfter: { flag: 'chapter7', music: 'townNight' },
       rows: m.rows(),
       spawn: { x: 16.5, y: 18, dir: 'up' },
       tower: { tx: 15, ty: 10 },

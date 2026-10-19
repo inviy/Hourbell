@@ -160,6 +160,16 @@
     s.bpm = 176;
     return s;
   };
+  // 울림골's first night: the theme on the music box, slow, over a harp
+  HB.SONG_DEFS.townNight = (k) => {
+    const s = new k.Song({ bpm: 60, loop: true, steps: 16 * 16 });
+    s.add('box', k.seq(k.THEME_A).notes, 0, 0.6);
+    k.chordsTo(s, k.CH_A.concat(k.CH_B), 0, (c, at) => {
+      [0, 2, 4, 6].forEach((o, i) => s.events.push({ inst: 'harp', step: (at + o) * 2, len: 1, midi: c[i % 3] + 12, vel: 0.45 }));
+      s.events.push({ inst: 'pad', step: at * 2, len: 8, midi: c[0], vel: 0.5 });
+    });
+    return s.finalize();
+  };
   // after it: the whole theme, every instrument at once
   HB.SONG_DEFS.finale = (k) => {
     const s = new k.Song({ bpm: 84, loop: true, steps: 16 * 16 });
