@@ -14,6 +14,11 @@ try {
   await sleep(2500);
   await ev('localStorage.clear()');
 
+  step('the small subset fonts load');
+  assert.equal(await ev(`[...document.fonts].filter((f) => /^"?HourbellText(11|9)"?$/.test(f.family) && f.status === 'loaded').length`), 2, 'both fonts loaded');
+  const fontBytes = await ev(`performance.getEntriesByType('resource').filter((r) => r.name.includes('/assets/fonts/')).reduce((n, r) => n + r.decodedBodySize, 0)`);
+  assert.ok(fontBytes > 0 && fontBytes < 100000, 'fonts are small: ' + fontBytes + ' bytes');
+
   step('title -> new game -> town');
   await key('KeyZ'); await sleep(600); await shot('01-title');
   await key('KeyZ'); await sleep(2300); await drain();
@@ -266,7 +271,8 @@ try {
     HB.Battle.start(${W}, [{ kind: 'tickwisp', x: p.x + 48, y: p.y }]); HB.Battle.foes[0].atk = ${atk}; HB.Battle.foes[0].swallow = 0; })()`);
   const toMenu = async () => { for (let i = 0; i < 40 && await ev("HB.Battle.phase !== 'menu' || !!HB.Battle.co"); i++) { if (await ev('!!HB.Battle.waitingOk')) await key('KeyZ'); await sleep(250); } };
   await fight(1); await sleep(2700);
-  await ev(`(() => { const B = HB.Battle, f = B.foes[0]; f.fogEvery = 4; f.fogName = '시간 먼지'; f.hp = f.maxHp = 9999; B.turn = 0; B.toMenu(); })()`);
+  await ev(`(() => { const B = HB.Battle, f = B.foes[0]; f.fogEvery = 4; f.fogName = '시간 먼지'; f.hp = f.maxHp = 9999; B.turn = 0; B.toMenu();
+      B.allies.forEach((m) => { m.hp = 0; }); })()`); // a companion's spell would blow the fog away at once
   assert.match(await ev('HB.Battle.msg'), /시간 먼지를 머금는다/, 'the fog is warned before you pick');
   await shot('19b-fog-warning');
   await ev('HB.Battle.cursor = 3'); await key('KeyZ'); await sleep(400); await toMenu(); // 방어

@@ -4,8 +4,8 @@
   'use strict';
 
   const FONTS = {
-    g11: { css: '12px Galmuri11', h: 14, line: 15 },
-    g9: { css: '10px Galmuri9', h: 12, line: 12 }
+    g11: { css: '12px HourbellText11', h: 14, line: 15 },
+    g9: { css: '10px HourbellText9', h: 12, line: 12 }
   };
   const cache = new Map();
   const [mc, mx] = HB.makeCanvas(4, 4);
@@ -87,7 +87,7 @@
   };
 
   HB.fontsReady = Promise.all([
-    document.fonts.load('12px Galmuri11', '가A'),
-    document.fonts.load('10px Galmuri9', '가A')
+    document.fonts.load('12px HourbellText11', '가A'),
+    document.fonts.load('10px HourbellText9', '가A')
   ]).catch(() => {});
 })(window.HB);
