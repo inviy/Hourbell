@@ -100,7 +100,7 @@
       if (w.flags[key]) { HB.dialog.open('빈 상자다.'); return; }
       if (c.locked && !w.flags[c.locked]) {
         HB.sfx('thud');
-        HB.dialog.open(['상자가 단단히 잠겨 있다.', '자물쇠에 작은 풍경 무늬가 새겨져 있다.']);
+        HB.dialog.open(['상자가 단단히 잠겨 있다.', c.hint ? '뚜껑에 글이 새겨져 있다. "' + c.hint + '"' : '자물쇠에 작은 풍경 무늬가 새겨져 있다.']);
         return;
       }
       w.flags[key] = true;

@@ -64,7 +64,8 @@
     pickgloves: { name: '곡괭이 장갑', slot: 'hands', atk: 6, price: 250, desc: '공격 +6' },
     cliffboots: { name: '벼랑 장화', slot: 'feet', spd: 5, def: 2, price: 260, desc: '속도 +5, 방어 +2' },
     echostone: { name: '메아리 돌', slot: 'charm', def: 3, spd: 3, price: 320, desc: '방어 +3, 속도 +3' },
-    echoscore: { name: '메아리 악보', slot: 'score', pow: 50, price: 420, desc: '기술 위력 +50%' }
+    echoscore: { name: '메아리 악보', slot: 'score', pow: 50, price: 420, desc: '기술 위력 +50%' },
+    crystalbell: { name: '수정 방울', slot: 'charm', def: 4, spd: 4, price: 380, desc: '방어 +4, 속도 +4 (숨은 보물)' }
   });
   HB.SHOPS.canyon = { title: '떠돌이 행상의 짐수레', stock: ['soup', 'herb2', 'bigdrop', 'water', 'echomallet', 'minerhelm', 'stonemail', 'pickgloves', 'cliffboots', 'echostone', 'echoscore'] };
 
@@ -172,7 +173,7 @@
     };
   }
 
-  Object.assign(HB.MAPS, { canyon: buildCanyon, mine: buildMine });
+  Object.assign(HB.MAPS, { canyon: HB.withSecret(buildCanyon, { chimes: [[3, 5], [5, 3], [7, 3]], order: [1, 0, 2], flag: 'secret3', locked: [4, 7], item: 'crystalbell', hint: '메아리는 가운데서 울려 바닥을 치고 하늘로 돌아간다', chest: [37, 17], loot: 'bigdrop', count: 2 }), mine: buildMine });
 
   // ---------- story ----------
   HB.QUESTS = HB.QUESTS || [];

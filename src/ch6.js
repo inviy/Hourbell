@@ -53,7 +53,8 @@
     lensgloves: { name: '렌즈 장갑', slot: 'hands', atk: 12, price: 780, desc: '공격 +12' },
     cometboots: { name: '혜성 장화', slot: 'feet', spd: 8, def: 5, price: 820, desc: '속도 +8, 방어 +5' },
     moonlocket: { name: '달 목걸이', slot: 'charm', def: 6, spd: 6, price: 1020, desc: '방어 +6, 속도 +6' },
-    starscore: { name: '별의 악보', slot: 'score', pow: 100, price: 1280, desc: '기술 위력 +100%' }
+    starscore: { name: '별의 악보', slot: 'score', pow: 100, price: 1280, desc: '기술 위력 +100%' },
+    cometshard: { name: '혜성 조각', slot: 'score', pow: 110, price: 1400, desc: '기술 위력 +110% (숨은 보물)' }
   });
   HB.SHOPS.observatory = { title: '천문대 매점', stock: ['starhoney', 'honeycake', 'gingertea', 'water', 'starmallet', 'starcap', 'nightrobe', 'lensgloves', 'cometboots', 'moonlocket', 'starscore'] };
 
@@ -142,7 +143,7 @@
     };
   }
 
-  Object.assign(HB.MAPS, { starpath: buildStarPath, observatory: buildObservatory });
+  Object.assign(HB.MAPS, { starpath: HB.withSecret(buildStarPath, { chimes: [[33, 7], [33, 5], [31, 7]], order: [1, 2, 0], flag: 'secret6', locked: [31, 5], item: 'cometshard', hint: '별은 가운데서 떠올라 가장 높이 빛나고 가장 낮게 진다', chest: [15, 11], loot: 'starhoney', count: 2 }), observatory: buildObservatory });
 
   // ---------- story ----------
   HB.QUESTS = HB.QUESTS || [];

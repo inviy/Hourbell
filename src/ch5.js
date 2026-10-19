@@ -52,7 +52,8 @@
     mittens: { name: '벙어리장갑', slot: 'hands', atk: 10, price: 540, desc: '공격 +10' },
     snowshoes: { name: '설피', slot: 'feet', spd: 7, def: 4, price: 570, desc: '속도 +7, 방어 +4' },
     snowcharm: { name: '눈꽃 장식', slot: 'charm', def: 5, spd: 5, price: 720, desc: '방어 +5, 속도 +5' },
-    winterscore: { name: '겨울 악보', slot: 'score', pow: 80, price: 900, desc: '기술 위력 +80%' }
+    winterscore: { name: '겨울 악보', slot: 'score', pow: 80, price: 900, desc: '기술 위력 +80%' },
+    frostfeather: { name: '서리 깃털', slot: 'charm', def: 6, spd: 6, price: 800, desc: '방어 +6, 속도 +6 (숨은 보물)' }
   });
   HB.SHOPS.hut = { title: '산장 할머니의 선반', stock: ['honeycake', 'gingertea', 'soup', 'water', 'icemallet', 'furhat', 'furcoat', 'mittens', 'snowshoes', 'snowcharm', 'winterscore'] };
 
@@ -147,7 +148,7 @@
     };
   }
 
-  Object.assign(HB.MAPS, { snowroad: buildSnowRoad, snowpeak: buildSnowPeak });
+  Object.assign(HB.MAPS, { snowroad: HB.withSecret(buildSnowRoad, { chimes: [[36, 4], [35, 6], [35, 8]], order: [2, 0, 1], flag: 'secret5', locked: [33, 6], item: 'frostfeather', hint: '눈은 높은 곳에서 내려와 바닥에 쌓였다가 반쯤 녹는다', chest: [3, 11], loot: 'gingertea', count: 2 }), snowpeak: buildSnowPeak });
 
   // ---------- story ----------
   HB.QUESTS = HB.QUESTS || [];

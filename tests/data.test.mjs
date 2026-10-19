@@ -147,3 +147,12 @@ test('the subset fonts have every character the game writes', async () => {
   for (const f of files) for (const c of readFileSync(new URL(f, root), 'utf8')) if (c > '~' && !have.has(c)) missing.add(c);
   assert.deepEqual([...missing], [], 'run python tools/subset-fonts.py');
 });
+
+test('every chapter road hides a chime puzzle and a piece of gear', () => {
+  for (const id of ['mistroad', 'canyon', 'pastwood', 'snowroad', 'starpath', 'bellcore']) {
+    const m = maps[id], locked = (m.chests || []).find((c) => c.locked);
+    assert.ok(m.puzzle && locked && locked.locked === m.puzzle.flag, id + ': a chest the chimes unlock');
+    assert.ok(HB.ITEMS[locked.item].slot && locked.hint, id + ': with gear inside and a hint on the lid');
+    assert.ok(m.chests.length >= 2, id + ': and one more chest');
+  }
+});

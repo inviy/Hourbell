@@ -247,6 +247,15 @@ try {
   step('chapter three: north road, mine, 단비 joins, 메아리왕');
   await ev(`HB.party.allies = [{ id: 'mio', hp: HB.allyStats('mio', HB.party.lvl).maxHp }]`);
   await walk(16.5, 0.9, 'up', 'ArrowUp', 'canyon'); await shot('15-canyon');
+  // the canyon's secret corner: the lid's hint, three chimes in order, the hidden 장신구
+  const faceUp = async (x, y) => { await ev(`${W}.player.x = ${x + 0.5} * 16; ${W}.player.y = ${y + 1.9} * 16; ${W}.player.dir = 'up'`); await key('KeyZ'); await sleep(500); };
+  await faceUp(4, 7); await drain();
+  for (const [x, y] of [[5, 3], [3, 5], [7, 3]]) await faceUp(x, y);
+  await drain();
+  assert.ok(await ev(`${W}.flags.secret3`), 'the chimes open the lock');
+  await faceUp(4, 7); await drain(); await shot('15b-canyon-secret');
+  assert.equal(await ev('HB.party.items.crystalbell'), 1, 'the hidden 수정 방울');
+  await ev('HB.Field.enemies.forEach((e) => { e.dead = true; })');
   await talkTo('foreman'); await drain();
   await ev(`${W}.load('mine', { x: 1.5, y: 16.4, dir: 'right' })`); await sleep(600);
   await ev('HB.Field.enemies.forEach((e) => { e.dead = true; })'); await shot('16-mine');

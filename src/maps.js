@@ -326,6 +326,26 @@
   }
 
   HB.MAPS = { town: buildTown, field: buildField, inn: buildInn, grove: buildGrove };
+
+  // a chapter road's secret corner: three chimes to ring in the order the
+  // locked chest's lid hints at, a hidden piece of gear inside, and one more
+  // chest further off. s: { chimes: [[x, y] x3], order, flag, locked: [x, y],
+  // item, hint, chest: [x, y], loot, count }. Spots come from open ground, so
+  // nothing gets walled off (tests/data.test.mjs checks every map is reachable)
+  HB.withSecret = (build, s) => () => {
+    const d = build(), rows = d.rows.map((r) => r.split(''));
+    s.chimes.forEach(([x, y]) => { rows[y][x] = 'q'; });
+    rows[s.locked[1]][s.locked[0]] = 'C';
+    rows[s.chest[1]][s.chest[0]] = 'C';
+    d.rows = rows.map((r) => r.join(''));
+    d.chimes = (d.chimes || []).concat(s.chimes.map(([tx, ty], note) => ({ tx, ty, note })));
+    d.puzzle = { order: s.order, flag: s.flag };
+    d.chests = (d.chests || []).concat([
+      { id: s.flag + '_locked', tx: s.locked[0], ty: s.locked[1], item: s.item, locked: s.flag, hint: s.hint },
+      { id: s.flag + '_chest', tx: s.chest[0], ty: s.chest[1], item: s.loot, count: s.count || 1 }
+    ]);
+    return d;
+  };
   HB.Grid = Grid;
   HB.mapTools = { sprinkle, forestBorder };
 })(window.HB);
