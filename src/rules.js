@@ -219,12 +219,19 @@
   // what a foe does this turn: 'attack' | 'swallow' | 'wave' | 'silence' | 'fog'.
   // Patterns are data: waveEvery (the battle warns a turn ahead), silenceEvery
   // (below half HP), fogEvery. ctx: { silenced, fog }
+  // foeWarn decides the big moves at the start of a round, so the battle can
+  // warn about them and the foe does exactly what was warned
   HB.waveNext = (f, turn) => !!f.waveEvery && turn % f.waveEvery === f.waveEvery - 1;
-  HB.foeIntent = function (f, turn, P, ctx) {
+  HB.foeWarn = function (f, turn, ctx) {
     ctx = ctx || {};
     if (HB.waveNext(f, turn)) return 'wave';
     if (f.fogEvery && !ctx.fog && turn % f.fogEvery === 1) return 'fog';
     if (f.silenceEvery && f.hp < f.maxHp / 2 && !ctx.silenced && turn % f.silenceEvery === 0) return 'silence';
+    return null;
+  };
+  // warned: foeWarn's pick for this round
+  HB.foeIntent = function (f, P, warned) {
+    if (warned) return warned;
     if (!f.boss && HB.rand() < (f.swallow || 0) && P.mp > 0) return 'swallow';
     return 'attack';
   };

@@ -259,6 +259,45 @@ try {
   await joinBy('haru', 'cog', 'haru');
   assert.equal(await ev('HB.party.allies.length'), 3);
   await walk(16.5, 23.9, 'down', 'ArrowDown', 'pastwood'); await shot('19-pastwood');
+
+  step('battle: warned fog, remembered picks, a loss wakes you at the inn');
+  const woodAt = await ev(`[${W}.player.x / 16, ${W}.player.y / 16]`);
+  const fight = (atk) => ev(`(() => { const p = ${W}.player;
+    HB.Battle.start(${W}, [{ kind: 'tickwisp', x: p.x + 48, y: p.y }]); HB.Battle.foes[0].atk = ${atk}; HB.Battle.foes[0].swallow = 0; })()`);
+  const toMenu = async () => { for (let i = 0; i < 40 && await ev("HB.Battle.phase !== 'menu' || !!HB.Battle.co"); i++) { if (await ev('!!HB.Battle.waitingOk')) await key('KeyZ'); await sleep(250); } };
+  await fight(1); await sleep(2700);
+  await ev(`(() => { const B = HB.Battle, f = B.foes[0]; f.fogEvery = 4; f.fogName = '시간 먼지'; f.hp = f.maxHp = 9999; B.turn = 0; B.toMenu(); })()`);
+  assert.match(await ev('HB.Battle.msg'), /시간 먼지를 머금는다/, 'the fog is warned before you pick');
+  await shot('19b-fog-warning');
+  await ev('HB.Battle.cursor = 3'); await key('KeyZ'); await sleep(400); await toMenu(); // 방어
+  assert.ok(await ev('HB.Battle.fog > 0'), 'and the warned fog comes');
+  await ev(`HB.party.items.herb = 2; HB.Battle.listMem.item = 'herb'`);
+  await ev('HB.Battle.cursor = 2'); await key('KeyZ'); await sleep(300); // 도구
+  assert.equal(await ev('HB.Battle.list[HB.Battle.listCursor].id'), 'herb', 'the item list opens on the last pick');
+  await key('KeyX'); await sleep(200);
+  await ev('HB.Battle.cursor = 3; HB.Battle.end(true)'); await drain();
+  await fight(1); await sleep(300);
+  assert.equal(await ev('HB.Battle.cursor'), 3, 'the next battle opens on the last command');
+  await ev('HB.Battle.end(true)'); await drain();
+  // rest at the inn of 50 years ago, then lose in the wood
+  await ev(`${W}.load('pasttown', { x: 27.5, y: 19.9, dir: 'up' })`); await sleep(500);
+  await ev(`HB.restAtInn(${W}, '여관 주인 할멈', ['푹 쉬렴.'])`); await drain();
+  assert.equal(await ev(`${W}.flags.restAt.map`), 'pasttown');
+  await ev(`${W}.load('pastwood', { x: ${woodAt[0]}, y: ${woodAt[1]}, dir: 'down' }); HB.Field.enemies.forEach((e) => { e.dead = true; })`); await sleep(500);
+  const goldBefore = await ev('HB.party.gold');
+  await fight(9999); await sleep(2700);
+  await ev('HB.party.hp = 1; HB.Battle.allies.forEach((m) => { m.hp = 0; })');
+  await ev(`(() => { const open = HB.dialog.open; HB.seenLines = [];
+    HB.dialog.open = function (t, o) { HB.seenLines.push([].concat(t).join(' ')); return open.call(this, t, o); }; })()`);
+  await ev('HB.Battle.cursor = 3'); await key('KeyZ');
+  for (let i = 0; i < 40 && await ev('HB.Battle.active'); i++) { if (await ev('!!HB.Battle.waitingOk')) await key('KeyZ'); await sleep(250); }
+  await sleep(1500);
+  assert.equal(await ev(`${W}.def.id`), 'pasttown', 'a loss in chapter four wakes you at its inn, not in present-day 울림골');
+  assert.deepEqual(await ev(`[${W}.player.x / 16, ${W}.player.y / 16]`), [27.5, 19.9]);
+  assert.match(await ev("HB.seenLines.join(' ')"), /50년 전 울림골이었다/);
+  await drain();
+  await ev(`HB.party.gold = ${goldBefore}`);
+  await ev(`${W}.load('pastwood', { x: ${woodAt[0]}, y: ${woodAt[1]}, dir: 'down' }); HB.Field.enemies.forEach((e) => { e.dead = true; })`); await sleep(500);
   await bossAt(4, 28, 21, '20-boss4');
   await ev(`${W}.load('pasttown', { x: 16.5, y: 12.8, dir: 'up' })`); await sleep(600);
   await tower('town');

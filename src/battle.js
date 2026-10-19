@@ -28,6 +28,8 @@
 
   const Battle = {
     active: false,
+    // the menu keeps the last command, and each list its last pick (by id), between battles
+    cursor: 0, listMem: {},
 
     start(w, foes) {
       this.active = true;
@@ -36,7 +38,8 @@
       this.phase = 'busy';
       this.msg = '';
       this.nums = []; this.fx = [];
-      this.cursor = 0; this.target = 0;
+      if (COMMANDS[this.cursor].id === 'flee') this.cursor = 0; // a held A must not run from the next fight
+      this.target = 0;
       this.shake = 0; this.distort = 0; this.flash = 0;
       this.co = null; this.wait = 0;
       this.turn = 0; this.guarding = false; this.silenced = 0; this.buff = 0; this.fog = 0; this.fogName = '안개';
@@ -127,8 +130,15 @@
       this.phase = 'menu'; this.msg = '';
       this.turn++; this.guarding = false;
       if (this.fog > 0 && --this.fog === 0) this.msg = HB.josa(this.fogName, '이가') + ' 걷혔다.';
-      const boss = this.alive().find((f) => HB.waveNext(f, this.turn));
-      if (boss) this.msg = HB.josa(boss.name, '이가') + ' 깊게 숨을 들이마신다... (방어하면 파동 피해 절반)';
+      // the big moves are picked now and warned about before you choose
+      const ctx = { silenced: this.silenced > 0, fog: this.fog > 0 };
+      this.alive().forEach((f) => { f.warned = HB.foeWarn(f, this.turn, ctx); });
+      const boss = this.alive().find((f) => f.warned);
+      if (!boss) return;
+      const who = HB.josa(boss.name, '이가');
+      this.msg = boss.warned === 'wave' ? who + ' 깊게 숨을 들이마신다... (방어하면 파동 피해 절반)'
+        : boss.warned === 'fog' ? who + ' ' + HB.josa(boss.fogName || '안개', '을를') + ' 머금는다... (끼면 공격 반감)'
+        : who + ' 소리를 거둬들이려 한다... (곧 기술 봉인)';
     },
 
     *heroAttack(t) {
@@ -294,10 +304,10 @@
 
     *foeAct(f) {
       const P = HB.party, p = this.w.player;
-      let intent = HB.foeIntent(f, this.turn, P, { silenced: this.silenced > 0, fog: this.fog > 0 });
+      let intent = HB.foeIntent(f, P, f.warned);
       if (intent === 'fog') { // a free action: the attack still comes
         this.fogName = f.fogName || '안개'; // chapters name their own: 눈보라, 별먼지...
-        this.msg = HB.josa(f.name, '이가') + ' 짙은 ' + HB.josa(this.fogName, '을를') + ' 뿜었다! (평범한 공격은 반감, 소리나 바람으로 걷어 낼 수 있다)';
+        this.msg = HB.josa(f.name, '이가') + ' 짙은 ' + HB.josa(this.fogName, '을를') + ' 뿜었다! (소리나 바람 기술로 걷힌다)';
         HB.sfx('vanish');
         f.hitShake = 0.4;
         this.fog = HB.FOG_TURNS;
@@ -493,8 +503,11 @@
         P.allies.forEach((a) => { a.hp = HB.allyStats(a.id, P.lvl).maxHp; });
         const lost = Math.floor(P.gold / 2);
         P.gold -= lost;
-        this.w.load('town');
-        HB.dialog.open(['...정신을 차려 보니 울림골이었다.', '바람 속에서 누군가 데려다준 것 같다.']
+        // wake at the inn you last rested at in this chapter, else in 울림골
+        const w = this.w, r = w.flags.restAt, ch = (id) => (HB.REGIONS[HB.regionOf(id)] || {}).ch;
+        if (r && ch(r.map) && ch(r.map) === ch(w.def.id)) w.load(r.map, { x: r.x, y: r.y, dir: r.dir });
+        else w.load('town');
+        HB.dialog.open(['...정신을 차려 보니 ' + HB.josa(w.def.name, ['이었다', '였다']) + '.', '바람 속에서 누군가 데려다준 것 같다.']
           .concat(lost ? ['주머니가 가벼워졌다... (' + lost + '골드를 잃었다)'] : []), { voice: 'narrate' });
       }, { dur: 1.0 });
       while (this.active) yield 0;
@@ -598,7 +611,8 @@
 
     openList(kind, list, msg) {
       HB.sfx('ok');
-      this.phase = 'list'; this.listKind = kind; this.list = list; this.listCursor = 0; this.msg = msg;
+      this.phase = 'list'; this.listKind = kind; this.list = list; this.msg = msg;
+      this.listCursor = Math.max(0, list.findIndex((e) => e.id === this.listMem[kind]));
     },
 
     // pick a target (skipped when only one foe is left), then run the round
@@ -617,6 +631,7 @@
       const e = this.list[this.listCursor];
       if (e.dim) { HB.sfx('cancel'); this.msg = '울림이 부족하다.'; return; }
       HB.sfx('ok');
+      this.listMem[this.listKind] = e.id;
       if (this.listKind === 'item') { this.run(this.round(this.heroItem(e.id))); return; }
       if (e.id === 'gust') { this.aim((t) => this.heroGust(t), '누구에게 바람을 보낼까?'); return; }
       this.run(this.round(e.id === 'chime' ? this.heroChime() : e.id === 'heal' ? this.heroHeal() : this.heroRing()));

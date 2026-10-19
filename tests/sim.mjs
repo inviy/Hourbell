@@ -66,7 +66,7 @@ export function fight(HB, P, kinds, allies = []) {
   }
 
   function foe(f, turn, guarding) {
-    let intent = HB.foeIntent(f, turn, P, { silenced: silenced > 0, fog: fog > 0 });
+    let intent = HB.foeIntent(f, P, f.warned);
     if (intent === 'silence') { silenced = 2; return; }
     if (intent === 'fog') { fog = HB.FOG_TURNS; intent = 'attack'; } // fog is a free action
     if (intent === 'swallow') { P.mp = Math.max(0, P.mp - 2); return; }
@@ -82,6 +82,7 @@ export function fight(HB, P, kinds, allies = []) {
 
   for (let turn = 1; turn < 120; turn++) {
     if (fog > 0) fog--;
+    alive().forEach((f) => { f.warned = HB.foeWarn(f, turn, { silenced: silenced > 0, fog: fog > 0 }); });
     const pick = HB.autoPick(P, alive(), { silenced: silenced > 0, buff, fog: fog > 0, waveNext: alive().some((f) => HB.waveNext(f, turn)) });
     const guarding = pick.act === 'guard';
     for (const who of HB.turnOrder(P, alive(), team)) {
