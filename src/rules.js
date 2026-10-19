@@ -293,6 +293,24 @@
   HB.saveGame = function (store, data) {
     try { store.setItem(SAVE_KEY, JSON.stringify(Object.assign({ v: HB.SAVE_VERSION }, data))); return true; } catch (e) { return false; }
   };
+  // a save as text, to carry to another device without a server: 'HB1-' + base64
+  HB.saveCode = function (store) {
+    try {
+      const raw = store.getItem(SAVE_KEY);
+      return raw ? 'HB1-' + btoa(unescape(encodeURIComponent(raw))) : null;
+    } catch (e) { return null; }
+  };
+  // a pasted code replaces the save only if it reads back as a real save
+  HB.useSaveCode = function (store, code) {
+    try {
+      const m = /HB1-([A-Za-z0-9+/=]+)/.exec(String(code).replace(/\s/g, ''));
+      const raw = m && decodeURIComponent(escape(atob(m[1])));
+      const d = raw && HB.loadGame({ getItem: () => raw });
+      if (!d || (HB.MAPS && !HB.MAPS[d.map])) return false;
+      store.setItem(SAVE_KEY, raw);
+      return true;
+    } catch (e) { return false; }
+  };
   HB.loadGame = function (store) {
     try {
       const d = JSON.parse(store.getItem(SAVE_KEY));

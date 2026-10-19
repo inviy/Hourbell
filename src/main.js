@@ -27,8 +27,23 @@
         this.hills.push(HB.H - 62 + Math.sin(x * 0.021) * 7 + Math.sin(x * 0.057 + 1) * 4);
       }
       this.awake = false; // first key wakes the audio, second starts the game
-      this.saved = HB.load();
-      this.choice = this.saved ? 0 : 1; // 0 continue, 1 new game
+      this.saved = HB.load(); this.msg = '';
+      this.setOptions();
+    },
+    // continue (with a save), a new game, or a save code from another device
+    setOptions() {
+      this.opts = this.saved ? ['continue', 'new', 'code'] : ['new', 'code'];
+      this.choice = 0; this.confirmNew = false;
+    },
+    loadCode() {
+      const code = window.prompt('다른 기기에서 복사한 세이브 코드를 붙여넣으세요.');
+      HB.input.down = {}; // the dialog swallowed the key release
+      if (!code) return;
+      if (this.saved && !window.confirm('이 기기의 기록을 코드의 기록으로 덮어씁니다. 계속할까요?')) return;
+      if (HB.useCode(code)) {
+        this.saved = HB.load(); this.setOptions();
+        this.msg = '세이브를 불러왔다! 이어하기로 시작하세요.'; HB.sfx('fragment');
+      } else { this.msg = '코드를 읽을 수 없다. 코드 전체를 복사했는지 확인해 주세요.'; HB.sfx('cancel'); }
     },
     update(dt) {
       this.t += dt;
@@ -40,13 +55,16 @@
         return;
       }
       if (!this.awake || this.t - this.awakeT < 0.4) return;
-      if (this.saved && (HB.input.hit('up') || HB.input.hit('down'))) { this.choice ^= 1; this.confirmNew = false; HB.sfx('move'); }
-      if (this.saved && this.choice === 1 && !this.confirmNew && HB.input.hit('ok')) { this.confirmNew = true; HB.sfx('cancel'); return; }
-      if (HB.input.hit('ok') || (!this.saved && HB.input.hit('cancel'))) {
+      const n = this.opts.length;
+      if (HB.input.hit('up') || HB.input.hit('down')) { this.choice = (this.choice + (HB.input.hit('up') ? n - 1 : 1)) % n; this.confirmNew = false; this.msg = ''; HB.sfx('move'); }
+      const opt = this.opts[this.choice];
+      if (opt === 'code' && HB.input.hit('ok')) { this.loadCode(); return; }
+      if (this.saved && opt === 'new' && !this.confirmNew && HB.input.hit('ok')) { this.confirmNew = true; HB.sfx('cancel'); return; }
+      if (HB.input.hit('ok') || (!this.saved && opt === 'new' && HB.input.hit('cancel'))) {
         this.leaving = true;
         HB.sfx && HB.sfx('start');
         HB.music.stop(0.9);
-        const d = this.choice === 0 ? this.saved : null;
+        const d = opt === 'continue' ? this.saved : null;
         HB.fadeTo(() => {
           const w = HB.World;
           HB.party = d ? d.party : HB.newParty();
@@ -98,19 +116,20 @@
       HB.textScaled(g, 'Hourbell', W / 2, ly, '#ffe6a8', 3, { align: 'center', shadow: '#2a1430' });
       HB.text(g, '잊힌 종소리를 찾아서', W / 2, ly + 40, '#f4d8e8', { align: 'center', font: 'g9' });
       g.restore();
-      if (this.awake && this.saved) {
-        ['이어하기', '처음부터'].forEach((label, i) => {
-          const y = H - 50 + i * 16;
-          HB.text(g, label, W / 2 - 24, y, i === this.choice ? '#fff4d8' : '#a898c0');
+      if (this.awake) {
+        const labels = { continue: '이어하기', new: this.saved ? '처음부터' : '모험 시작', code: '코드로 불러오기' };
+        this.opts.forEach((o, i) => {
+          const y = H - 30 - (this.opts.length - i) * 14;
+          HB.text(g, labels[o], W / 2 - 24, y, i === this.choice ? '#fff4d8' : '#a898c0');
           if (i === this.choice) HB.drawCursor(g, W / 2 - 38, y + 3);
         });
-        const P = this.saved.party;
-        HB.text(g, this.confirmNew ? '처음부터 시작해도 기록은 남지만, 다음에 기록하면 덮어써집니다. 한 번 더 누르면 시작'
-          : 'Lv ' + P.lvl + '  ·  조각 ' + HB.fragments(this.saved.flags) + ' / 7', W / 2, H - 16, this.confirmNew ? '#ffd080' : '#c8b8d8', { font: 'g9', align: 'center' });
+        const P = this.saved && this.saved.party;
+        const info = this.msg || (this.confirmNew ? '처음부터 시작해도 기록은 남지만, 다음에 기록하면 덮어써집니다. 한 번 더 누르면 시작'
+          : this.opts[this.choice] === 'code' ? '다른 기기의 메뉴 > 세이브 코드로 복사한 코드를 붙여넣기'
+            : P ? 'Lv ' + P.lvl + '  ·  조각 ' + HB.fragments(this.saved.flags) + ' / 7' : '');
+        HB.text(g, info, W / 2, H - 16, this.msg || this.confirmNew ? '#ffd080' : '#c8b8d8', { font: 'g9', align: 'center' });
       } else if (this.t > 1.4 && Math.floor(this.t * 2) % 2 === 0) {
-        const msg = HB.touchControls ? (this.awake ? '한 번 더 터치하면 모험 시작' : '화면을 터치하세요')
-          : (this.awake ? 'Z / Enter  모험 시작' : '아무 키나 누르세요');
-        HB.text(g, msg, W / 2, H - 36, '#fff4d8', { align: 'center' });
+        HB.text(g, HB.touchControls ? '화면을 터치하세요' : '아무 키나 누르세요', W / 2, H - 36, '#fff4d8', { align: 'center' });
       }
       if (this.awake && !HB.touchControls) HB.text(g, 'M  소리 켜기 / 끄기', 4, H - 11, '#8a7aa8', { font: 'g9', shadow: null });
       HB.text(g, 'v1.0', W - 4, H - 11, '#8a7aa8', { align: 'right', font: 'g9', shadow: null });

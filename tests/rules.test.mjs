@@ -60,6 +60,28 @@ test('items: use, buy and run out', () => {
   assert.ok(!HB.buyItem(P, 'herb'));
 });
 
+test('save codes carry a save to another device, and bad codes change nothing', () => {
+  const pc = memStore(), phone = memStore();
+  assert.equal(HB.saveCode(pc), null, 'no save, no code');
+  const P = partyAt(7, 2);
+  P.gold = 12345;
+  assert.ok(HB.saveGame(pc, { party: P, flags: { fragment1: true, chapter1: true }, map: 'port', x: 5, y: 6, dir: 'up' }));
+  const code = HB.saveCode(pc);
+  assert.match(code, /^HB1-[A-Za-z0-9+/=]+$/);
+  // pasted with a line break and a stray label, as chat apps do
+  assert.ok(HB.useSaveCode(phone, '세이브: ' + code.slice(0, 20) + '\n' + code.slice(20)));
+  const d = HB.loadGame(phone);
+  assert.equal(d.party.lvl, 7);
+  assert.equal(d.party.gold, 12345);
+  assert.equal(d.party.name, '리안', 'Korean text survives');
+  assert.equal(d.map, 'port');
+  const before = phone.mem['hourbell.save1'];
+  for (const bad of ['', 'hello', 'HB1-', 'HB1-%%%', 'HB1-' + code.slice(4, 30), 'HB1-' + btoa('{"v":99,"party":{}}')]) {
+    assert.equal(HB.useSaveCode(phone, bad), false, 'refused: ' + bad.slice(0, 12));
+  }
+  assert.equal(phone.mem['hourbell.save1'], before, 'the old save is untouched');
+});
+
 test('save round trip, bad data and newer versions', () => {
   const store = memStore();
   assert.equal(HB.loadGame(store), null);

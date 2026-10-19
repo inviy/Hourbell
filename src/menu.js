@@ -12,6 +12,14 @@
     x: w.player.x / T, y: w.player.y / T, dir: w.player.dir
   });
   HB.load = () => HB.loadGame(store());
+  HB.useCode = (code) => HB.useSaveCode(store(), code);
+  // copy the save as a code; where the clipboard is not allowed, show it to copy by hand
+  HB.copySaveCode = function (w) {
+    if (!HB.save(w)) return Promise.resolve(false);
+    const code = HB.saveCode(store());
+    const show = () => { window.prompt('이 코드를 복사해서 다른 기기의 타이틀 > 코드로 불러오기에 붙여넣으세요.', code); return true; };
+    return navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(code).then(() => true, show) : Promise.resolve(show());
+  };
 
   const fmtTime = (s) => {
     const m = Math.floor(s / 60);
@@ -47,6 +55,7 @@
           { label: '장비', act: () => menu.push({ id: 'equip' }) }
         ].concat(this.hooks.map((h) => ({ label: h.label, act: h.act ? () => h.act(w) : () => menu.push({ id: h.mode }) })), [
           { label: '기록', act: () => { const ok = HB.save(w); HB.sfx(ok ? 'fragment' : 'cancel'); menu.note = ok ? '모험을 기록했다.' : '기록할 수 없었다. (브라우저 저장소가 막혀 있음)'; } },
+          { label: '세이브 코드', desc: '다른 기기로 옮길 코드를 복사한다', act: () => HB.copySaveCode(w).then((ok) => { HB.sfx(ok ? 'fragment' : 'cancel'); menu.note = ok ? '세이브 코드를 복사했다. 다른 기기 타이틀 > 코드로 불러오기' : '기록할 수 없었다. (브라우저 저장소가 막혀 있음)'; }) },
           { label: '닫기', act: () => menu.close() }
         ]);
       }

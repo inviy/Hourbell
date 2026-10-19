@@ -9,7 +9,7 @@ const src = (f) => readFileSync(new URL('../src/' + f, import.meta.url), 'utf8')
 // load src files (DOM-free ones) into a fresh HB; returns window.HB.
 // core.js needs a DOM, so only its seeded RNG comes along (the maps use it).
 export function loadHB(files = ['rules.js']) {
-  const window = { HB: {} }, ctx = { window, Math, JSON, Object, Number };
+  const window = { HB: {} }, ctx = { window, Math, JSON, Object, Number, btoa, atob };
   const rng = /HB\.rng = function[\s\S]*?\n  \};/.exec(src('core.js'))[0];
   vm.runInNewContext('(function (HB) {' + rng + '})(window.HB);', ctx);
   for (const f of files) vm.runInNewContext(src(f), ctx);

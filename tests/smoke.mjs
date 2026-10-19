@@ -339,6 +339,29 @@ try {
   assert.equal(await ev('HB.party.allies.length'), 3);
   assert.ok(await ev(`${W}.flags.chapter1`));
   assert.equal(await ev('HB.party.items.plume'), 1);
+
+  step('save code: copy on one device, load it on a fresh one');
+  await ev("navigator.clipboard.writeText = (t) => { window.copied = t; return Promise.resolve(); }");
+  await ev(`HB.Menu.open = true; HB.Menu.stack = []; HB.Menu.push({ id: 'main' });
+    HB.Menu.mode.cur = HB.Menu.rows(${W}).findIndex((r) => r.label === '세이브 코드')`);
+  await key('KeyZ'); await sleep(400);
+  const code = await ev('window.copied');
+  assert.match(code, /^HB1-/);
+  assert.match(await ev('HB.Menu.note'), /복사/);
+  await key('KeyX'); await key('KeyX');
+  await ev('localStorage.clear()');
+  await send('Page.navigate', { url: URL_ }); await sleep(2500);
+  await ev(`window.prompt = () => 'HB1-garbage'; window.confirm = () => true`);
+  await key('KeyZ'); await sleep(600);
+  assert.deepEqual(await ev('HB.Title.opts'), ['new', 'code'], 'no save here yet');
+  await key('ArrowDown'); await key('KeyZ'); await sleep(400);
+  assert.match(await ev('HB.Title.msg'), /읽을 수 없다/, 'a bad code only says so');
+  assert.equal(await ev("localStorage.getItem('hourbell.save1')"), null);
+  await ev(`window.prompt = () => ${JSON.stringify(code)}`);
+  await key('KeyZ'); await sleep(400); await shot('31-code-loaded');
+  assert.deepEqual(await ev('HB.Title.opts'), ['continue', 'new', 'code']);
+  await key('KeyZ'); await sleep(2300);
+  assert.ok(await ev(`${W}.flags.chapter7`), 'the whole adventure came across');
   assert.equal(await ev('HB.party.pet'), 'pip');
 
   assert.deepEqual(errors, [], 'no JS errors');
