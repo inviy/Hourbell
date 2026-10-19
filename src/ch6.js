@@ -27,8 +27,8 @@
 
   // ---------- foes ----------
   Object.assign(HB.FOES, {
-    starbit: { name: '별조각', hp: 168, atk: 80, def: 24, spd: 16, exp: 52, gold: [58, 74], drop: ['starhoney', 0.15], weak: 'sound', resist: 'wind' },
-    nightbat: { name: '밤박쥐', hp: 152, atk: 78, def: 20, spd: 22, exp: 50, gold: [54, 69], drop: ['gingertea', 0.25], swallow: 0.3, weak: 'wind' },
+    starbit: { name: '별조각', hp: 168, atk: 80, def: 24, spd: 16, exp: 52, gold: [58, 74], drop: ['starhoney', 0.15], weak: 'sound', resist: 'wind', trait: 'burst' },
+    nightbat: { name: '밤박쥐', hp: 152, atk: 78, def: 20, spd: 22, exp: 50, gold: [54, 69], drop: ['gingertea', 0.25], weak: 'wind', trait: 'double' },
     moonwisp: { name: '달먹이', hp: 160, atk: 76, def: 22, spd: 14, exp: 50, gold: [56, 72], drop: ['starshard', 0.45], swallow: 0.35, weak: 'sound' },
     eclipse: {
       name: '일식', hp: 980, atk: 75, def: 30, spd: 16, exp: 2400, gold: [1800, 1800], drop: ['starhoney', 2], boss: true,

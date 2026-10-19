@@ -44,12 +44,12 @@ export function fight(HB, P, kinds, allies = []) {
       cast(pick.id);
       if (pick.id === 'heal') P.hp = Math.min(P.maxHp, P.hp + HB.healAmt(P));
       else if (pick.id === 'ring') { buff = HB.SKILLS.ring.buff; ring = true; }
-      else if (pick.id === 'chime') { a.forEach((f) => { f.hp -= HB.chimeDmg(P, f); }); fog = 0; }
-      else if (pick.id === 'gust') { t.hp -= HB.gustDmg(P, t, buff > 0); fog = 0; }
+      else if (pick.id === 'chime') { a.forEach((f) => { f.hp -= HB.curled(f, HB.chimeDmg(P, f)); }); fog = 0; }
+      else if (pick.id === 'gust') { t.hp -= HB.curled(t, HB.gustDmg(P, t, buff > 0)); fog = 0; }
     } else {
       let d = HB.hitDmg(HB.effAtk(P, buff > 0), t.def);
       if (HB.rand() < HB.critChance) d = Math.round(d * 1.8);
-      t.hp -= HB.fogged(d, fog > 0);
+      t.hp -= HB.curled(t, HB.fogged(d, fog > 0));
     }
     if (silenced) silenced--;
     if (buff && !ring) buff--;
@@ -61,23 +61,30 @@ export function fight(HB, P, kinds, allies = []) {
     m.sang = i.act === 'song';
     if (i.act === 'song') i.target.hp = Math.min(i.target.maxHp, i.target.hp + HB.songAmt(P.lvl));
     else if (i.act === 'cover') { m.covering = true; m.covered = true; }
-    else if (i.act === 'spell') { i.target.hp -= HB.spellDmg(m, i.target, i.el); if (i.el) fog = 0; }
-    else i.target.hp -= HB.fogged(HB.hitDmg(m.atk, i.target.def), fog > 0);
+    else if (i.act === 'spell') { i.target.hp -= HB.curled(i.target, HB.spellDmg(m, i.target, i.el)); if (i.el) fog = 0; }
+    else i.target.hp -= HB.curled(i.target, HB.fogged(HB.hitDmg(m.atk, i.target.def), fog > 0));
   }
 
   function foe(f, turn, guarding) {
     let intent = HB.foeIntent(f, P, f.warned);
+    f.curl = false;
+    if (intent === 'flee') { f.hp = 0; f.fled = true; return; }
+    if (intent === 'mend') { f.mended = true; f.hp = Math.min(f.maxHp, f.hp + Math.round(f.maxHp * HB.TRAIT.mend)); return; }
+    if (intent === 'curl') { f.curl = true; return; }
     if (intent === 'silence') { silenced = 2; return; }
     if (intent === 'fog') { fog = HB.FOG_TURNS; intent = 'attack'; } // fog is a free action
     if (intent === 'swallow') { P.mp = Math.max(0, P.mp - 2); return; }
-    if (intent === 'wave') {
+    if (intent === 'wave' || intent === 'burst') {
       P.hp -= HB.foeDmg(f, P, intent, guarding);
       team.forEach((m) => { if (m.hp > 0) m.hp = Math.max(0, m.hp - HB.foeDmg(f, m, intent, false)); });
+      if (intent === 'burst') f.hp = 0; // the star is spent
       return;
     }
-    const t = HB.foeTarget(team);
-    if (t === 'hero') P.hp -= HB.foeDmg(f, P, intent, guarding);
-    else t.hp = Math.max(0, t.hp - HB.foeDmg(f, t, intent, false));
+    for (let n = intent === 'double' ? 2 : 1; n > 0; n--) {
+      const t = HB.foeTarget(team);
+      if (t === 'hero') P.hp -= HB.foeDmg(f, P, intent, guarding);
+      else t.hp = Math.max(0, t.hp - HB.foeDmg(f, t, intent, false));
+    }
   }
 
   for (let turn = 1; turn < 120; turn++) {

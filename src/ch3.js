@@ -40,8 +40,8 @@
 
   // ---------- foes ----------
   Object.assign(HB.FOES, {
-    echobat: { name: '메아리박쥐', hp: 64, atk: 30, def: 8, spd: 14, exp: 24, gold: [34, 48], drop: ['bigdrop', 0.2], swallow: 0.3, weak: 'wind' },
-    rockgolem: { name: '바위골렘', hp: 92, atk: 33, def: 17, spd: 4, exp: 31, gold: [48, 61], drop: ['ore', 0.5], weak: 'sound', resist: 'wind' },
+    echobat: { name: '메아리박쥐', hp: 64, atk: 30, def: 8, spd: 14, exp: 24, gold: [34, 48], drop: ['bigdrop', 0.2], weak: 'wind', trait: 'double' },
+    rockgolem: { name: '바위골렘', hp: 92, atk: 33, def: 17, spd: 4, exp: 31, gold: [48, 61], drop: ['ore', 0.5], weak: 'sound', resist: 'wind', trait: 'curl' },
     dustwisp: { name: '먼지먹이', hp: 58, atk: 29, def: 9, spd: 9, exp: 22, gold: [37, 51], drop: ['soup', 0.2], swallow: 0.3, weak: 'sound' },
     echoking: {
       name: '메아리왕', hp: 430, atk: 43, def: 12, spd: 12, exp: 700, gold: [600, 600], drop: ['soup', 2], boss: true, resist: 'sound',

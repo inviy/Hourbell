@@ -357,3 +357,29 @@ test('a warned big move is what the foe does', () => {
   assert.equal(HB.foeWarn(f, 6, {}), 'silence', 'below half HP on its turn');
   assert.equal(HB.foeIntent(f, HB.newParty(), null), 'attack', 'unwarned: a plain attack');
 });
+
+test('field foe families each have their own move', () => {
+  const HBall = loadHB(['rules.js', 'sprites.js', 'tiles.js', 'maps.js', 'ch2.js', 'ch3.js', 'ch4.js', 'ch5.js', 'ch6.js', 'ch7.js']);
+  const P = HBall.newParty(), real = HBall.rand;
+  const foe = (kind, hp) => { const f = HBall.makeFoe(kind); if (hp !== undefined) f.hp = hp; return f; };
+  HBall.rand = () => 0; // every chance comes up
+  try {
+    assert.equal(HBall.foeIntent(foe('flicker', 1), P), 'flee', '떨림이 runs when hurt');
+    assert.equal(HBall.foeIntent(foe('flicker'), P), 'swallow', 'but not at full HP');
+    assert.equal(HBall.foeIntent(foe('cogolem'), P), 'curl');
+    assert.equal(HBall.foeIntent(foe('nightbat'), P), 'double');
+    assert.equal(HBall.foeIntent(foe('jelly', 1), P), 'mend');
+    const healed = Object.assign(foe('jelly', 1), { mended: true });
+    assert.notEqual(HBall.foeIntent(healed, P), 'mend', 'a jelly mends once');
+    assert.equal(HBall.foeIntent(foe('timestar', 1), P), 'burst');
+    assert.equal(HBall.foeIntent(foe('timestar'), P), 'attack', 'a star bursts only when nearly spent');
+  } finally { HBall.rand = real; }
+  const g = foe('cogolem');
+  assert.equal(HBall.curled(g, 40), 40);
+  g.curl = true;
+  assert.equal(HBall.curled(g, 40), 20, 'curled up: half');
+  assert.equal(HBall.curled(g, 1), 1);
+  // the auto battle leaves a curled-up foe for later
+  const bat = foe('duskbat'), P12 = partyAt(12, 0);
+  assert.equal(HBall.autoPick(P12, [g, bat], {}).target, bat);
+});

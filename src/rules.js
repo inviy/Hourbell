@@ -33,10 +33,12 @@
 
   // kind -> base stats. swallow: chance to eat 울림 instead of attacking
   // weak / resist: element taken at x1.5 / x0.5
+  // trait: each family's own move (HB.foeIntent): curl (golems, crabs),
+  // double (bats), flee (떨림이), mend (jellies), burst (stars)
   HB.FOES = {
     wisp: { name: '소리먹이', hp: 18, atk: 6, def: 1, spd: 5, exp: 4, gold: [4, 7], drop: ['herb', 0.25], swallow: 0.22, weak: 'sound' },
-    flicker: { name: '떨림이', hp: 12, atk: 5, def: 0, spd: 9, exp: 4, gold: [5, 10], drop: ['drop', 0.35], swallow: 0.45, weak: 'wind', resist: 'sound' },
-    guard: { name: '울림삼킴이', hp: 34, atk: 9, def: 3, spd: 3, exp: 12, gold: [14, 20], drop: ['herb2', 0.6], swallow: 0.15, resist: 'wind' },
+    flicker: { name: '떨림이', hp: 12, atk: 5, def: 0, spd: 9, exp: 4, gold: [5, 10], drop: ['drop', 0.35], swallow: 0.45, weak: 'wind', resist: 'sound', trait: 'flee' },
+    guard: { name: '울림삼킴이', hp: 34, atk: 9, def: 3, spd: 3, exp: 12, gold: [14, 20], drop: ['herb2', 0.6], swallow: 0.15, resist: 'wind', trait: 'curl' },
     boss: { name: '침묵의 파수꾼', hp: 220, atk: 14, def: 4, spd: 6, exp: 50, gold: [80, 80], drop: ['herb2', 1], swallow: 0, boss: true, weak: 'wind', resist: 'sound',
       flag: 'boss1', waveEvery: 3, silenceEvery: 6 }
   };
@@ -209,6 +211,8 @@
     if (c.fog && can('gust')) return { act: 'skill', id: 'gust', target: foes.find((f) => f.weak === 'wind') || foes[0] };
     if (can('ring') && !c.buff && foes.some((f) => f.boss)) return { act: 'skill', id: 'ring' };
     if (foes.length > 1 && can('chime') && foes.filter((f) => f.resist !== 'sound').length > 1) return { act: 'skill', id: 'chime' };
+    const open = foes.filter((f) => !f.curl); // leave a curled-up foe for later
+    if (open.length) foes = open;
     const t = foes.find((f) => f.weak === 'wind') || foes[0];
     if (can('gust') && t.resist !== 'wind') return { act: 'skill', id: 'gust', target: t };
     return { act: 'attack', target: t };
@@ -230,19 +234,30 @@
     return null;
   };
   // warned: foeWarn's pick for this round
+  HB.TRAIT = { flee: 0.5, curl: 0.25, double: 0.3, mend: 0.35, burst: 0.6 }; // chances; mend heals and burst hits for these shares
   HB.foeIntent = function (f, P, warned) {
     if (warned) return warned;
+    const t = f.trait;
+    if (t === 'flee' && f.hp < f.maxHp * 0.35 && HB.rand() < HB.TRAIT.flee) return 'flee';
+    if (t === 'mend' && !f.mended && f.hp < f.maxHp / 2) return 'mend';
+    if (t === 'burst' && f.hp < f.maxHp * 0.3) return 'burst';
+    if (t === 'curl' && HB.rand() < HB.TRAIT.curl) return 'curl';
+    if (t === 'double' && HB.rand() < HB.TRAIT.double) return 'double';
     if (!f.boss && HB.rand() < (f.swallow || 0) && P.mp > 0) return 'swallow';
     return 'attack';
   };
   // fog: rounds it lasts; plain hits are halved until a sound or wind skill clears it
   HB.FOG_TURNS = 3;
   HB.fogged = (d, fog) => (fog ? Math.max(1, Math.floor(d / 2)) : d);
-  // damage a foe deals ('wave' ignores defence; guarding halves both;
-  // the 쉬움 option takes a quarter off)
+  // a curled-up foe takes half until its next turn
+  HB.curled = (f, d) => (f.curl ? Math.max(1, Math.floor(d / 2)) : d);
+  // damage a foe deals ('wave' and a star's 'burst' ignore defence, each of a
+  // bat's 'double' hits is lighter; guarding halves all; 쉬움 takes a quarter off)
   HB.EASY = 0.75;
   HB.foeDmg = function (f, P, intent, guarding) {
-    let d = intent === 'wave' ? Math.round(f.atk * (f.waveMul || 1.2)) + rnd(0, 3) : HB.hitDmg(f.atk, HB.eff(P).def);
+    let d = intent === 'wave' ? Math.round(f.atk * (f.waveMul || 1.2)) + rnd(0, 3)
+      : intent === 'burst' ? Math.round(f.atk * HB.TRAIT.burst) + rnd(0, 3) : HB.hitDmg(f.atk, HB.eff(P).def);
+    if (intent === 'double') d = Math.max(1, Math.round(d * 0.6));
     if (HB.options.easy) d = Math.max(1, Math.round(d * HB.EASY));
     return guarding ? Math.max(1, Math.floor(d / 2)) : d;
   };
