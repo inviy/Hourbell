@@ -33,6 +33,8 @@ export function fight(HB, P, kinds, allies = []) {
   let silenced = 0, buff = 0, fog = 0;
   const alive = () => foes.filter((f) => f.hp > 0);
   const cast = (id) => { P.mp -= HB.SKILLS[id].cost; };
+  // the hero's damage; a foe gathering echoes sends half of it back
+  const hurt = (f, d) => { f.hp -= d; if (f.echo) P.hp -= HB.echoBack(d); };
 
   function hero(pick) {
     const a = alive();
@@ -44,12 +46,12 @@ export function fight(HB, P, kinds, allies = []) {
       cast(pick.id);
       if (pick.id === 'heal') P.hp = Math.min(P.maxHp, P.hp + HB.healAmt(P));
       else if (pick.id === 'ring') { buff = HB.SKILLS.ring.buff; ring = true; }
-      else if (pick.id === 'chime') { a.forEach((f) => { f.hp -= HB.curled(f, HB.chimeDmg(P, f)); }); fog = 0; }
-      else if (pick.id === 'gust') { t.hp -= HB.curled(t, HB.gustDmg(P, t, buff > 0)); fog = 0; }
+      else if (pick.id === 'chime') { a.forEach((f) => { hurt(f, HB.curled(f, HB.chimeDmg(P, f))); }); fog = 0; }
+      else if (pick.id === 'gust') { hurt(t, HB.curled(t, HB.gustDmg(P, t, buff > 0))); fog = 0; }
     } else {
       let d = HB.hitDmg(HB.effAtk(P, buff > 0), t.def);
       if (HB.rand() < HB.critChance) d = Math.round(d * 1.8);
-      t.hp -= HB.curled(t, HB.fogged(d, fog > 0));
+      hurt(t, HB.curled(t, HB.fogged(d, fog > 0)));
     }
     if (silenced) silenced--;
     if (buff && !ring) buff--;
@@ -68,6 +70,9 @@ export function fight(HB, P, kinds, allies = []) {
   function foe(f, turn, guarding) {
     let intent = HB.foeIntent(f, P, f.warned);
     f.curl = false;
+    if (fog > 0 && f.fogMend) f.hp = Math.min(f.maxHp, f.hp + Math.round(f.maxHp * f.fogMend));
+    if (intent === 'summon') { f.summoned = true; f.summon.forEach((k) => { if (alive().length < 3) foes.push(HB.makeFoe(k)); }); return; }
+    if (intent === 'rewind') { f.rewound = true; f.hp += HB.rewindAmt(f); return; }
     if (intent === 'flee') { f.hp = 0; f.fled = true; return; }
     if (intent === 'mend') { f.mended = true; f.hp = Math.min(f.maxHp, f.hp + Math.round(f.maxHp * HB.TRAIT.mend)); return; }
     if (intent === 'curl') { f.curl = true; return; }
@@ -89,11 +94,12 @@ export function fight(HB, P, kinds, allies = []) {
 
   for (let turn = 1; turn < 120; turn++) {
     if (fog > 0) fog--;
-    alive().forEach((f) => { f.warned = HB.foeWarn(f, turn, { silenced: silenced > 0, fog: fog > 0 }); });
-    const pick = HB.autoPick(P, alive(), { silenced: silenced > 0, buff, fog: fog > 0, waveNext: alive().some((f) => HB.waveNext(f, turn)) });
+    alive().forEach((f) => { f.warned = HB.foeWarn(f, turn, { silenced: silenced > 0, fog: fog > 0 }); f.echo = HB.echoNow(f, turn); f.roundHp = f.hp; });
+    const pick = HB.autoPick(P, alive(), { silenced: silenced > 0, buff, fog: fog > 0, waveNext: alive().some((f) => HB.waveNext(f, turn)),
+      hold: alive().some((f) => f.echo || f.warned === 'rewind') });
     const guarding = pick.act === 'guard';
     for (const who of HB.turnOrder(P, alive(), team)) {
-      if (who === 'hero') hero(pick);
+      if (who === 'hero') { hero(pick); if (P.hp <= 0) return false; }
       else if (who.isAlly) { if (who.hp > 0) ally(who); }
       else if (who.hp > 0) { foe(who, turn, guarding); if (P.hp <= 0) return false; }
       if (!alive().length) return true;

@@ -40,7 +40,7 @@
     flicker: { name: '떨림이', hp: 12, atk: 5, def: 0, spd: 9, exp: 4, gold: [5, 10], drop: ['drop', 0.35], swallow: 0.45, weak: 'wind', resist: 'sound', trait: 'flee' },
     guard: { name: '울림삼킴이', hp: 34, atk: 9, def: 3, spd: 3, exp: 12, gold: [14, 20], drop: ['herb2', 0.6], swallow: 0.15, resist: 'wind', trait: 'curl' },
     boss: { name: '침묵의 파수꾼', hp: 220, atk: 14, def: 4, spd: 6, exp: 50, gold: [80, 80], drop: ['herb2', 1], swallow: 0, boss: true, weak: 'wind', resist: 'sound',
-      flag: 'boss1', waveEvery: 3, silenceEvery: 6 }
+      flag: 'boss1', waveEvery: 3, silenceEvery: 6, summonAt: 0.3, summon: ['flicker'] }
   };
   // bell fragments held (fragment1 .. fragment7 flags)
   HB.fragments = (flags) => [1, 2, 3, 4, 5, 6, 7].filter((n) => flags && flags['fragment' + n]).length;
@@ -197,12 +197,14 @@
 
   // ---------- auto battle ----------
   // what the hero does on auto; the balance tests play with the same picks.
-  // c: { silenced, buff, waveNext }
+  // c: { silenced, buff, waveNext, hold }. hold: a boss will undo or send back
+  // this round's damage (echo, rewind), so wait it out
   HB.autoPick = function (P, foes, c) {
     const can = (id) => HB.skillsFor(P.lvl).includes(id) && !c.silenced && P.mp >= HB.SKILLS[id].cost;
     const low = P.hp < P.maxHp * 0.45;
     if (c.waveNext && P.hp < P.maxHp * 0.8) return { act: 'guard' };
     if (low && can('heal')) return { act: 'skill', id: 'heal' };
+    if (c.hold) return { act: 'guard' };
     const best = (stat) => Object.keys(P.items).filter((k) => P.items[k] > 0 && HB.ITEMS[k][stat] && !HB.ITEMS[k].slot).sort((a, b) => HB.ITEMS[b][stat] - HB.ITEMS[a][stat])[0];
     if (low) { const it = best('hp'); if (it) return { act: 'item', id: it }; }
     if (P.mp < 4 && P.lvl >= 3) { const it = best('mp'); if (it) return { act: 'item', id: it }; }
@@ -222,7 +224,9 @@
 
   // what a foe does this turn: 'attack' | 'swallow' | 'wave' | 'silence' | 'fog'.
   // Patterns are data: waveEvery (the battle warns a turn ahead), silenceEvery
-  // (below half HP), fogEvery. ctx: { silenced, fog }
+  // (below half HP), fogEvery; per boss: summonAt + summon (kinds it calls),
+  // rewindAt, echoEvery, fogMend (HP share healed each turn in its fog).
+  // ctx: { silenced, fog }
   // foeWarn decides the big moves at the start of a round, so the battle can
   // warn about them and the foe does exactly what was warned
   HB.waveNext = (f, turn) => !!f.waveEvery && turn % f.waveEvery === f.waveEvery - 1;
@@ -231,8 +235,18 @@
     if (HB.waveNext(f, turn)) return 'wave';
     if (f.fogEvery && !ctx.fog && turn % f.fogEvery === 1) return 'fog';
     if (f.silenceEvery && f.hp < f.maxHp / 2 && !ctx.silenced && turn % f.silenceEvery === 0) return 'silence';
+    // each boss's own move, once: calls helpers / winds back this round's wounds
+    if (f.summon && !f.summoned && f.hp < f.maxHp * f.summonAt) return 'summon';
+    if (f.rewindAt && !f.rewound && f.hp < f.maxHp * f.rewindAt) return 'rewind';
     return null;
   };
+  // 메아리왕: some rounds it gathers echoes, and half of what the hero deals comes back
+  HB.echoNow = (f, turn) => !!f.echoEvery && turn % f.echoEvery === 1;
+  HB.ECHO = 0.15;
+  // 시간갉기 winds back part of the wounds it took this round (roundHp: its HP when the round began)
+  HB.REWIND = 0.5;
+  HB.rewindAmt = (f) => Math.max(0, Math.round((f.roundHp - f.hp) * HB.REWIND));
+  HB.echoBack = (d) => Math.max(1, Math.floor(d * HB.ECHO));
   // warned: foeWarn's pick for this round
   HB.TRAIT = { flee: 0.5, curl: 0.25, double: 0.3, mend: 0.35, burst: 0.6 }; // chances; mend heals and burst hits for these shares
   HB.foeIntent = function (f, P, warned) {
