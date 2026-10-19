@@ -151,7 +151,7 @@
       const crit = HB.rand() < HB.critChance;
       let dmg = HB.hitDmg(HB.effAtk(P, this.buff > 0), t.def);
       if (crit) dmg = Math.round(dmg * 1.8);
-      dmg = HB.fogged(dmg, this.fog > 0);
+      dmg = HB.curled(t, HB.fogged(dmg, this.fog > 0));
       HB.sfx('hit');
       this.fx.push({ kind: 'slash', x: t.x, y: t.y - 14, t: 0 });
       t.hp -= dmg; t.flash = 0.2; t.hitShake = 0.3;
@@ -179,7 +179,7 @@
       yield 0.55;
       const targets = this.alive();
       for (const f of targets) {
-        const dmg = HB.chimeDmg(P, f);
+        const dmg = HB.curled(f, HB.chimeDmg(P, f));
         f.hp -= dmg; f.flash = 0.25; f.hitShake = 0.25;
         this.fx.push({ kind: 'sparkle', x: f.x, y: f.y - 14, t: 0 });
         this.num(f.x, f.y - (f.boss ? 36 : 26), dmg, '#ffe680');
@@ -210,7 +210,7 @@
       HB.sfx('run');
       for (let i = 0; i < 3; i++) this.fx.push({ kind: 'slash', x: t.x - 6 + i * 6, y: t.y - 18 + i * 4, t: -i * 0.08 });
       yield 0.4;
-      const dmg = HB.gustDmg(P, t, this.buff > 0);
+      const dmg = HB.curled(t, HB.gustDmg(P, t, this.buff > 0));
       t.hp -= dmg; t.flash = 0.25; t.hitShake = 0.35;
       HB.sfx('hit');
       this.num(t.x, t.y - (t.boss ? 36 : 26), dmg, '#b8f0d0');
@@ -305,6 +305,40 @@
     *foeAct(f) {
       const P = HB.party, p = this.w.player;
       let intent = HB.foeIntent(f, P, f.warned);
+      f.curl = false;
+      const who = HB.josa(f.name, '이가');
+      if (intent === 'flee') {
+        this.msg = who + ' 달아났다!';
+        HB.sfx('run');
+        f.fled = true; f.dying = 0.7;
+        yield 0.8;
+        f.dead = true;
+        return;
+      }
+      if (intent === 'mend') {
+        const heal = Math.min(f.maxHp - f.hp, Math.round(f.maxHp * HB.TRAIT.mend));
+        f.mended = true; f.hp += heal;
+        this.msg = who + ' 물방울로 몸을 감쌌다!';
+        HB.sfx('heal');
+        this.fx.push({ kind: 'sparkle', x: f.x, y: f.y - 14, t: 0, color: '#a8e0ff' });
+        this.num(f.x, f.y - 26, '+' + heal, '#8af0a0');
+        yield 1.0;
+        return;
+      }
+      if (intent === 'curl') {
+        f.curl = true; f.hitShake = 0.3;
+        this.msg = who + ' 단단히 웅크렸다! (다음 차례까지 받는 피해 절반)';
+        HB.sfx('cancel');
+        yield 1.0;
+        return;
+      }
+      if (intent === 'burst') {
+        this.msg = who + ' 남은 빛을 터뜨렸다!';
+        HB.sfx('vanish');
+        f.flash = 0.4; this.flash = 0.2;
+        this.fx.push({ kind: 'rings', x: f.x, y: f.y - 8, t: 0 });
+        yield 0.6;
+      }
       if (intent === 'fog') { // a free action: the attack still comes
         this.fogName = f.fogName || '안개'; // chapters name their own: 눈보라, 별먼지...
         this.msg = HB.josa(f.name, '이가') + ' 짙은 ' + HB.josa(this.fogName, '을를') + ' 뿜었다! (소리나 바람 기술로 걷힌다)';
@@ -340,11 +374,18 @@
         yield 0.6;
         return;
       }
-      const home = { x: f.x, y: f.y };
-      const pick = intent === 'attack' ? HB.foeTarget(this.allies) : 'hero';
+      // a bat's 'double' is two lighter hits, each at its own target
+      for (let n = intent === 'double' ? 2 : 1; n > 0; n--) yield* this.foeHit(f, intent);
+      if (intent === 'burst') { f.hp = 0; yield* this.kill(f); } // the star is spent
+    },
+
+    *foeHit(f, intent) {
+      const P = HB.party, p = this.w.player;
+      const home = { x: f.x, y: f.y }, melee = intent === 'attack' || intent === 'double';
+      const pick = melee ? HB.foeTarget(this.allies) : 'hero';
       const tgt = pick === 'hero' ? p : pick.actor;
-      if (intent === 'attack') {
-        this.msg = f.name + '의 공격!' + (pick !== 'hero' && pick.covering ? ' (' + HB.josa(pick.name, '이가') + ' 막아선다)' : '');
+      if (melee) {
+        this.msg = f.name + (intent === 'double' ? '의 연속 공격!' : '의 공격!') + (pick !== 'hero' && pick.covering ? ' (' + HB.josa(pick.name, '이가') + ' 막아선다)' : '');
         yield 0.2;
         yield* this.moveTo(f, tgt.x + (f.boss ? 30 : 20), tgt.y, 0.15);
       }
@@ -354,8 +395,8 @@
         this.shake = 0.25; this.heroFlash = 0.2;
         this.num(p.x, p.y - 22, dmg, '#ff8a7a');
       }
-      // the wave washes over everyone
-      const hit = intent === 'wave' ? this.allies.filter((m) => m.hp > 0) : pick === 'hero' ? [] : [pick];
+      // the wave (and a star's burst) washes over everyone
+      const hit = intent === 'wave' || intent === 'burst' ? this.allies.filter((m) => m.hp > 0) : pick === 'hero' ? [] : [pick];
       for (const m of hit) {
         const d = HB.foeDmg(f, m, intent, false);
         m.hp = Math.max(0, m.hp - d);
@@ -400,7 +441,7 @@
         HB.sfx(i.el === 'wind' ? 'run' : 'chime');
         this.fx.push({ kind: 'rings', x: A.x, y: A.y - 8, t: 0 });
         yield 0.45;
-        const dmg = HB.spellDmg(a, t, i.el);
+        const dmg = HB.curled(t, HB.spellDmg(a, t, i.el));
         t.hp -= dmg; t.flash = 0.25; t.hitShake = 0.3;
         this.fx.push({ kind: 'sparkle', x: t.x, y: t.y - 14, t: 0, color: i.el === 'wind' ? '#b8f0d0' : '#ffe680' });
         this.num(t.x, t.y - (t.boss ? 36 : 26), dmg, '#d8c0ff');
@@ -414,7 +455,7 @@
       const t = i.target, home = { x: A.x, y: A.y };
       this.msg = a.name + '의 공격!';
       yield* this.moveTo(A, t.x - 22, t.y, 0.16, 'right');
-      const dmg = HB.fogged(HB.hitDmg(a.atk, t.def), this.fog > 0);
+      const dmg = HB.curled(t, HB.fogged(HB.hitDmg(a.atk, t.def), this.fog > 0));
       HB.sfx('hit');
       this.fx.push({ kind: 'slash', x: t.x, y: t.y - 14, t: 0 });
       t.hp -= dmg; t.flash = 0.2; t.hitShake = 0.3;
@@ -450,17 +491,18 @@
     *win() {
       const P = HB.party;
       HB.music.play('victory', { fadeOut: 0.1, fadeIn: 0 });
-      this.msg = this.isBoss ? this.foes[0].won || '정적이 깨지고, 바람 소리가 돌아왔다!' : '모두 물리쳤다!';
+      const beaten = this.foes.filter((f) => !f.fled); // one that ran away gives nothing
+      this.msg = this.isBoss ? this.foes[0].won || '정적이 깨지고, 바람 소리가 돌아왔다!' : beaten.length ? '모두 물리쳤다!' : '모두 달아나 버렸다.';
       for (const f of this.foes) if (f.flag) this.w.flags[f.flag] = true;
       if (this.isBoss) HB.saveSoon();
       yield 1.2;
-      const exp = this.foes.reduce((s, f) => s + f.exp, 0);
-      const gold = this.foes.reduce((s, f) => s + rnd(f.gold[0], f.gold[1]), 0);
+      const exp = beaten.reduce((s, f) => s + f.exp, 0);
+      const gold = beaten.reduce((s, f) => s + rnd(f.gold[0], f.gold[1]), 0);
       P.exp += exp; P.gold += gold;
-      for (const f of this.foes) P.kills[f.kind] = (P.kills[f.kind] || 0) + 1;
+      for (const f of beaten) P.kills[f.kind] = (P.kills[f.kind] || 0) + 1;
       this.msg = '경험치 ' + exp + ', ' + gold + '골드를 얻었다.';
       yield* this.waitOk();
-      for (const f of this.foes) {
+      for (const f of beaten) {
         if (HB.rand() >= f.drop[1]) continue;
         P.items[f.drop[0]] = (P.items[f.drop[0]] || 0) + 1;
         this.msg = HB.josa(f.name, '이가') + ' ' + HB.josa(HB.ITEMS[f.drop[0]].name, '을를') + ' 떨어뜨렸다.';

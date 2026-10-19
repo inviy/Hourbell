@@ -316,6 +316,30 @@ try {
   await drain();
   await ev(`HB.party.gold = ${goldBefore}`);
   await ev(`${W}.load('pastwood', { x: ${woodAt[0]}, y: ${woodAt[1]}, dir: 'down' }); HB.Field.enemies.forEach((e) => { e.dead = true; })`); await sleep(500);
+
+  step('field foes: each family has its own move');
+  // every foe does its family move this round, whatever the dice say
+  const family = (kinds, setup) => ev(`(() => { const p = ${W}.player, B = HB.Battle;
+    HB.realIntent = HB.realIntent || HB.foeIntent; HB.foeIntent = (f) => ({ curl: 'curl', double: 'double', mend: 'mend', burst: 'burst', flee: 'flee' })[f.trait];
+    B.start(${W}, ${JSON.stringify(kinds)}.map((kind, i) => ({ kind, x: p.x + 48 + i * 20, y: p.y })));
+    B.allies.forEach((m) => { m.hp = 0; }); ${setup} })()`);
+  await family(['cogolem', 'duskbat', 'jelly'], "B.foes.forEach((f) => { f.hp = f.maxHp = 9999; }); B.foes[2].hp = 100;"); await sleep(2700);
+  const hp0 = await ev('HB.party.hp');
+  await ev('HB.Battle.cursor = 3'); await key('KeyZ'); await sleep(400);
+  for (let i = 0; i < 40 && await ev("HB.Battle.phase !== 'menu' || !!HB.Battle.co"); i++) { if (await ev("/웅크렸다/.test(HB.Battle.msg)")) await shot('20a-curl'); await sleep(200); }
+  assert.ok(await ev('HB.Battle.foes[0].curl'), 'the golem curls up');
+  assert.ok(await ev('HB.party.hp') < hp0, 'the bat hits');
+  assert.ok(await ev('HB.Battle.foes[2].hp') > 100 && await ev('HB.Battle.foes[2].mended'), 'the jelly mends once');
+  await ev('HB.Battle.end(true)'); await drain();
+  const exp0 = await ev('HB.party.exp');
+  await family(['starbit', 'flicker'], "B.foes[0].hp = B.foes[0].maxHp = 9999;"); await sleep(2700);
+  await ev('HB.Battle.cursor = 3'); await key('KeyZ');
+  for (let i = 0; i < 60 && await ev('HB.Battle.active'); i++) { if (await ev('!!HB.Battle.waitingOk')) await key('KeyZ'); await sleep(250); }
+  assert.ok(await ev('HB.Battle.foes[1].fled'), '떨림이 runs away');
+  assert.equal(await ev('HB.party.exp') - exp0, await ev('HB.FOES.starbit.exp'), 'the spent star pays, the runaway does not');
+  await ev('HB.foeIntent = HB.realIntent; const P = HB.party; P.hp = P.maxHp; P.allies.forEach((a) => { a.hp = HB.allyStats(a.id, P.lvl).maxHp; })');
+  await drain();
+  await ev(`${W}.load('pastwood', { x: ${woodAt[0]}, y: ${woodAt[1]}, dir: 'down' }); HB.Field.enemies.forEach((e) => { e.dead = true; })`); await sleep(500);
   await bossAt(4, 28, 21, '20-boss4');
   await ev(`${W}.load('pasttown', { x: 16.5, y: 12.8, dir: 'up' })`); await sleep(600);
   await tower('town');
