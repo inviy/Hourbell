@@ -134,7 +134,7 @@
         HB.text(g, HB.touchControls ? '화면을 터치하세요' : '아무 키나 누르세요', W / 2, H - 36, '#fff4d8', { align: 'center' });
       }
       if (this.awake && !HB.touchControls) HB.text(g, 'M  소리 켜기 / 끄기', 4, H - 11, '#8a7aa8', { font: 'g9', shadow: null });
-      HB.text(g, 'v1.0', W - 4, H - 11, '#8a7aa8', { align: 'right', font: 'g9', shadow: null });
+      HB.text(g, 'v1.1', W - 4, H - 11, '#8a7aa8', { align: 'right', font: 'g9', shadow: null });
     }
   };
   HB.Title = Title;
@@ -206,20 +206,6 @@
     }
   };
   HB.Ending = Ending;
-
-  // ?gift=lv5 writes a level 5 save with gear, items and 5000 gold, then drops the param
-  // ponytail: anyone with the link gets it; remove once saves can be exported / imported
-  if (new URLSearchParams(location.search).get('gift') === 'lv5') {
-    const P = HB.newParty();
-    while (P.lvl < 5) HB.levelUp(P);
-    P.hp = P.maxHp; P.mp = P.maxMp; P.gold = 5000;
-    Object.assign(P.items, { herb: 5, herb2: 2, drop: 3, water: 2, mallet: 1, vest: 1, quill: 1 });
-    ['mallet', 'vest', 'quill'].forEach((id) => HB.equip(P, id));
-    let store = null;
-    try { store = window.localStorage; } catch (e) { /* blocked storage: saveGame returns false */ }
-    HB.saveGame(store, { party: P, flags: { metKeeper: true }, map: 'town', x: 16.5, y: 18, dir: 'up' });
-    history.replaceState(null, '', location.pathname);
-  }
 
   HB.fontsReady.then(() => {
     HB.setScene(Title);
