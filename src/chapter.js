@@ -67,11 +67,28 @@
     });
   }
 
+  // after a fragment the bell can carry you home to the keeper, or you stay
+  // (from the past too: the bell's song crosses the years)
+  HB.offerReturn = function (w) {
+    HB.dialog.open('조각에서 울린 종소리가 울림골 쪽으로 길게 이어진다.', {
+      voice: 'narrate',
+      choices: ['종소리를 따라 울림골로 돌아간다', '조금 더 둘러본다'],
+      onChoose: (i) => {
+        if (i) return;
+        HB.sfx('bell');
+        HB.fadeTo(() => w.load('town', { x: 16.5, y: 15.4, dir: 'up' }), { dur: 1.6, color: '#fff4e0' });
+      }
+    });
+  };
+
   let fragArt = null;
   const artCache = {};
 
   const Chapter = {
-    onLoad(w, def) { if (def.onEnter) w.flags[def.onEnter] = true; },
+    onLoad(w, def) {
+      if (def.onEnter) w.flags[def.onEnter] = true;
+      w.flags['map:' + (def.id === 'inn' ? 'town' : def.id)] = true; // for the map screen
+    },
 
     talk(w, npc) {
       const d = npc.def, f = w.flags;
@@ -113,7 +130,7 @@
             HB.saveSoon();
             HB.sfx('fragment');
             HB.music.play(HB.Field.musicFor(w), { fadeOut: 1.2, fadeIn: 2.0 });
-            HB.dialog.open(['종소리 조각을 손에 넣었다!  (' + HB.fragments(f) + ' / 7)'].concat(a.got || []), { voice: 'narrate' });
+            HB.dialog.open(['종소리 조각을 손에 넣었다!  (' + HB.fragments(f) + ' / 7)'].concat(a.got || []), { voice: 'narrate', onClose: () => HB.offerReturn(w) });
           }
         });
       } else HB.dialog.open(a.taken);

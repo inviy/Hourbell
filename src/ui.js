@@ -71,7 +71,8 @@
   const BOX = { w: 400, h: 52 };
   BOX.x = Math.floor((HB.W - BOX.w) / 2); BOX.y = HB.H - BOX.h - 6;
   const MAX_LINES = 3;
-  const dlg = { open: false, pages: [], page: 0, shown: 0, name: null, onClose: null };
+  // choices: shown under the last page; onChoose(i) gets the pick (cancel picks the last)
+  const dlg = { open: false, pages: [], page: 0, shown: 0, name: null, onClose: null, choices: null, choice: 0, onChoose: null };
 
   HB.dialog = {
     get active() { return dlg.open; },
@@ -87,6 +88,7 @@
       dlg.name = opts.name || null;
       dlg.voice = opts.voice || 'blip';
       dlg.onClose = opts.onClose || null;
+      dlg.choices = opts.choices || null; dlg.choice = 0; dlg.onChoose = opts.onChoose || null;
       dlg.open = true;
       dlg.lastBlip = 0;
     },
@@ -104,6 +106,15 @@
           dlg.lastBlip = HB.time;
         }
         if (HB.input.hit('ok') && dlg.shown > 1) dlg.shown = total;
+      } else if (dlg.choices && dlg.page === dlg.pages.length - 1) {
+        const n = dlg.choices.length, inp = HB.input;
+        if (inp.hit('up') || inp.hit('down')) { dlg.choice = (dlg.choice + (inp.hit('up') ? n - 1 : 1)) % n; if (HB.sfx) HB.sfx('move'); }
+        else if (inp.hit('ok') || inp.hit('cancel')) {
+          const pick = inp.hit('ok') ? dlg.choice : n - 1, cb = dlg.onChoose;
+          if (HB.sfx) HB.sfx('tick');
+          dlg.open = false; dlg.onChoose = null; dlg.onClose = null;
+          if (cb) cb(pick);
+        }
       } else if (HB.input.hit('ok') || HB.input.hit('cancel')) {
         if (HB.sfx) HB.sfx('tick');
         if (dlg.page < dlg.pages.length - 1) { dlg.page++; dlg.shown = 0; }
@@ -130,17 +141,25 @@
         HB.text(g, part, BOX.x + 10, BOX.y + 6 + i * 15, '#f4f0e8');
       }
       const total = lines.join('').length;
-      if (dlg.shown >= total) drawMore(g, BOX.x + BOX.w - 14, BOX.y + BOX.h - 8);
+      if (dlg.shown < total) return;
+      if (!dlg.choices || dlg.page < dlg.pages.length - 1) { drawMore(g, BOX.x + BOX.w - 14, BOX.y + BOX.h - 8); return; }
+      const cw = Math.max(...dlg.choices.map((c) => HB.textWidth(c, 'g11'))) + 30, ch = dlg.choices.length * 15 + 8;
+      const cx = BOX.x + BOX.w - cw, cy = BOX.y - ch - 2;
+      HB.drawWindow(g, cx, cy, cw, ch);
+      dlg.choices.forEach((c, i) => {
+        HB.text(g, c, cx + 18, cy + 5 + i * 15, i === dlg.choice ? '#fff4d8' : '#a898c0');
+        if (i === dlg.choice) HB.drawCursor(g, cx + 6, cy + 8 + i * 15);
+      });
     }
   };
 
   // area name banner shown when entering a map
-  const banner = { text: '', sub: '', t: 0 };
-  HB.showBanner = function (text, sub) { banner.text = text; banner.sub = sub || ''; banner.t = 3.2; };
+  const banner = { text: '', sub: '', t: 0, dur: 3.2 };
+  HB.showBanner = function (text, sub, dur) { banner.text = text; banner.sub = sub || ''; banner.t = banner.dur = dur || 3.2; };
   HB.updateBanner = function (dt) { if (banner.t > 0) banner.t -= dt; };
   HB.drawBanner = function (g) {
     if (banner.t <= 0) return;
-    const a = Math.min(1, banner.t / 0.6, (3.2 - banner.t) / 0.6);
+    const a = Math.min(1, banner.t / 0.6, (banner.dur - banner.t) / 0.6);
     g.save();
     g.globalAlpha = Math.max(0, a);
     const w = Math.max(HB.textWidth(banner.text, 'g11'), HB.textWidth(banner.sub, 'g9')) + 40;

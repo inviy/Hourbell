@@ -39,6 +39,11 @@ try {
   assert.ok(!(await ev('HB.paused')));
   assert.equal(await ev('HB.audio.ctx && HB.audio.ctx.state'), 'running', 'audio comes back');
 
+  step('walking into a wall corner slides past it');
+  await ev(`${W}.player.x = 10 * 16 + 3; ${W}.player.y = 7.9 * 16; ${W}.player.dir = 'up'`); // 3px into the house's right wall
+  await key('ArrowUp', 700);
+  assert.ok(await ev(`${W}.player.y`) < 7.9 * 16 - 24, 'eased round the corner instead of stopping');
+
   step('smith: buy and equip');
   await ev('HB.party.gold = 200');
   await talkTo('smith'); await drain();
@@ -83,9 +88,10 @@ try {
   await winBattle();
   assert.ok(await ev(`${W}.flags.boss1`));
   await sleep(800);
-  await ev(`HB.Field.interact(${W}, 23, 25)`); await drain();
+  await ev(`HB.Field.interact(${W}, 23, 25)`); await drain(); await sleep(3500);
   assert.ok(await ev(`${W}.flags.fragment1`));
   assert.equal(await ev('HB.party.pet'), 'pip', 'the fragment frees the pet');
+  assert.equal(await ev(`${W}.def.id`), 'town', 'the bell carries you home to the keeper');
 
   step('party of four, auto battle, auto hunt');
   await ev(`(() => { const P = HB.party; P.allies = ['mio', 'dan', 'haru'].map((id) => ({ id, hp: HB.allyStats(id, P.lvl).maxHp }));
@@ -154,18 +160,22 @@ try {
   await drain(); await sleep(800);
   assert.ok(await savedFlag('boss2'), 'autosaved once control came back');
   // reload right after the boss: the win is still there
+  // continue shows the place and, under it, what to do next
   const reloadAndContinue = async () => {
     await send('Page.navigate', { url: URL_ }); await sleep(2500);
+    await ev('window.banners = []; const show = HB.showBanner; HB.showBanner = (a, b, c) => { window.banners.push(b); show(a, b, c); }');
     await key('KeyZ'); await sleep(700); await key('KeyZ'); await sleep(2300); await drain();
+    return ev('window.banners.find((b) => /^지금 할 일: /.test(b)) || null');
   };
-  await reloadAndContinue();
+  assert.equal(await reloadAndContinue(), '지금 할 일: 등대에서 두 번째 조각을 얻는다');
   assert.ok(await ev(`${W}.flags.boss2`), 'the boss win survives a reload');
   assert.equal(await ev(`${W}.def.id`), 'port');
   await ev('HB.Field.enemies.forEach((e) => { e.dead = true; })');
-  await ev(`HB.Chapter.interact(${W}, 29, 6)`); await drain(); await sleep(600);
+  await ev(`HB.Chapter.interact(${W}, 29, 6)`); await drain(); await sleep(3500);
   assert.ok(await ev(`${W}.flags.fragment2`));
+  assert.equal(await ev(`${W}.def.id`), 'town', 'the bell carries you home to the keeper');
   assert.ok(await savedFlag('fragment2'), 'the fragment is autosaved too');
-  await reloadAndContinue();
+  assert.equal(await reloadAndContinue(), '지금 할 일: 종지기에게 돌아간다');
   assert.ok(await ev(`${W}.flags.fragment2`), 'and survives a reload');
   assert.equal(await ev('HB.fragments(' + W + '.flags)'), 2);
   await ev(`${W}.load('town')`); await sleep(400);
@@ -202,8 +212,10 @@ try {
     assert.ok(await ev('HB.Battle.isBoss')); await shot(name);
     await winBattle(); await drain(); await sleep(800);
     assert.ok(await ev(`${W}.flags.boss${n}`));
-    await ev(`HB.Chapter.interact(${W}, ${tx}, ${ty})`); await drain();
+    await ev(`HB.Chapter.interact(${W}, ${tx}, ${ty})`); await drain(); await sleep(3500);
     assert.ok(await ev(`${W}.flags.fragment${n}`));
+    assert.equal(await ev(`${W}.def.id`), 'town', 'chapter ' + n + ': the bell carries you home');
+    assert.deepEqual(await ev(`[${W}.player.x / 16, ${W}.player.y / 16]`), [16.5, 15.4], 'in front of the keeper');
   };
   const card = async (n, wait) => {
     await ev(`${W}.load('town')`); await sleep(400);
@@ -222,8 +234,24 @@ try {
   await ev(`${W}.load('mine', { x: 1.5, y: 16.4, dir: 'right' })`); await sleep(600);
   await ev('HB.Field.enemies.forEach((e) => { e.dead = true; })'); await shot('16-mine');
   await joinBy('dan', 'ore', 'dan');
+  // the return offer can be turned down (B / cancel picks "조금 더 둘러본다")
+  await ev(`HB.offerReturn(${W})`); await sleep(300);
+  for (let i = 0; i < 10 && await ev('HB.dialog.active'); i++) { await key('KeyX'); await sleep(250); }
+  await sleep(2500);
+  assert.equal(await ev(`${W}.def.id`), 'mine', 'staying keeps you where you are');
   await bossAt(3, 14, 3, '17-boss3');
   await card(3);
+
+  step('map: where you are, where you have been, what is next');
+  await key('KeyX'); await sleep(200);
+  await ev("HB.Menu.mode.cur = HB.Menu.rows(HB.World).findIndex((r) => r.label === '지도')");
+  await key('KeyZ'); await sleep(400); await shot('17b-map');
+  assert.equal(await ev("HB.Menu.mode.id"), 'map');
+  const nodes = await ev(`HB.mapNodes(${W}.flags)`);
+  for (const id of ['town', 'field', 'grove', 'mistroad', 'port', 'canyon', 'mine']) assert.equal(nodes[id], 'seen', 'map shows ' + id);
+  assert.equal(nodes.pasttown, 'unknown', 'the next place shows as ???');
+  assert.equal(await ev('HB.Menu.rows(HB.World)[0].desc'), '다음 목표: 시계탑을 통해 과거로 간다');
+  await key('KeyX'); await key('KeyX');
 
   step('chapter four: the tower into the past, 하루 joins, 시간갉기');
   await tower('pasttown'); await shot('18-pasttown');
