@@ -289,6 +289,23 @@ test('options: defaults, clamping and junk', () => {
   assert.equal(o.flash, false);
   assert.equal(o.evil, undefined);
   assert.equal(HB.sanitizeOptions({ music: 4.6 }).music, 5);
+  assert.equal(HB.sanitizeOptions({}).easy, false, 'normal difficulty unless chosen');
+  assert.equal(HB.sanitizeOptions({ easy: true }).easy, true);
+});
+
+test('쉬움 takes a quarter off foe damage and makes the bosses gentler', () => {
+  const boss = HB.makeFoe('boss'), P = partyAt(3, 0);
+  HB.seedRandom(7); const normal = Array.from({ length: 200 }, () => HB.foeDmg(boss, P, 'attack', false));
+  const lvl3 = winRate(3, 3, ['boss'], {}, 1000);
+  HB.options.easy = true;
+  try {
+    HB.seedRandom(7); const easy = Array.from({ length: 200 }, () => HB.foeDmg(boss, P, 'attack', false));
+    easy.forEach((d, i) => assert.equal(d, Math.max(1, Math.round(normal[i] * HB.EASY))));
+    assert.ok(HB.foeDmg(boss, { def: 99 }, 'attack', true) >= 1, 'still at least 1');
+    const easy3 = winRate(3, 3, ['boss'], {}, 1000), mash = winRateAs(HB, mashPick(), 6, ['boss'], {}, 1000);
+    console.log('chapter 1 boss on 쉬움: Lv3', easy3.toFixed(2), '(normal ' + lvl3.toFixed(2) + '), attack only Lv6', mash.toFixed(2));
+    assert.ok(easy3 > lvl3 + 0.15, 'level 3 wins clearly more often');
+  } finally { HB.options.easy = false; }
 });
 
 test('pacing: reaching level 4 takes about two field clears', () => {

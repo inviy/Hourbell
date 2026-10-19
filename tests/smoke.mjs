@@ -29,7 +29,14 @@ try {
   assert.ok(await ev(`${W}.flags.metKeeper`));
   await key('KeyX'); await sleep(200); await shot('02-menu');
   await ev("HB.Menu.mode.cur = HB.Menu.rows(HB.World).findIndex((r) => r.label === '옵션')");
-  await key('KeyZ'); await key('ArrowLeft'); await key('ArrowLeft'); await sleep(200); await shot('03-options');
+  await key('KeyZ'); await sleep(200);
+  assert.equal(await ev("HB.Menu.rows(HB.World)[0].label"), '쉬움', '쉬움 comes first');
+  await key('KeyZ'); await sleep(100);
+  assert.equal(await ev('HB.options.easy'), true, '쉬움 turns on');
+  await key('KeyZ'); await sleep(100);
+  assert.equal(await ev('HB.options.easy'), false, 'and off again');
+  await ev("HB.Menu.mode.cur = HB.Menu.rows(HB.World).findIndex((r) => r.label === '음악')");
+  await key('ArrowLeft'); await key('ArrowLeft'); await sleep(200); await shot('03-options');
   assert.equal(await ev('HB.options.music'), 5);
   assert.equal(JSON.parse(await ev("localStorage.getItem('hourbell.options')")).music, 5);
   // 의견 보내기 opens the issues page; a blocked popup leaves the address on screen

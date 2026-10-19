@@ -22,6 +22,7 @@
     const num = (k, label, desc) => ({ label, right: '< ' + O[k] + ' >', desc, adjust: (d) => set(k, O[k] + d), act: () => set(k, (O[k] + 1) % 11) });
     const flag = (k, label, desc) => ({ label, right: O[k] ? '켬' : '끔', desc, adjust: () => set(k, !O[k]), act: () => set(k, !O[k]) });
     return [
+      flag('easy', '쉬움', '적에게 받는 피해가 3/4로 줄어든다. 언제든 바꿀 수 있다'),
       num('music', '음악', '배경 음악 크기 (좌우로 조절)'),
       num('sfx', '효과음', '효과음 크기 (좌우로 조절)'),
       { label: '글자 속도', right: '< ' + TEXT[O.text] + ' >', desc: '대사가 나오는 속도', adjust: (d) => set('text', (O.text + d + 3) % 3), act: () => set('text', (O.text + 1) % 3) },
