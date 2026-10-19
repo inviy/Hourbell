@@ -238,9 +238,12 @@
   // fog: rounds it lasts; plain hits are halved until a sound or wind skill clears it
   HB.FOG_TURNS = 3;
   HB.fogged = (d, fog) => (fog ? Math.max(1, Math.floor(d / 2)) : d);
-  // damage a foe deals ('wave' ignores defence; guarding halves both)
+  // damage a foe deals ('wave' ignores defence; guarding halves both;
+  // the 쉬움 option takes a quarter off)
+  HB.EASY = 0.75;
   HB.foeDmg = function (f, P, intent, guarding) {
-    const d = intent === 'wave' ? Math.round(f.atk * (f.waveMul || 1.2)) + rnd(0, 3) : HB.hitDmg(f.atk, HB.eff(P).def);
+    let d = intent === 'wave' ? Math.round(f.atk * (f.waveMul || 1.2)) + rnd(0, 3) : HB.hitDmg(f.atk, HB.eff(P).def);
+    if (HB.options.easy) d = Math.max(1, Math.round(d * HB.EASY));
     return guarding ? Math.max(1, Math.floor(d / 2)) : d;
   };
 
@@ -268,14 +271,14 @@
 
   // ---------- options ----------
   // text: 0 slow, 1 normal, 2 fast. shake / flash: comfort switches
-  HB.OPTION_DEFAULTS = { music: 7, sfx: 8, text: 1, shake: true, flash: true };
+  HB.OPTION_DEFAULTS = { music: 7, sfx: 8, text: 1, shake: true, flash: true, easy: false };
   // stored options may be old or hand-edited: keep known keys with sane values
   HB.sanitizeOptions = function (o) {
     const out = Object.assign({}, HB.OPTION_DEFAULTS);
     if (!o || typeof o !== 'object') return out;
     for (const k of ['music', 'sfx']) if (Number.isFinite(o[k])) out[k] = Math.max(0, Math.min(10, Math.round(o[k])));
     if ([0, 1, 2].includes(o.text)) out.text = o.text;
-    for (const k of ['shake', 'flash']) if (typeof o[k] === 'boolean') out[k] = o[k];
+    for (const k of ['shake', 'flash', 'easy']) if (typeof o[k] === 'boolean') out[k] = o[k];
     return out;
   };
   HB.options = HB.sanitizeOptions();
