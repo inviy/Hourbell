@@ -169,7 +169,13 @@ window.HB = window.HB || {};
     g.globalCompositeOperation = 'source-over';
     try {
       if (scene && scene.draw) scene.draw(g);
-    } catch (e) { report(e); g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; }
+    } catch (e) {
+      report(e);
+      // the draw may have left save()s without restore(): start the buffer clean
+      if (g.reset) g.reset(); else for (let i = 0; i < 64; i++) g.restore();
+      g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+      g.imageSmoothingEnabled = false;
+    }
     if (fade) {
       const p = HB.clamp(fade.t / fade.dur, 0, 1);
       const a = fade.dir === 1 ? p : 1 - p;

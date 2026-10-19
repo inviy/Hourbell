@@ -312,13 +312,22 @@ try {
 
   step('an error thrown every frame does not stop the game');
   const time0 = await ev('HB.time');
-  await ev("HB.worldPlugins.push(window.boom = { update() { throw new Error('smoke: boom in update'); }, drawables() { throw new Error('smoke: boom in draw'); } })");
+  // the draw error leaves a save() without its restore(), with odd alpha and blending
+  await ev(`HB.worldPlugins.push(window.boom = {
+    update() { throw new Error('smoke: boom in update'); },
+    drawables(w, list) { list.push({ y: 0, draw(g) { g.globalAlpha = 0.2; g.globalCompositeOperation = 'lighter'; g.save(); throw new Error('smoke: boom in draw'); } }); }
+  })`);
   await sleep(1500); await shot('32-error-note');
   assert.ok(await ev('HB.time') > time0 + 1, 'the loop keeps running');
   assert.ok(await ev('HB.loopError.count') >= 30, 'and the repeating error is noted on screen');
+  await key('KeyZ', 30); await sleep(200);
+  assert.equal(await ev('Object.keys(HB.input.pressed).length'), 0, 'a key pressed while update throws is still cleared');
   await ev('HB.worldPlugins.splice(HB.worldPlugins.indexOf(window.boom), 1)');
-  await sleep(1500);
+  await sleep(1500); await shot('33-after-error');
   assert.equal(await ev('HB.loopError.count'), 0, 'the note goes away once the error stops');
+  // nothing left on the save stack: one extra restore() must not bring the odd state back
+  assert.deepEqual(await ev(`(() => { const g = HB.g; g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; g.restore();
+    return [g.globalAlpha, g.globalCompositeOperation, g.imageSmoothingEnabled]; })()`), [1, 'source-over', false], 'canvas state is clean after the errors');
   await key('ArrowLeft', 400);
   assert.equal(await ev(`${W}.player.dir`), 'left', 'and the game still plays');
   const thrown = errors.filter((e) => /smoke: boom/.test(e));
