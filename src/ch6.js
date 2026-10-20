@@ -21,7 +21,7 @@
   });
 
   Object.assign(HB.PALETTES, {
-    astronomer: { h: '#d8d4e8', s: '#f0c8a8', c: '#2a3a7a', C: '#1a2458', g: '#f0d060', b: '#3a2a40' },
+    astronomer: { h: '#d8d4e8', s: '#f0c8a8', c: '#2a3a7a', C: '#1a2458', g: '#f0d060', b: '#3a2a40', wear: 'hat' },
     stargirl: { h: '#2a2a5a', s: '#f8d4b0', c: '#e8c040', C: '#a88a24', g: '#ffffff', b: '#3a3a5a' }
   });
 

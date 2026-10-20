@@ -33,7 +33,7 @@
   });
 
   Object.assign(HB.PALETTES, {
-    foreman: { h: '#3a3a3a', s: '#d09068', c: '#c8a040', C: '#8a6a24', g: '#e8e0d0', b: '#3a2418' },
+    foreman: { h: '#3a3a3a', s: '#d09068', c: '#c8a040', C: '#8a6a24', g: '#e8e0d0', b: '#3a2418', wear: 'cap' },
     peddler: { h: '#5a3a6a', s: '#f0c8a0', c: '#7a5aa8', C: '#4a3a70', g: '#e8c040', b: '#3a2a20' },
     miner: { h: '#5a4a3a', s: '#d8a078', c: '#6a7a5a', C: '#4a5a3a', g: '#f0d060', b: '#2a2018' }
   });

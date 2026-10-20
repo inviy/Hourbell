@@ -96,6 +96,8 @@ node tools/print-map.mjs canyon  # 지도를 글자로 (출구·NPC·적·상자
 node tools/balance-csv.mjs     # 레벨별 능력치와 적 수치 CSV
 node tools/winrates.mjs        # 장 × 레벨 × 장비별 보스 승률 표
 node tools/pacing.mjs          # 장마다 필드 몇 바퀴, 번 골드와 장비 값
+node tests/tiles.mjs           # 테마별 바닥 타일을 이어 붙여 이음새가 보이는지 재기
+python tools/colorblind.py a.png  # 스크린샷을 적록 색약 두 종류로 본 이미지 (Pillow 필요)
 ```
 
 디버그: 주소 뒤에 `?debug`를 붙이면 메뉴에 디버그(워프, 레벨, 플래그, 무적)가 생기고, `?debug&map=canyon&lvl=9`처럼 원하는 지도와 레벨로 바로 시작합니다. `HB.seedRandom(n)`은 전투와 필드의 움직임을 함께 고정합니다.

@@ -21,7 +21,7 @@
 
   Object.assign(HB.PALETTES, {
     hutgran: { h: '#e8e8f0', s: '#f0c8a8', c: '#c84a4a', C: '#8a2a2a', g: '#f0e0c0', b: '#3a2a20' },
-    hunter: { h: '#4a3020', s: '#e0a880', c: '#7a5a3a', C: '#5a3e24', g: '#e8e0d0', b: '#2a1a10' }
+    hunter: { h: '#4a3020', s: '#e0a880', c: '#7a5a3a', C: '#5a3e24', g: '#e8e0d0', b: '#2a1a10', wear: 'hood' }
   });
 
   // ---------- foes ----------
