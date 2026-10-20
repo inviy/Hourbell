@@ -286,7 +286,7 @@
   };
   // 메아리왕: some rounds it gathers echoes, and half of what the hero deals comes back
   HB.echoNow = (f, turn) => !!f.echoEvery && turn % f.echoEvery === 1;
-  HB.ECHO = 0.15;
+  HB.ECHO = 0.1; // 0.15 left 'attack + herbs' too close to its 0.8 floor (a CI run hit 0.79)
   // 시간갉기 winds back part of the wounds it took this round (roundHp: its HP when the round began)
   HB.REWIND = 0.5;
   HB.rewindAmt = (f) => Math.max(0, Math.round((f.roundHp - f.hp) * HB.REWIND));
