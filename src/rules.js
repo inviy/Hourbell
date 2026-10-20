@@ -7,7 +7,10 @@
   // every roll that decides a fight goes through HB.rand; HB.seedRandom(n)
   // makes a run repeat exactly (tests, replaying a reported fight)
   HB.rand = Math.random;
-  HB.seedRandom = (seed) => { HB.rand = HB.rng(seed); };
+  // how foes and townsfolk wander on the map: its own stream, so a seed replays
+  // the walk too without touching the fight's rolls (motes, clouds and shake stay free)
+  HB.fieldRand = Math.random;
+  HB.seedRandom = (seed) => { HB.rand = HB.rng(seed); HB.fieldRand = HB.rng(seed + 1); };
   const rnd = (a, b) => a + Math.floor(HB.rand() * (b - a + 1));
   HB.rnd = rnd;
 
@@ -310,6 +313,7 @@
   // bat's 'double' hits is lighter; guarding halves all; 쉬움 takes a quarter off)
   HB.EASY = 0.75;
   HB.foeDmg = function (f, P, intent, guarding) {
+    if (HB.debug && HB.debug.god) return 0; // ?debug menu: 무적
     let d = intent === 'wave' ? Math.round(f.atk * (f.waveMul || 1.2)) + rnd(0, 3)
       : intent === 'burst' ? Math.round(f.atk * HB.TRAIT.burst) + rnd(0, 3) : HB.hitDmg(f.atk, HB.eff(P).def);
     if (intent === 'double') d = Math.max(1, Math.round(d * 0.6));

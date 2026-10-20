@@ -39,7 +39,7 @@
       this.player.moving = false;
       this.npcs = (def.npcs || []).filter((n) => !(n.hideIf && this.flags[n.hideIf]) && !(n.showIf && !this.flags[n.showIf])).map((n) => {
         const a = new Actor(n.x * T, n.y * T, n.pal, n.dir);
-        a.def = n; a.home = { x: a.x, y: a.y }; a.wait = 1 + Math.random() * 2; a.target = null;
+        a.def = n; a.home = { x: a.x, y: a.y }; a.wait = 1 + HB.fieldRand() * 2; a.target = null;
         return a;
       });
       this.tower = def.tower ? { x: (def.tower.tx + 1.5) * T, y: (def.tower.ty + 2) * T, img: HB.makeBellTower(0) } : null;
@@ -200,7 +200,7 @@
         if (n.target) {
           const vx = n.target.x - n.x, vy = n.target.y - n.y;
           const d = Math.hypot(vx, vy);
-          if (d < 1.5) { n.target = null; n.moving = false; n.wait = 1.5 + Math.random() * 3; continue; }
+          if (d < 1.5) { n.target = null; n.moving = false; n.wait = 1.5 + HB.fieldRand() * 3; continue; }
           const sx = (vx / d) * NPC_SPEED * dt, sy = (vy / d) * NPC_SPEED * dt;
           const ox = n.x, oy = n.y;
           this.tryMove(n, sx, sy);
@@ -210,7 +210,7 @@
         } else {
           n.wait -= dt;
           if (n.wait <= 0) {
-            const a = Math.random() * Math.PI * 2, r = Math.random() * range;
+            const a = HB.fieldRand() * Math.PI * 2, r = HB.fieldRand() * range;
             n.target = { x: n.home.x + Math.cos(a) * r, y: n.home.y + Math.sin(a) * r };
           }
         }
