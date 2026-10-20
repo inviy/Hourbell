@@ -189,9 +189,11 @@
   // ---------- songs ----------
   const SONGS = {
     title() {
-      const s = new Song({ bpm: 66, loop: true, steps: 16 * 8 });
+      // A on the music box, then B: the loop is long enough to just listen
+      const s = new Song({ bpm: 66, loop: true, steps: 16 * 16 });
       s.add('box', seq(THEME_A, 1).notes, 0, 0.9);
-      chordsTo(s, CH_A, 0, (c, at) => {
+      s.add('box', seq(THEME_B, 1).notes, 64, 0.8);
+      chordsTo(s, CH_A.concat(CH_B), 0, (c, at) => {
         c.forEach((m) => s.events.push({ inst: 'pad', step: at * 2, len: 8, midi: m + 12, vel: 0.9 }));
         s.events.push({ inst: 'bass', step: at * 2, len: 7.5, midi: c[0] - 12, vel: 0.5 });
       });
@@ -259,10 +261,15 @@
     },
     // the battle theme a semitone down and faster, for the shrine guardian
     boss() {
+      // the battle theme a tone lower and faster, over a pounding kick and a bell on every bar
       const s = SONGS.battle();
       s.bpm = 168;
       s.events.forEach((e) => { e.midi -= 1; });
-      return s;
+      for (let bar = 0; bar < s.steps / 16; bar++) {
+        [0, 4, 8, 12].forEach((o) => s.events.push({ inst: 'kick', step: bar * 16 + o, len: 1, midi: 36, vel: 0.7 }));
+        s.events.push({ inst: 'bell', step: bar * 16, len: 4, midi: (bar % 2 ? 49 : 47) + 12, vel: 0.35 });
+      }
+      return s.finalize();
     },
     victory() {
       const s = new Song({ bpm: 140, loop: false, steps: 40 });
@@ -287,16 +294,20 @@
   // ---------- player ----------
   let pending = null;
   let current = null; // {name, song, gain, step, next, timer}
+  const resumeAt = {}; // song name -> step it stopped at, for opts.resume
 
   function startTrack(name, opts) {
     const song = getSong(name);
     const gain = ac.createGain();
     gain.connect(musicBus);
     const fadeIn = opts.fadeIn === undefined ? 0.5 : opts.fadeIn;
-    const t0 = ac.currentTime + 0.05;
+    const t0 = opts.at || ac.currentTime + 0.05;
     gain.gain.setValueAtTime(fadeIn ? 0.0001 : 1, t0);
     if (fadeIn) gain.gain.linearRampToValueAtTime(1, t0 + fadeIn);
-    const tr = { name, song, gain, step: 0, next: t0, idx: 0, onEnd: opts.onEnd, done: false };
+    // resume: pick up a looping song where it left off (the field after a battle), on a beat
+    const from = opts.resume && song.loop && resumeAt[name] ? resumeAt[name] - (resumeAt[name] % 4) : 0;
+    const tr = { name, song, gain, step: from, next: t0, idx: Math.max(0, song.events.findIndex((e) => e.step >= from)), onEnd: opts.onEnd, done: false };
+    if (tr.idx < 0 || song.events.findIndex((e) => e.step >= from) < 0) tr.idx = song.events.length;
     const stepDur = 60 / song.bpm / 4;
     tr.timer = setInterval(() => {
       if (tr.done) return;
@@ -323,11 +334,12 @@
     }, 25);
     return tr;
   }
-  function stopTrack(tr, fade) {
+  function stopTrack(tr, fade, at) {
     if (!tr || tr.stopped) return;
     tr.stopped = true;
-    clearInterval(tr.timer);
-    const t = ac.currentTime;
+    resumeAt[tr.name] = tr.step;
+    const t = Math.max(ac.currentTime, at || 0);
+    setTimeout(() => clearInterval(tr.timer), (t - ac.currentTime) * 1000);
     tr.gain.gain.cancelScheduledValues(t);
     tr.gain.gain.setValueAtTime(tr.gain.gain.value, t);
     tr.gain.gain.linearRampToValueAtTime(0.0001, t + (fade || 0.05));
@@ -340,7 +352,12 @@
       if (!name) return;
       if (!ac) { pending = { name, opts }; return; }
       if (current && current.name === name && !current.stopped && !opts.restart) return;
-      stopTrack(current, opts.fadeOut === undefined ? 0.6 : opts.fadeOut);
+      // onBar: switch on the old song's next bar line instead of mid-phrase
+      if (opts.onBar && current && !current.stopped) {
+        const c = current, stepDur = 60 / c.song.bpm / 4, left = (16 - (c.step % 16)) % 16;
+        opts = Object.assign({}, opts, { at: Math.min(c.next + left * stepDur, ac.currentTime + 2) });
+      }
+      stopTrack(current, opts.fadeOut === undefined ? 0.6 : opts.fadeOut, opts.at);
       current = startTrack(name, opts);
     },
     stop(fade) { if (ac) stopTrack(current, fade); current = null; pending = null; },
@@ -376,9 +393,17 @@
     ding2(t) { bell(sfxBus, t, mtof(78), 0.12, 2.0); },
     fragment(t) { [62, 69, 74, 78, 81].forEach((m, i) => bell(sfxBus, t + i * 0.12, mtof(m + 12), 0.08, 2.4)); }
   };
+  const lastSfx = {}, DUCK = new Set(['fragment', 'bell', 'heal']);
   HB.sfx = function (name) {
     if (!ac || muted || !SFX[name]) return;
-    SFX[name](ac.currentTime + 0.01);
+    const t = ac.currentTime;
+    if (t - (lastSfx[name] || -1) < 0.03) return; // the same sound twice in 30ms is one sound
+    lastSfx[name] = t;
+    SFX[name](t + 0.01);
+    if (DUCK.has(name)) { // the music steps back so the moment is heard
+      const g = musicBus.gain, base = 0.55 * HB.options.music / 10;
+      g.cancelScheduledValues(t); g.setTargetAtTime(base * 0.4, t, 0.04); g.setTargetAtTime(base, t + 0.9, 0.3);
+    }
   };
 
   HB.setVolume = function () {

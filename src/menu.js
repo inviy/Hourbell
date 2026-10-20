@@ -49,9 +49,18 @@
     back() {
       this.stack.pop(); this.note = '';
       HB.sfx('cancel');
-      if (!this.stack.length) this.open = false;
+      if (!this.stack.length) { this.open = false; this.endListening(); }
     },
-    close() { this.open = false; this.stack = []; HB.sfx('cancel'); },
+    close() {
+      this.open = false; this.stack = []; HB.sfx('cancel');
+      this.endListening();
+    },
+    // leaving the menu after 음악 감상 brings the place's own song back
+    endListening() {
+      if (!this.listening) return;
+      this.listening = false;
+      HB.music.play(HB.Field.musicFor(HB.World), { fadeIn: 1.0 });
+    },
 
     openShop(title, stock) {
       this.open = true; this.stack = [];
