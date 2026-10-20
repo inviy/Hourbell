@@ -28,6 +28,8 @@
       { label: '글자 속도', right: '< ' + TEXT[O.text] + ' >', desc: '대사가 나오는 속도', adjust: (d) => set('text', (O.text + d + 3) % 3), act: () => set('text', (O.text + 1) % 3) },
       flag('shake', '화면 흔들림', '전투 중 화면 흔들림'),
       flag('flash', '섬광, 왜곡', '전투 시작의 번쩍임과 화면 일렁임. 빛에 민감하면 끄세요.'),
+      flag('guide', '길 안내', '다음 목표로 가는 출구를 반짝임과 화살표로 알려 준다'),
+      { label: '키 설정', desc: '행동마다 쓸 키를 바꾼다', act: () => menu.push({ id: 'keys' }) },
       { label: '음악 감상', desc: '들어 본 곡을 골라 듣는다', act: () => menu.push({ id: 'jukebox' }) },
       { label: '바뀐 점', desc: '버전마다 바뀐 점(패치 노트)을 새 창으로 본다', act: () => {
         HB.sfx('ok');
@@ -57,4 +59,24 @@
     ? { label: '???', dim: true, desc: '이야기를 더 진행하면 들을 수 있다', act: () => menu.fail('아직 들어 보지 못한 곡이다.') }
     : { label, desc: label + ' (메뉴를 닫으면 원래 음악으로)', act: () => { HB.music.play(id, { restart: true, fadeIn: 0.3 }); menu.listening = true; menu.note = '재생 중: ' + label; } }));
   HB.menuDraw.jukebox = () => {};
+
+  // 키 설정: pick an action, press the new key. M stays the mute key
+  const ACT_NAMES = { up: '위', down: '아래', left: '왼쪽', right: '오른쪽', ok: '결정 / 조사', cancel: '취소 / 메뉴', auto: '자동 사냥' };
+  const keyName = (code) => code.replace(/^Key|^Digit/, '').replace('Arrow', '방향').replace('Escape', 'Esc').replace('Backspace', '백스페이스').replace('Space', '스페이스');
+  HB.menuScreens.keys = (menu) => HB.ACTIONS.map((a) => ({
+    label: ACT_NAMES[a], right: Object.keys(HB.keymap()).filter((c) => HB.keymap()[c] === a).map(keyName).join(' '),
+    desc: '결정한 뒤 새 키를 누르면 바뀐다',
+    act: () => {
+      menu.note = ACT_NAMES[a] + ': 새 키를 누르세요';
+      HB.captureKey = (code) => {
+        if (code === 'KeyM') { menu.note = 'M은 소리 켜기 / 끄기에 쓰인다.'; return; }
+        const m = Object.assign({}, HB.keymap());
+        for (const c in m) if (m[c] === a) delete m[c];
+        m[code] = a;
+        if (!HB.setKeys(m)) { HB.sfx('cancel'); menu.note = keyName(code) + '는 다른 행동의 마지막 키라 바꿀 수 없다.'; return; }
+        HB.sfx('ok'); menu.note = ACT_NAMES[a] + ' = ' + keyName(code);
+      };
+    }
+  })).concat([{ label: '기본값으로', desc: '처음 키 배치로 되돌린다', act: () => { HB.setKeys(Object.assign({}, HB.DEFAULT_KEYS)); HB.sfx('ok'); menu.note = '처음 키 배치로 되돌렸다.'; } }]);
+  HB.menuDraw.keys = () => {};
 })(window.HB);

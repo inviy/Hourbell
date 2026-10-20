@@ -43,12 +43,25 @@ window.HB = window.HB || {};
   resize();
 
   // ---------- input ----------
-  const KEYMAP = {
+  // key code -> action. Players can rebind (options > 키 설정); kept in localStorage
+  HB.DEFAULT_KEYS = {
     ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down',
     ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right',
     KeyZ: 'ok', Enter: 'ok', Space: 'ok',
     KeyX: 'cancel', Escape: 'cancel', Backspace: 'cancel',
     KeyQ: 'auto'
+  };
+  HB.ACTIONS = ['up', 'down', 'left', 'right', 'ok', 'cancel', 'auto'];
+  // a stored map is used only if every action still has a key
+  const usable = (m) => !!m && typeof m === 'object' && HB.ACTIONS.every((a) => Object.values(m).includes(a)) && Object.values(m).every((a) => HB.ACTIONS.includes(a));
+  let KEYMAP = Object.assign({}, HB.DEFAULT_KEYS);
+  try { const k = JSON.parse(window.localStorage.getItem('hourbell.keys')); if (usable(k)) KEYMAP = k; } catch (e) { /* defaults */ }
+  HB.keymap = () => KEYMAP;
+  HB.setKeys = function (m) {
+    if (!usable(m)) return false;
+    KEYMAP = m;
+    try { window.localStorage.setItem('hourbell.keys', JSON.stringify(m)); } catch (e) { /* lasts this session */ }
+    return true;
   };
   const input = { down: {}, pressed: {}, any: false };
   input.isDown = (a) => !!input.down[a];
@@ -56,6 +69,8 @@ window.HB = window.HB || {};
   input.press = (a) => { if (!input.down[a]) input.pressed[a] = true; input.down[a] = true; input.any = true; };
   input.release = (a) => { input.down[a] = false; };
   window.addEventListener('keydown', (e) => {
+    // options > 키 설정 is waiting for a key: it takes this one and nothing else happens
+    if (HB.captureKey) { e.preventDefault(); const cb = HB.captureKey; HB.captureKey = null; cb(e.code); return; }
     if (HB.paused) { HB.paused = false; e.preventDefault(); HB.onUserGesture && HB.onUserGesture(); return; } // the key that resumes does nothing else
     const a = KEYMAP[e.code];
     if (a) { e.preventDefault(); input.press(a); }

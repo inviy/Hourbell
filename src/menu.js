@@ -228,7 +228,7 @@
       const P = HB.party, e = HB.eff(P);
       const x = 176, y = 8, wdt = 200;
       HB.drawWindow(g, x, y, wdt, 230);
-      HB.text(g, P.name, x + 12, y + 6, '#ffe08a');
+      HB.text(g, P.name + (w.flags.secondRun ? '  · 다시 걷는 이' : ''), x + 12, y + 6, '#ffe08a');
       HB.text(g, 'Lv ' + P.lvl, x + wdt - 12, y + 7, '#c8c0e0', { font: 'g9', align: 'right' });
       HB.drawBar(g, x + 12, y + 30, 'HP', P.hp, P.maxHp, P.hp / P.maxHp < 0.3 ? '#ff7a6a' : '#7ae08a');
       HB.drawBar(g, x + 12, y + 44, '울림', P.mp, P.maxMp, '#7ab0ff');

@@ -69,6 +69,8 @@
           const w = HB.World;
           HB.party = d ? d.party : HB.newParty();
           w.flags = d ? d.flags : {};
+          // a second walk: whoever has seen the ending once starts with a keepsake
+          if (!d && HB.clearedOnce()) { HB.party.items.memento = 1; w.flags.secondRun = true; }
           w.visited = d ? { intro: true } : {};
           HB.setScene(w, d ? { map: d.map, spawn: { x: d.x, y: d.y, dir: d.dir } } : { map: 'town' });
           // back after a while: the place and, under it, what to do next
@@ -151,11 +153,15 @@
     next: ['종소리가 울린 뒤, 동쪽 바닷가 쪽 안개가 아주 조금 옅어졌다.', '마을 동쪽 길로 나가면 항구에 닿을 수 있을 것 같다.']
   };
 
+  // remembered on this device once the last chapter's card has been seen
+  HB.clearedOnce = () => { try { return window.localStorage.getItem('hourbell.cleared') === '1'; } catch (e) { return false; } };
+
   const Ending = {
     enter(arg) {
       this.t = 0; this.leaving = false;
       this.n = (arg && arg.chapter) || 1;
       const c = this.c = HB.CHAPTERS[this.n];
+      if (c.final) try { window.localStorage.setItem('hourbell.cleared', '1'); } catch (e) { /* no keepsake next time */ }
       const P = HB.party, m = Math.floor(P.time / 60);
       this.lines = [
         ['제' + this.n + '장  ' + c.title, '#ffe6a8', 0.5],

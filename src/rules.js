@@ -46,6 +46,7 @@
   HB.fragments = (flags) => [1, 2, 3, 4, 5, 6, 7].filter((n) => flags && flags['fragment' + n]).length;
 
   HB.ITEMS = {
+    memento: { name: '첫 종의 추억', slot: 'charm', def: 1, spd: 2, price: 10, desc: '한 번 끝까지 걸어 본 사람의 장신구. 방어 +1, 속도 +2' },
     herb: { name: '약초', hp: 30, price: 8, desc: 'HP를 30 회복한다.' },
     herb2: { name: '고급 약초', hp: 70, price: 24, desc: 'HP를 70 회복한다.' },
     drop: { name: '울림방울', mp: 10, price: 15, desc: '울림을 10 회복한다.' },
@@ -346,14 +347,14 @@
 
   // ---------- options ----------
   // text: 0 slow, 1 normal, 2 fast. shake / flash: comfort switches
-  HB.OPTION_DEFAULTS = { music: 7, sfx: 8, text: 1, shake: true, flash: true, easy: false };
+  HB.OPTION_DEFAULTS = { music: 7, sfx: 8, text: 1, shake: true, flash: true, easy: false, guide: true };
   // stored options may be old or hand-edited: keep known keys with sane values
   HB.sanitizeOptions = function (o) {
     const out = Object.assign({}, HB.OPTION_DEFAULTS);
     if (!o || typeof o !== 'object') return out;
     for (const k of ['music', 'sfx']) if (Number.isFinite(o[k])) out[k] = Math.max(0, Math.min(10, Math.round(o[k])));
     if ([0, 1, 2].includes(o.text)) out.text = o.text;
-    for (const k of ['shake', 'flash', 'easy']) if (typeof o[k] === 'boolean') out[k] = o[k];
+    for (const k of ['shake', 'flash', 'easy', 'guide']) if (typeof o[k] === 'boolean') out[k] = o[k];
     return out;
   };
   HB.options = HB.sanitizeOptions();

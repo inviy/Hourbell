@@ -156,7 +156,17 @@
 
     talk(w, npc) {
       const d = npc.def, f = w.flags;
-      if (!(d.fetch || d.inn || d.shop || d.linesBy || d.setFlag)) return false;
+      if (!(d.fetch || d.inn || d.shop || d.linesBy || d.setFlag || d.fight)) return false;
+      // npc.fight: a foe kind to face after the lines (once its flag is set it is gone)
+      if (d.fight && !f[HB.FOES[d.fight].flag]) {
+        HB.dialog.open(d.lines, { name: d.name, onClose: () => {
+          const foe = { x: npc.x, y: npc.y, home: { x: npc.x, y: npc.y }, kind: d.fight, ph: 0, cool: 0, dead: false, inBattle: false, flash: 0, hitShake: 0, dying: 0 };
+          w.npcs = w.npcs.filter((n) => n !== npc);
+          HB.Field.enemies.push(foe);
+          HB.Battle.start(w, [foe]);
+        } });
+        return true;
+      }
       const lines = linesFor(d, f);
       if (d.setFlag) f[d.setFlag] = true;
       if (d.fetch) fetchQuest(w, d);

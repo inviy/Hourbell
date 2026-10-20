@@ -106,3 +106,12 @@ for (const [n, c] of Object.entries(SPEC(HB))) {
     assert.ok(earned < priceOf(c.gear), 'but not the whole set');
   });
 }
+
+test('after the ending: the last echo is a challenge for Lv 24 or so', () => {
+  const c = SPEC(HB)[7];
+  const at = (lvl) => rate(lvl, ['lastecho'], { gear: c.gear, allies: c.allies, items: c.items });
+  const r = { 21: at(21), 25: at(25) };
+  console.log('last echo:', JSON.stringify(r));
+  assert.ok(r[21] < 0.5, 'harder than the last boss at its level');
+  assert.ok(r[25] > 0.7, 'a few levels more wins it');
+});

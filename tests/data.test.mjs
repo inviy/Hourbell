@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadHB } from './sim.mjs';
 
-const HB = loadHB(['rules.js', 'sprites.js', 'tiles.js', 'maps.js', 'ch2.js', 'ch3.js', 'ch4.js', 'ch5.js', 'ch6.js', 'ch7.js', 'worldmap.js']);
+const HB = loadHB(['rules.js', 'sprites.js', 'tiles.js', 'maps.js', 'ch2.js', 'ch3.js', 'ch4.js', 'ch5.js', 'ch6.js', 'ch7.js', 'worldmap.js', 'guide.js']);
 const maps = Object.fromEntries(Object.entries(HB.MAPS).map(([id, build]) => [id, build()]));
 
 const solid = (m, x, y) => { const r = m.rows[y]; return !r || r[x] === undefined || HB.SOLID.has(r[x]); };
@@ -154,5 +154,26 @@ test('every chapter road hides a chime puzzle and a piece of gear', () => {
     assert.ok(m.puzzle && locked && locked.locked === m.puzzle.flag, id + ': a chest the chimes unlock');
     assert.ok(HB.ITEMS[locked.item].slot && locked.hint, id + ': with gear inside and a hint on the lid');
     assert.ok(m.chests.length >= 2, id + ': and one more chest');
+  }
+});
+
+test('길 안내 heads for the next altar, then home, along real roads', () => {
+  assert.equal(HB.guideTarget({}), 'field', 'chapter 1: the field shrine');
+  assert.equal(HB.guideTarget({ fragment1: true }), 'town', 'fragment in hand: back to the keeper');
+  assert.equal(HB.guideTarget({ chapter1: true, chapter2: true, chapter3: true }), 'pastwood');
+  assert.equal(HB.guideTarget(Object.fromEntries([1, 2, 3, 4, 5, 6, 7].map((n) => ['chapter' + n, true]))), null, 'nothing after the ending');
+  assert.equal(HB.guideNext('town', 'mine'), 'canyon');
+  assert.equal(HB.guideNext('town', 'pastwood'), 'pasttown', 'through the clock tower');
+  assert.equal(HB.guideNext('observatory', 'town'), 'starpath');
+  // every chapter's way can be walked: each step is a real exit or portal of the map
+  for (const n of [1, 2, 3, 4, 5, 6, 7]) {
+    const f = Object.fromEntries([...Array(n - 1)].map((_, i) => ['chapter' + (i + 1), true]));
+    let here = 'town';
+    for (let i = 0; i < 10 && here !== HB.guideTarget(f); i++) {
+      const next = HB.guideNext(here, HB.guideTarget(f)), m = maps[here];
+      assert.ok((m.exits || []).concat(m.portals || []).some((e) => HB.regionOf(e.to) === next), 'chapter ' + n + ': ' + here + ' -> ' + next);
+      here = next;
+    }
+    assert.equal(here, HB.guideTarget(f), 'chapter ' + n + ' reaches its altar');
   }
 });

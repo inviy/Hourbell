@@ -107,6 +107,14 @@
       if (id === 'keeper' && HB.fragments(w.flags)) {
         const n = [1, 2, 3, 4, 5, 6, 7].find((k) => w.flags['fragment' + k] && !w.flags['chapter' + k]);
         if (!n) {
+          const book = HB.bestiary(HB.party);
+          if (w.flags.chapter7 && book.seen === book.total && !w.flags.bestiaryGift) {
+            w.flags.bestiaryGift = true;
+            HB.party.items.bellscore = (HB.party.items.bellscore || 0) + 1;
+            HB.sfx('fragment');
+            HB.dialog.open(['소리를 먹던 것들을 모두 만나 보았다고? 허허, 그 녀석들도 원래는 길 잃은 소리였지.', '이걸 받게. 울림골의 악보일세. (울림골의 악보를 받았다)'], { name: npc.def.name });
+            return true;
+          }
           const last = [7, 6, 5, 4, 3, 2, 1].find((k) => w.flags['chapter' + k]);
           HB.dialog.open(HB.CHAPTERS[last].keeperAfter || HB.CHAPTERS[last].keeper, { name: npc.def.name });
           return true;
