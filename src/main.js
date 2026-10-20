@@ -167,11 +167,21 @@
       ];
       // the last card looks back over the seven chapters, then rolls credits, a page at a time
       const recap = c.credits ? [['지나온 길'].concat([1, 2, 3, 4, 5, 6, 7].map((k) => k + '장  ' + HB.CHAPTERS[k].title))] : [];
-      const credits = recap.concat(c.credits || []);
+      const credits = recap.concat(c.credits ? [this.yourStory(HB.World.flags, P)] : [], c.credits || []);
       this.pages = [this.lines].concat(credits.map((pg, i) => pg.map((t, j) => [t, j ? '#f4f0e8' : '#ffe6a8', 11 + i * 6 + j * (pg.length > 4 ? 0.4 : 0.8)])));
       this.wait = 9 + credits.length * 6;
       this.stars = Title.stars || [];
       HB.music.play('title', { fadeIn: 3 });
+    },
+    // what this player chose to do along the way, for the credits
+    yourStory(f, P) {
+      const secrets = ['grovePuzzle', 'secret2', 'secret3', 'secret4', 'secret5', 'secret6', 'secret7'].filter((k) => f[k]).length;
+      const b = HB.bestiary(P);
+      return ['함께한 이야기']
+        .concat(f.mioJoined ? ['미오의 목소리를 되찾아 주었다'] : [])
+        .concat(f.tobyDone ? ['토비에게 바람꽃을 찾아 주었다'] : [])
+        .concat(f.saidBye ? ['젊은 노을과 작별 인사를 나누었다'] : [])
+        .concat(['숨은 구석 ' + secrets + ' / 7  ·  몬스터 도감 ' + b.seen + ' / ' + b.total]);
     },
     // the page showing at time t (page 0 until 11s, then one every 6s)
     pageAt(t) { return t < 11 ? 0 : Math.min(this.pages.length - 1, 1 + Math.floor((t - 11) / 6)); },

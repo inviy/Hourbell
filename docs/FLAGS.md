@@ -58,5 +58,6 @@
 | `talkDanHaru` | 여관 대화 (chapter.js) |
 | `talkMioDan` | 여관 대화 (chapter.js) |
 | `talkMioHaru` | 여관 대화 (chapter.js) |
+| `talkPip` | 여관 대화 (chapter.js) |
 | `tobyAsked` | 코드 (quests.js) |
 | `tobyDone` | 코드 (quests.js) |
