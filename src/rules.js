@@ -316,6 +316,12 @@
     return guarding ? Math.max(1, Math.floor(d / 2)) : d;
   };
 
+  // 몬스터 도감: field foe kinds beaten at least once (bosses are not counted)
+  HB.bestiary = function (P) {
+    const kinds = Object.keys(HB.FOES).filter((k) => !HB.FOES[k].boss);
+    return { seen: kinds.filter((k) => P.kills && P.kills[k]).length, total: kinds.length };
+  };
+
   HB.makeFoe = function (kind) {
     const b = HB.FOES[kind] || HB.FOES.wisp;
     return Object.assign({ kind: kind in HB.FOES ? kind : 'wisp', maxHp: b.hp }, b, { gold: b.gold.slice() });
