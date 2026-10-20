@@ -136,7 +136,7 @@
         HB.text(g, HB.touchControls ? '화면을 터치하세요' : '아무 키나 누르세요', W / 2, H - 36, '#fff4d8', { align: 'center' });
       }
       if (this.awake && !HB.touchControls) HB.text(g, 'M  소리 켜기 / 끄기', 4, H - 11, '#8a7aa8', { font: 'g9', shadow: null });
-      HB.text(g, 'v1.2', W - 4, H - 11, '#8a7aa8', { align: 'right', font: 'g9', shadow: null });
+      HB.text(g, 'v1.3', W - 4, H - 11, '#8a7aa8', { align: 'right', font: 'g9', shadow: null });
     }
   };
   HB.Title = Title;
