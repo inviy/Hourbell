@@ -28,6 +28,7 @@
       { label: '글자 속도', right: '< ' + TEXT[O.text] + ' >', desc: '대사가 나오는 속도', adjust: (d) => set('text', (O.text + d + 3) % 3), act: () => set('text', (O.text + 1) % 3) },
       flag('shake', '화면 흔들림', '전투 중 화면 흔들림'),
       flag('flash', '섬광, 왜곡', '전투 시작의 번쩍임과 화면 일렁임. 빛에 민감하면 끄세요.'),
+      { label: '음악 감상', desc: '들어 본 곡을 골라 듣는다', act: () => menu.push({ id: 'jukebox' }) },
       { label: '바뀐 점', desc: '버전마다 바뀐 점(패치 노트)을 새 창으로 본다', act: () => {
         HB.sfx('ok');
         const tab = window.open('https://github.com/inviy/Hourbell/blob/main/CHANGELOG.md', '_blank');
@@ -43,4 +44,17 @@
     ];
   };
   HB.menuDraw.options = () => {}; // just the list, no status panel
+
+  // 음악 감상: each song opens once the story has played it (flag; none = from the start)
+  HB.JUKEBOX = [
+    ['title', '타이틀'], ['town', '울림골'], ['field', '바람결 들판'], ['battle', '전투'], ['boss', '보스', 'boss1'],
+    ['fieldBell', '들판의 종', 'fragment1'], ['mist', '물안개 길', 'chapter1'], ['port', '물안개 항구', 'chapter1'], ['portBell', '항구의 종', 'fragment2'],
+    ['canyon', '메아리 협곡', 'chapter2'], ['mine', '울림 광산', 'chapter2'], ['past', '50년 전 울림골', 'chapter3'], ['pastwood', '째깍 숲', 'chapter3'],
+    ['snow', '눈꽃 산마루', 'chapter4'], ['snowBell', '얼음 종', 'fragment5'], ['stars', '별빛 천문대', 'chapter5'], ['starsBell', '별의 종', 'fragment6'],
+    ['bellcore', '아워벨 내부', 'chapter6'], ['finalBoss', '정적', 'fragment7'], ['finale', '일곱 소절', 'fragment7'], ['townNight', '울림골의 밤', 'chapter7']
+  ];
+  HB.menuScreens.jukebox = (menu, w) => HB.JUKEBOX.map(([id, label, need]) => (need && !w.flags[need]
+    ? { label: '???', dim: true, desc: '이야기를 더 진행하면 들을 수 있다', act: () => menu.fail('아직 들어 보지 못한 곡이다.') }
+    : { label, desc: label + ' (메뉴를 닫으면 원래 음악으로)', act: () => { HB.music.play(id, { restart: true, fadeIn: 0.3 }); menu.listening = true; menu.note = '재생 중: ' + label; } }));
+  HB.menuDraw.jukebox = () => {};
 })(window.HB);

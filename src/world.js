@@ -46,7 +46,7 @@
       this.glow = HB.makeGlow(14, 'rgba(255,190,90,0.55)');
       this.motes = []; this.clouds = [];
       this.snapCamera();
-      if (HB.music) HB.music.play(def.music);
+      if (HB.music) HB.music.play(def.music, { onBar: true }); // a new place changes song on the bar line
       HB.showBanner(def.name, def.sub);
       this.plugins('onLoad', def);
     },

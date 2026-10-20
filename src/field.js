@@ -49,7 +49,7 @@
           ? Array.from({ length: n }, (_, i) => HB.makeBellTower(((i / (n - 1)) - 0.5) * 0.16))
           : null;
       }
-      if (this.musicFor(w) !== def.music) HB.music.play(this.musicFor(w));
+      if (this.musicFor(w) !== def.music) HB.music.play(this.musicFor(w), { onBar: true });
     },
 
     update(w, dt, fading) {

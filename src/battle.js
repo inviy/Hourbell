@@ -736,7 +736,7 @@
       });
       this.allies = [];
       if (HB.Field) HB.Field.grace = 2.5;
-      HB.music.play(HB.Field ? HB.Field.musicFor(w) : w.def.music, { fadeIn: 1.0, fadeOut: 0.6 });
+      HB.music.play(HB.Field ? HB.Field.musicFor(w) : w.def.music, { fadeIn: 1.0, fadeOut: 0.6, resume: true }); // back where the field song left off
     },
 
     // ---------- update ----------

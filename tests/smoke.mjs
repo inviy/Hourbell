@@ -56,8 +56,15 @@ try {
   await key('KeyZ'); await sleep(200);
   assert.equal(await ev('HB.opened'), 'https://github.com/inviy/Hourbell/issues');
   assert.match(await ev('HB.Menu.note'), /github\.com\/inviy\/Hourbell\/issues/);
+  // 음악 감상: songs open with the story; picking one plays it, closing the menu goes back
+  await ev("HB.Menu.mode.cur = HB.Menu.rows(HB.World).findIndex((r) => r.label === '음악 감상')"); await key('KeyZ'); await sleep(200);
+  assert.equal(await ev("HB.Menu.rows(HB.World).find((r) => r.label === '???') ? 'locked' : 'open'"), 'locked', 'later songs are locked at first');
+  await ev("HB.Menu.mode.cur = 0"); await key('KeyZ'); await sleep(300);
+  assert.ok(await ev('HB.Menu.listening'), 'the title song plays');
+  await key('KeyX'); await sleep(150);
   await key('KeyX'); await key('KeyX');
   assert.ok(!(await ev('HB.Menu.open')));
+  assert.ok(!(await ev('HB.Menu.listening')), 'closing the menu brings the field song back');
 
   step('focus loss pauses, a key resumes');
   await ev("window.dispatchEvent(new Event('blur'))");
