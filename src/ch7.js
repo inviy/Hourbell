@@ -33,19 +33,28 @@
       name: '정적', hp: 1450, atk: 68, def: 36, spd: 18, exp: 3000, gold: [2000, 2000], drop: ['starhoney', 1], boss: true,
       flag: 'boss7', waveEvery: 4, waveMul: 0.75, fogEvery: 5, twiceAt: 0.5, twiceEvery: 4, fogName: '정적', music: 'finalBoss',
       intro: '모든 소리가 사라졌다. 심장 소리마저...', won: '정적이 긴 숨을 내쉬며 작아졌다. 노래 사이의 쉼표로 돌아가자, 일곱 소절이 한꺼번에 울려 퍼졌다!'
+    },
+    // after the ending (town at night): every late trick at once, for a party around Lv 24
+    lastecho: {
+      name: '떠도는 메아리', hp: 2600, atk: 92, def: 42, spd: 20, exp: 6000, gold: [3000, 3000], drop: ['bellheart', 1], boss: true,
+      flag: 'postBoss', waveEvery: 4, waveMul: 0.8, fogEvery: 5, fogName: '메아리 안개', echoEvery: 5, twiceAt: 0.5, twiceEvery: 4, music: 'finalBoss',
+      intro: '울림골의 밤하늘에 마지막 메아리가 울려 퍼진다...', won: '메아리가 길게 울리다 잦아들었다. 이제 이 마을의 소리는 모두 제자리로 돌아왔다.'
     }
   });
   HB.FOE_ART = Object.assign(HB.FOE_ART || {}, {
     bellwisp: { shape: 'wisp', pal: { out: '#3a2a10', dark: '#8a6a24', mid: '#d0a840', light: '#fff0a0', eye: '#2a1a40' }, sight: 84, chase: 46, roam: 44, scale: 1 },
     clockgolem: { shape: 'golem', pal: { out: '#1a1008', dark: '#5a3a18', mid: '#9a6a30', light: '#d8a050', eye: '#f4e0a0', glow: '#fff0a0' }, sight: 56, chase: 28, roam: 20, scale: 1 },
     timestar: { shape: 'star', pal: { out: '#3a2a10', dark: '#a87a28', mid: '#f0c850', light: '#fff8d0', eye: '#3a2a10' }, sight: 90, chase: 50, roam: 50, scale: 1 },
-    hush: { shape: 'wisp', pal: { out: '#000000', dark: '#0a0a14', mid: '#1a1a2a', light: '#3a3a5a', eye: '#f4c450', hand: '#f4c450' }, sight: 0, chase: 0, roam: 0, scale: 2 }
+    hush: { shape: 'wisp', pal: { out: '#000000', dark: '#0a0a14', mid: '#1a1a2a', light: '#3a3a5a', eye: '#f4c450', hand: '#f4c450' }, sight: 0, chase: 0, roam: 0, scale: 2 },
+    lastecho: { shape: 'wisp', pal: { out: '#100a24', dark: '#3a2a6a', mid: '#7a5ac8', light: '#d8c8ff', eye: '#fff0a0', hand: '#fff0a0' }, sight: 0, chase: 0, roam: 0, scale: 2 }
   });
 
   // ---------- items: the last weapon and score ----------
   Object.assign(HB.ITEMS, {
     hourmallet: { name: '아워벨 종채', slot: 'weapon', atk: 40, spd: 2, price: 1500, desc: '공격 +40, 속도 +2' },
     lastscore: { name: '마지막 소절', slot: 'score', pow: 125, price: 1600, desc: '기술 위력 +125%' },
+    bellheart: { name: '종의 심장', slot: 'charm', def: 9, spd: 9, price: 2000, desc: '방어 +9, 속도 +9 (떠도는 메아리를 이긴 증표)' },
+    bellscore: { name: '울림골의 악보', slot: 'score', pow: 140, price: 2000, desc: '기술 위력 +140% (도감을 채운 선물)' },
     echoring: { name: '메아리 반지', slot: 'charm', def: 7, spd: 7, price: 1200, desc: '방어 +7, 속도 +7 (숨은 보물)' }
   });
   HB.SHOPS.bellcore = { title: '종의 정령이 모아 둔 것들', stock: ['starhoney', 'gingertea', 'water', 'hourmallet', 'lastscore'] };

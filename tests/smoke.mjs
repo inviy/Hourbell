@@ -36,6 +36,8 @@ try {
   assert.ok(!(await ev('HB.dialog.active')), 'A closes the dialog');
   await ev('navigator.getGamepads = () => []');
 
+  assert.equal(await ev(`HB.guideTarget(${W}.flags)`), 'field', '길 안내 points at the field');
+  await shot('01b-guide');
   step('keeper, pause menu, status, options');
   await talkTo('keeper'); await drain();
   assert.ok(await ev(`${W}.flags.metKeeper`));
@@ -61,6 +63,16 @@ try {
   assert.equal(await ev("HB.Menu.rows(HB.World).find((r) => r.label === '???') ? 'locked' : 'open'"), 'locked', 'later songs are locked at first');
   await ev("HB.Menu.mode.cur = 0"); await key('KeyZ'); await sleep(300);
   assert.ok(await ev('HB.Menu.listening'), 'the title song plays');
+  await key('KeyX'); await sleep(150);
+  // 키 설정: move 결정 to J, use it, then put the keys back
+  await ev("HB.Menu.mode.cur = HB.Menu.rows(HB.World).findIndex((r) => r.label === '키 설정')"); await key('KeyZ'); await sleep(200);
+  await ev("HB.Menu.mode.cur = HB.Menu.rows(HB.World).findIndex((r) => r.label === '결정 / 조사')"); await key('KeyZ'); await sleep(200);
+  await key('KeyJ'); await sleep(200);
+  assert.equal(await ev("HB.keymap().KeyJ"), 'ok', 'J now confirms');
+  assert.equal(await ev("HB.keymap().KeyZ"), undefined, 'and Z no longer does');
+  await shot('03b-keys');
+  await ev("HB.Menu.mode.cur = HB.Menu.rows(HB.World).findIndex((r) => r.label === '기본값으로')"); await key('KeyJ'); await sleep(200);
+  assert.equal(await ev("HB.keymap().KeyZ"), 'ok', '기본값으로 brings Z back');
   await key('KeyX'); await sleep(150);
   await key('KeyX'); await key('KeyX');
   assert.ok(!(await ev('HB.Menu.open')));
@@ -507,6 +519,18 @@ try {
   assert.equal(await ev('HB.party.items.plume'), 1);
   assert.equal(await ev(`${W}.moodNow()`), 'night', 'after the ending 울림골 has its first night');
   assert.equal(await ev(`HB.Field.musicFor(${W})`), 'townNight', 'with its own song');
+  assert.ok(await ev('HB.clearedOnce()'), 'the clear is remembered for a second walk');
+
+  step('after the ending: the last echo, a full 몬스터 도감');
+  assert.ok(await ev(`${W}.npcs.some((n) => n.def.id === 'lastecho')`), 'a last echo waits in the night town');
+  await talkTo('lastecho'); await drain(); await sleep(3500);
+  assert.equal(await ev("HB.Battle.isBoss && HB.Battle.foes[0].kind"), 'lastecho');
+  await shot('31a-lastecho');
+  await winBattle(); await drain();
+  assert.ok(await ev(`${W}.flags.postBoss`) && await ev('HB.party.items.bellheart') === 1, 'beaten, with 종의 심장');
+  await ev(`(() => { const P = HB.party; Object.keys(HB.FOES).filter((k) => !HB.FOES[k].boss).forEach((k) => { P.kills[k] = P.kills[k] || 1; }); })()`);
+  await talkTo('keeper'); await drain();
+  assert.equal(await ev('HB.party.items.bellscore'), 1, 'the keeper gives 울림골의 악보 for a full 도감');
 
   step('save code: copy on one device, load it on a fresh one');
   await ev("navigator.clipboard.writeText = (t) => { window.copied = t; return Promise.resolve(); }");

@@ -23,6 +23,7 @@
 
 | 플래그 | 켜지는 때 (파일) |
 |---|---|
+| `bestiaryGift` | 코드 (field.js) |
 | `boss1` | 보스 승리 (rules.js) |
 | `boss2` | 보스 승리 (ch2.js) |
 | `boss3` | 보스 승리 (ch3.js) |
@@ -46,6 +47,7 @@
 | `pastArrived` | 지도에 들어섬 (ch4.js) |
 | `portArrived` | 지도에 들어섬 (ch2.js) |
 | `saidBye` | 코드 (chapter.js) |
+| `secondRun` | 코드 (main.js) |
 | `secret2` | 풍경 퍼즐 (ch2.js) |
 | `secret3` | 풍경 퍼즐 (ch3.js) |
 | `secret4` | 풍경 퍼즐 (ch4.js) |

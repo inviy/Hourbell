@@ -131,6 +131,11 @@
           lines: ['쇠 두드리는 소리도 종소리 비슷하지 않나?']
         },
         {
+          // after the ending: the last echo of 정적, for those who want one more fight
+          id: 'lastecho', name: '떠도는 메아리', pal: 'bellspirit', x: 12.5, y: 13.4, dir: 'down', wander: 0, showIf: 'chapter7', hideIf: 'postBoss', fight: 'lastecho',
+          lines: ['...아직 다 울리지 못한 메아리가 하나 남아 있어.', '마지막으로 한 번만, 너의 노래를 들려줘. 온 힘을 다해서.']
+        },
+        {
           id: 'keeper', name: '종지기 노인', pal: 'keeper', x: 16.5, y: 13.4, dir: 'down', wander: 0,
           lines: [
             '종이 멈춘 지 꽤 되었지. 그날 이후로 해가 지지도, 뜨지도 않아.',
