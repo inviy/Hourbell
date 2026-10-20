@@ -490,6 +490,9 @@ try {
   // a press turns the page: the seven chapters, then the credits, then back to the title
   await key('KeyZ'); await sleep(2500); await shot('30-recap');
   assert.equal(await ev('HB.Ending.pageAt(HB.Ending.t)'), 1, 'Z skips to the next page');
+  const story = await ev("JSON.stringify(HB.Ending.pages.map((p) => p.map((l) => l[0])).find((p) => p[0] === '함께한 이야기'))");
+  assert.match(story, /젊은 노을과 작별 인사를 나누었다/, 'the credits remember what you did');
+  assert.match(story, /숨은 구석 \d \/ 7/);
   for (let i = 0; i < 12 && await ev('HB.getScene() === HB.Ending'); i++) { await key('KeyZ'); await sleep(700); if (i === 1) await shot('30-credits'); }
   await sleep(2500);
   assert.equal(await ev('HB.getScene() === HB.Title'), true, 'the last card returns to the title');

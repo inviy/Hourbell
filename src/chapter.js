@@ -56,6 +56,11 @@
       ['mio', '하루는 시계 소리만 들어도 몇 시인지 안다면서요?'],
       ['haru', '응. 근데 여기 시계들은 다 같은 시각에 멈춰 있어서 좀 쓸쓸해.'],
       ['mio', '그럼 종이 다시 울리면, 제일 먼저 하루한테 몇 시냐고 물어볼게요.']] },
+    { flag: 'talkPip', who: ['mio'], pet: true, lines: [
+      [null, '방울이 미오의 악보를 물고 침대 밑으로 쏙 들어갔다.'],
+      ['mio', '방울아! 그거 오늘 밤에 부를 노래란 말이야!'],
+      [null, '...침대 밑에서 악보 대신 작은 코골이 소리가 들려왔다.'],
+      ['mio', '...졸리면 졸리다고 말을 하지.']] },
     { flag: 'talkAll', who: ['mio', 'dan', 'haru'], need: 'chapter5', lines: [
       ['dan', '별이 이렇게 가까운 건 처음이야.'],
       ['haru', '시계탑 꼭대기에서 보던 별보다 훨씬 커.'],
@@ -63,10 +68,10 @@
   ];
   HB.innTalk = function (w) {
     const has = (id) => HB.party.allies.some((a) => a.id === id);
-    const t = HB.INN_TALKS.find((k) => !w.flags[k.flag] && k.who.every(has) && (!k.need || w.flags[k.need]));
+    const t = HB.INN_TALKS.find((k) => !w.flags[k.flag] && k.who.every(has) && (!k.need || w.flags[k.need]) && (!k.pet || HB.party.pet));
     if (!t) return false;
     w.flags[t.flag] = true;
-    HB.sayChain(t.lines.map(([id, text]) => [HB.ALLIES[id].name, text]));
+    HB.sayChain(t.lines.map(([id, text]) => [id && HB.ALLIES[id].name, text])); // no id: narration
     return true;
   };
 
