@@ -34,7 +34,7 @@
   Object.assign(HB.PALETTES, {
     captain: { h: '#e8e4dc', s: '#d8a078', c: '#2a3a6a', C: '#1a2448', g: '#e8c040', b: '#2a2028' },
     merchant: { h: '#8a4a2a', s: '#f0c8a0', c: '#c8a040', C: '#8a6a24', g: '#3a8a6a', b: '#4a3020' },
-    tavern: { h: '#3a2a20', s: '#e0a880', c: '#6a8a3a', C: '#4a6a24', g: '#f0e0c0', b: '#3a2418' },
+    tavern: { h: '#3a2a20', s: '#e0a880', c: '#6a8a3a', C: '#4a6a24', g: '#f0e0c0', b: '#3a2418', wear: 'bun' },
     sailor: { h: '#f0d060', s: '#f8d4b0', c: '#e8e8f0', C: '#3a5aa8', g: '#c83a3a', b: '#3a3a5a' },
     lightgirl: { h: '#c8643a', s: '#f8d0b0', c: '#e8d0e8', C: '#a888b8', g: '#f0c040', b: '#5a3a4a' }
   });
