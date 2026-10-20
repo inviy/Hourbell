@@ -112,6 +112,7 @@
         P.items[c.item] = (P.items[c.item] || 0) + n;
         got = HB.ITEMS[c.item].name + (n > 1 ? ' ' + n + '개' : '');
       }
+      if (c.item && HB.isGear(c.item)) HB.showBanner('새 장비! ' + HB.ITEMS[c.item].name, HB.ITEMS[c.item].desc, 4);
       HB.dialog.open('상자를 열었다! ' + HB.josa(got, '을를') + ' 손에 넣었다.' +
         (c.item && HB.isGear(c.item) ? '\n(메뉴의 장비에서 착용할 수 있다)' : ''), { voice: 'narrate' });
     },
@@ -123,7 +124,11 @@
       if (!pz || w.flags[pz.flag]) return;
       this.seq.push(ch.note);
       const ok = this.seq.every((n, i) => n === pz.order[i]);
-      if (!ok) { this.seq = []; setTimeout(() => HB.sfx('thud'), 450); return; }
+      if (!ok) {
+        this.seq = []; setTimeout(() => HB.sfx('thud'), 450);
+        HB.dialog.open('풍경 소리가 엇갈려 흩어졌다. 처음부터 다시 울려 보자.', { voice: 'narrate' }); // readable with the sound off
+        return;
+      }
       if (this.seq.length === pz.order.length) {
         w.flags[pz.flag] = true;
         setTimeout(() => HB.sfx('fragment'), 500);

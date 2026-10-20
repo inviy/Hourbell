@@ -98,6 +98,11 @@ try {
   await key('ArrowRight', 2600); await sleep(1500);
   assert.equal(await ev(`${W}.def.id`), 'grove');
   await ev('HB.Field.enemies.forEach((e) => { e.dead = true; })');
+  // a wrong chime says so in words, so the puzzle works with the sound off
+  await ev(`${W}.player.x = 15.5 * 16; ${W}.player.y = 8.9 * 16; ${W}.player.dir = 'up'`);
+  await key('KeyZ'); await sleep(500);
+  assert.ok(await ev('HB.dialog.active'), 'a wrong chime is told in a line');
+  await drain();
   for (const [x, y] of [[11, 4], [15, 7], [6, 5]]) {
     await ev(`${W}.player.x = ${x + 0.5} * 16; ${W}.player.y = ${y + 1.9} * 16; ${W}.player.dir = 'up'`);
     await key('KeyZ'); await sleep(500);

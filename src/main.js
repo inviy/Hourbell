@@ -60,7 +60,7 @@
       const opt = this.opts[this.choice];
       if (opt === 'code' && HB.input.hit('ok')) { this.loadCode(); return; }
       if (this.saved && opt === 'new' && !this.confirmNew && HB.input.hit('ok')) { this.confirmNew = true; HB.sfx('cancel'); return; }
-      if (HB.input.hit('ok') || (!this.saved && opt === 'new' && HB.input.hit('cancel'))) {
+      if (HB.input.hit('ok')) { // cancel never starts a game: it is always "back"
         this.leaving = true;
         HB.sfx && HB.sfx('start');
         HB.music.stop(0.9);

@@ -218,7 +218,7 @@
     drawStatus(g, w) {
       const P = HB.party, e = HB.eff(P);
       const x = 176, y = 8, wdt = 200;
-      HB.drawWindow(g, x, y, wdt, 220);
+      HB.drawWindow(g, x, y, wdt, 230);
       HB.text(g, P.name, x + 12, y + 6, '#ffe08a');
       HB.text(g, 'Lv ' + P.lvl, x + wdt - 12, y + 7, '#c8c0e0', { font: 'g9', align: 'right' });
       HB.drawBar(g, x + 12, y + 30, 'HP', P.hp, P.maxHp, P.hp / P.maxHp < 0.3 ? '#ff7a6a' : '#7ae08a');
@@ -232,6 +232,7 @@
         ['다음 레벨까지', HB.expToNext(P.lvl) - P.exp],
         ['골드', P.gold],
         ['종소리 조각', HB.fragments(w.flags) + ' / 7'],
+        ['몬스터 도감', HB.bestiary(P).seen + ' / ' + HB.bestiary(P).total],
         ['플레이 시간', fmtTime(P.time)]
       ];
       rows.forEach(([k, v], i) => {

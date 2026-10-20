@@ -452,3 +452,11 @@ test('a companion wears one 장신구', () => {
   assert.equal(P.items.pearlear, 1);
   assert.deepEqual(HB.allyFor({ id: 'mio' }, 5), base, 'no 장신구: as before');
 });
+
+test('몬스터 도감 counts field foe kinds beaten, not bosses', () => {
+  const P = partyAt(1, 0);
+  const total = Object.values(HB.FOES).filter((f) => !f.boss).length;
+  assert.deepEqual({ ...HB.bestiary(P) }, { seen: 0, total });
+  P.kills = { wisp: 3, flicker: 1, boss: 1 };
+  assert.deepEqual({ ...HB.bestiary(P) }, { seen: 2, total });
+});

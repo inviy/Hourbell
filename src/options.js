@@ -28,6 +28,11 @@
       { label: '글자 속도', right: '< ' + TEXT[O.text] + ' >', desc: '대사가 나오는 속도', adjust: (d) => set('text', (O.text + d + 3) % 3), act: () => set('text', (O.text + 1) % 3) },
       flag('shake', '화면 흔들림', '전투 중 화면 흔들림'),
       flag('flash', '섬광, 왜곡', '전투 시작의 번쩍임과 화면 일렁임. 빛에 민감하면 끄세요.'),
+      { label: '바뀐 점', desc: '버전마다 바뀐 점(패치 노트)을 새 창으로 본다', act: () => {
+        HB.sfx('ok');
+        const tab = window.open('https://github.com/inviy/Hourbell/blob/main/CHANGELOG.md', '_blank');
+        if (tab) tab.opener = null; else menu.note = '새 창이 막혔다. 주소: github.com/inviy/Hourbell 의 CHANGELOG.md';
+      } },
       // a popup blocker may stop the new tab: the address stays on screen
       { label: '의견 보내기', desc: '버그나 의견을 GitHub Issues에 남긴다 (새 창)', act: () => {
         HB.sfx('ok');
