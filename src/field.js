@@ -36,7 +36,7 @@
       this.grace = 1.2;
       this.enemies = (def.enemies || []).map((e) => ({
         x: e.x * T, y: e.y * T, home: { x: e.x * T, y: e.y * T }, kind: e.kind || 'wisp',
-        ph: Math.random() * 6, wander: null, cool: 0, dead: false, inBattle: false,
+        ph: HB.fieldRand() * 6, wander: null, cool: 0, dead: false, inBattle: false,
         flash: 0, hitShake: 0, dying: 0
       }));
       this.shrine = def.shrine ? {
@@ -66,7 +66,7 @@
           e.x += (dx / d) * k.chase * dt; e.y += (dy / d) * k.chase * dt;
         } else {
           if (!e.wander || Math.hypot(e.wander.x - e.x, e.wander.y - e.y) < 2) {
-            const a = Math.random() * Math.PI * 2, r = Math.random() * k.roam;
+            const a = HB.fieldRand() * Math.PI * 2, r = HB.fieldRand() * k.roam;
             e.wander = { x: e.home.x + Math.cos(a) * r, y: e.home.y + Math.sin(a) * r };
           }
           const vx = e.wander.x - e.x, vy = e.wander.y - e.y, vd = Math.hypot(vx, vy) || 1;

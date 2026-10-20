@@ -237,7 +237,7 @@
   HB.Ending = Ending;
 
   HB.fontsReady.then(() => {
-    HB.setScene(Title);
+    if (!(HB.debugStart && HB.debugStart())) HB.setScene(Title); // ?debug&map=: straight onto a map
     HB.start();
   });
 })(window.HB);

@@ -19,6 +19,8 @@ try {
   const fontBytes = await ev(`performance.getEntriesByType('resource').filter((r) => r.name.includes('/assets/fonts/')).reduce((n, r) => n + r.decodedBodySize, 0)`);
   assert.ok(fontBytes > 0 && fontBytes < 100000, 'fonts are small: ' + fontBytes + ' bytes');
 
+  assert.equal(await ev('typeof HB.debug'), 'undefined', 'no debug tools without ?debug');
+
   step('title -> new game -> town');
   await key('KeyZ'); await sleep(600); await shot('01-title');
   await key('KeyZ'); await sleep(2300); await drain();
@@ -564,6 +566,20 @@ try {
   assert.deepEqual(await ev('HB.Title.opts'), ['continue', 'new', 'code'], 'continue is still offered');
   await key('KeyZ'); await sleep(2300); await drain();
   assert.ok(await ev(`${W}.flags.chapter7`), 'from the backup');
+
+  step('?debug: start on a map at a level, the debug menu');
+  await send('Page.navigate', { url: URL_ + '?debug&map=canyon&lvl=9' }); await sleep(3000);
+  assert.equal(await ev(`${W}.def.id`), 'canyon', 'straight onto the map');
+  assert.equal(await ev('HB.party.lvl'), 9);
+  await key('KeyX'); await sleep(200);
+  assert.ok(await ev("HB.Menu.rows(HB.World).some((r) => r.label === '디버그')"), 'the menu has 디버그');
+  await ev("HB.Menu.mode.cur = HB.Menu.rows(HB.World).findIndex((r) => r.label === '디버그')"); await key('KeyZ'); await sleep(200);
+  await ev("HB.Menu.mode.cur = HB.Menu.rows(HB.World).findIndex((r) => r.label === '무적')"); await key('KeyZ'); await sleep(200);
+  assert.equal(await ev("HB.foeDmg(HB.makeFoe('wisp'), HB.party, 'attack', false)"), 0, '무적: no damage');
+  await shot('32a-debug');
+  await ev('HB.Menu.close()');
+  await send('Page.navigate', { url: URL_ }); await sleep(2500);
+  await key('KeyZ'); await sleep(700); await key('KeyZ'); await sleep(2300); await drain(); // back into the saved game
 
   step('an error thrown every frame does not stop the game');
   const time0 = await ev('HB.time');

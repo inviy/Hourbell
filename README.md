@@ -90,7 +90,15 @@ node tests/smoke.mjs           # 헤드리스 Chrome으로 처음부터 엔딩�
 node tests/real.mjs 2 8 mash   # 실제 게임으로 보스전을 치러 시뮬레이션 승률과 비교 (장, 레벨, auto|mash, 횟수)
 node tests/layout.mjs          # 휴대폰 세로·가로, 태블릿, PC 1080p·4K에서 화면 배치와 배율 확인
 python tools/subset-fonts.py   # 새 대사를 넣은 뒤 글꼴 서브셋 다시 만들기 (fonttools, brotli 필요)
+python tools/list-flags.py     # docs/FLAGS.md 다시 만들기
+python tools/extract-text.py   # 게임의 모든 한국어 대사를 파일:줄과 함께 (맞춤법 검수용)
+node tools/print-map.mjs canyon  # 지도를 글자로 (출구·NPC·적·상자 표시)
+node tools/balance-csv.mjs     # 레벨별 능력치와 적 수치 CSV
+node tools/winrates.mjs        # 장 × 레벨 × 장비별 보스 승률 표
+node tools/pacing.mjs          # 장마다 필드 몇 바퀴, 번 골드와 장비 값
 ```
+
+디버그: 주소 뒤에 `?debug`를 붙이면 메뉴에 디버그(워프, 레벨, 플래그, 무적)가 생기고, `?debug&map=canyon&lvl=9`처럼 원하는 지도와 레벨로 바로 시작합니다. `HB.seedRandom(n)`은 전투와 필드의 움직임을 함께 고정합니다.
 
 전투 난수는 `HB.rand`를 거치므로 `HB.seedRandom(숫자)`로 같은 전투를 그대로 다시 볼 수 있습니다.
 
