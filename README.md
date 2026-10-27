@@ -105,3 +105,7 @@ python tools/colorblind.py a.png  # 스크린샷을 적록 색약 두 종류로 
 전투 난수는 `HB.rand`를 거치므로 `HB.seedRandom(숫자)`로 같은 전투를 그대로 다시 볼 수 있습니다.
 
 자세한 기획은 [docs/DESIGN.md](docs/DESIGN.md)를 참고하세요.
+
+## 라이선스
+
+코드와 코드로 생성하는 그래픽, 음악은 [MIT](LICENSE)입니다. 한글 픽셀 글꼴(Galmuri 서브셋)은 SIL Open Font License 1.1을 따르며, 자세한 내용은 [docs/CREDITS.md](docs/CREDITS.md)에 있습니다.
