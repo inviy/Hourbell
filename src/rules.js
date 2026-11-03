@@ -387,14 +387,50 @@
   // the save before the current one is kept under BACKUP_KEY, and a damaged
   // save falls back to it. Only a save that still reads is kept as the backup.
   const BACKUP_KEY = SAVE_KEY + '.bak';
+  // a save may be old, hand-edited or pasted: numbers only out of range are
+  // clamped, anything of the wrong shape refuses the whole save
+  const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
+  const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+  const isCoord = (v) => isNum(v) && v >= 0; // tiles, fractional mid-step
+  function checkSave(d) {
+    const P = d.party;
+    for (const k of ['lvl', 'exp', 'hp', 'maxHp', 'mp', 'maxMp', 'atk', 'def', 'spd', 'gold']) if (!isNum(P[k])) return false;
+    if (!isObj(P.items) || !isObj(P.equip) || !isObj(P.kills) || !Array.isArray(P.allies)) return false;
+    for (const id in P.items) {
+      if (!isNum(P.items[id])) return false;
+      P.items[id] = Math.floor(P.items[id]);
+      if (P.items[id] <= 0) delete P.items[id];
+    }
+    for (const s in P.equip) if (P.equip[s] !== null && typeof P.equip[s] !== 'string') return false;
+    if ('flags' in d && !isObj(d.flags)) return false;
+    P.lvl = Math.max(1, Math.floor(P.lvl));
+    P.maxHp = Math.max(1, Math.round(P.maxHp));
+    P.maxMp = Math.max(0, Math.round(P.maxMp));
+    P.hp = Math.max(0, Math.min(P.maxHp, Math.round(P.hp)));
+    P.mp = Math.max(0, Math.min(P.maxMp, Math.round(P.mp)));
+    P.exp = Math.max(0, Math.floor(P.exp));
+    P.gold = Math.max(0, Math.floor(P.gold));
+    if ('map' in d) {
+      if (typeof d.map !== 'string') return false;
+      if (HB.MAPS && !Object.prototype.hasOwnProperty.call(HB.MAPS, d.map)) return false;
+    }
+    if ('x' in d || 'y' in d) {
+      if (!isCoord(d.x) || !isCoord(d.y)) return false;
+      if (HB.MAPS && d.map) {
+        const rows = HB.MAPS[d.map]().rows;
+        if (d.y >= rows.length || d.x >= rows[0].length) return false;
+      }
+    }
+    return true;
+  }
   function readSave(raw) {
     try {
       const d = JSON.parse(raw);
-      if (!d || !d.party) return null;
+      if (!isObj(d) || !isObj(d.party)) return null;
       while (d.v < HB.SAVE_VERSION && MIGRATE[d.v]) MIGRATE[d.v++](d);
       if (d.v !== HB.SAVE_VERSION) return null;
       d.party = Object.assign(HB.newParty(), d.party); // fields added later get defaults
-      return d;
+      return checkSave(d) ? d : null;
     } catch (e) { return null; }
   }
   function writeSave(store, raw) {
