@@ -95,6 +95,7 @@
     update(dt) {
       if (!dlg.open) return;
       const total = dlg.pages[dlg.page].join('').length;
+      if (HB.phonePortrait) dlg.shown = total; // the panel shows the whole page at once
       if (dlg.shown < total) {
         const speed = HB.input.isDown('ok') ? 120 : [24, 42, 80][HB.options.text];
         const before = Math.floor(dlg.shown);
@@ -125,8 +126,14 @@
         }
       }
     },
+    // what the phone portrait panel shows (touch.js)
+    view() {
+      if (!dlg.open) return null;
+      const last = dlg.page === dlg.pages.length - 1;
+      return { name: dlg.name, text: dlg.pages[dlg.page].join(' '), choices: last ? dlg.choices : null, choice: dlg.choice };
+    },
     draw(g) {
-      if (!dlg.open) return;
+      if (!dlg.open || HB.phonePortrait) return;
       HB.drawWindow(g, BOX.x, BOX.y, BOX.w, BOX.h);
       if (dlg.name) {
         const nw = HB.textWidth(dlg.name, 'g9') + 12;
