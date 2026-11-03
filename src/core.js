@@ -38,6 +38,7 @@ window.HB = window.HB || {};
     canvas.style.height = (H * css) + 'px';
     ctx.imageSmoothingEnabled = false;
     HB.scale = s;
+    HB.phonePortrait = phone && vh > vw; // dialogue moves to the HTML panel (touch.js)
   }
   window.addEventListener('resize', resize);
   resize();

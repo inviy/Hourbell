@@ -65,7 +65,63 @@
   screen.addEventListener('touchend', screenUp, { passive: false });
   screen.addEventListener('touchcancel', screenUp, { passive: false });
 
+  // phones in portrait: the empty room between the game and the buttons shows
+  // the current line, speaker and choices as large HTML text (read out by
+  // screen readers); battle messages and menu / shop help appear there too
+  css.textContent += '#hb-talk{position:fixed;left:12px;right:12px;display:none;overflow:auto;box-sizing:border-box;padding:10px 14px;' +
+    'font:17px/1.55 sans-serif;color:#f4f0e8;border-radius:8px}#hb-talk.on{background:rgba(28,36,96,.92);border:2px solid #9aa4d8}' +
+    '#hb-talk b{display:block;color:#ffe08a;font-size:16px}#hb-talk ol{margin:6px 0 0;padding:0;list-style:none}' +
+    '#hb-talk li{color:#a898c0}#hb-talk li.cur{color:#fff4d8}#hb-talk li.cur::before{content:"▶ "}';
+  const talk = document.createElement('div');
+  talk.id = 'hb-talk';
+  talk.setAttribute('aria-live', 'polite');
+  document.body.appendChild(talk);
+  function place() {
+    talk.style.display = HB.phonePortrait ? 'block' : 'none';
+    if (!HB.phonePortrait) return;
+    const top = screen.getBoundingClientRect().bottom + 8;
+    const below = Math.min(pad.getBoundingClientRect().top, document.querySelector('.hb-a').getBoundingClientRect().top);
+    talk.style.top = top + 'px';
+    talk.style.maxHeight = Math.max(0, below - 8 - top) + 'px';
+  }
+  function content() {
+    const d = HB.dialog.view();
+    if (d) return d;
+    if (HB.Battle && HB.Battle.active && HB.Battle.msg) return { text: HB.Battle.msg };
+    const M = HB.Menu;
+    if (M && M.open && M.mode) {
+      const sel = M.rows(HB.World)[M.mode.cur];
+      const text = M.note || (sel && sel.desc);
+      if (text) return { name: M.note ? null : sel.label, text };
+    }
+    return null;
+  }
+  let shown = '';
+  function sync() {
+    try {
+      const c = HB.phonePortrait ? content() : null, key = JSON.stringify(c && [c.name, c.text, c.choices]);
+      if (key !== shown) {
+        shown = key;
+        talk.classList.toggle('on', !!c);
+        talk.replaceChildren();
+        if (c) {
+          if (c.name) talk.appendChild(document.createElement('b')).textContent = c.name;
+          talk.appendChild(document.createElement('div')).textContent = c.text;
+          if (c.choices) {
+            const ol = talk.appendChild(document.createElement('ol'));
+            c.choices.forEach((t) => { ol.appendChild(document.createElement('li')).textContent = t; });
+          }
+        }
+      }
+      // moving the choice cursor only moves the mark, so the line is not read out again
+      if (c && c.choices) talk.querySelectorAll('li').forEach((li, i) => li.classList.toggle('cur', i === c.choice));
+    } catch (e) { /* the game loop reports errors; the panel just tries again next frame */ }
+    requestAnimationFrame(sync);
+  }
+  window.addEventListener('resize', place);
+
   button('A', 'hb-a', 'ok');
   button('B', 'hb-b', 'cancel');
+  place(); sync();
   HB.touchControls = true;
 })(window.HB);
