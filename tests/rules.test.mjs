@@ -124,6 +124,15 @@ test('broken save fields: wrong shapes are refused, out-of-range numbers are cla
   assert.ok(HB.saveGame(store, { party: partyAt(4, 1), flags: {}, map: 'town', x: 1, y: 1, dir: 'up' }));
   store.mem['hourbell.save1'] = JSON.stringify({ v: HB.SAVE_VERSION, party: { items: null } });
   assert.equal(HB.loadGame(store).party.lvl, 1, 'the clamped backup loads');
+  // the next save keeps the refused one aside (latest only) instead of dropping it
+  const refused = store.mem['hourbell.save1'], bak = store.mem['hourbell.save1.bak'];
+  assert.ok(HB.saveGame(store, { party: partyAt(5, 1), flags: {}, map: 'town', x: 1, y: 1, dir: 'up' }));
+  assert.equal(store.mem['hourbell.save1.rejected'], refused);
+  assert.equal(store.mem['hourbell.save1.bak'], bak, 'a refused save never becomes the backup');
+  store.mem['hourbell.save1'] = JSON.stringify({ v: HB.SAVE_VERSION, party: { hp: 'abc' } });
+  assert.ok(HB.saveGame(store, { party: partyAt(6, 1), flags: {}, map: 'town', x: 1, y: 1, dir: 'up' }));
+  assert.match(store.mem['hourbell.save1.rejected'], /"abc"/, 'only the latest refused save is kept');
+  assert.equal(HB.loadGame(store).party.lvl, 6);
 });
 
 test('save migration v1 -> current keeps effective stats', () => {

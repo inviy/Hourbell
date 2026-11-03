@@ -387,6 +387,7 @@
   // the save before the current one is kept under BACKUP_KEY, and a damaged
   // save falls back to it. Only a save that still reads is kept as the backup.
   const BACKUP_KEY = SAVE_KEY + '.bak';
+  const REJECTED_KEY = SAVE_KEY + '.rejected';
   // a save may be old, hand-edited or pasted: numbers only out of range are
   // clamped, anything of the wrong shape refuses the whole save
   const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
@@ -436,7 +437,8 @@
   function writeSave(store, raw) {
     try {
       const prev = store.getItem(SAVE_KEY);
-      if (prev && prev !== raw && readSave(prev)) store.setItem(BACKUP_KEY, prev);
+      // a save that no longer reads is kept aside (latest one) in case the check was too strict
+      if (prev && prev !== raw) store.setItem(readSave(prev) ? BACKUP_KEY : REJECTED_KEY, prev);
     } catch (e) { /* no backup this time; the save itself still goes ahead */ }
     store.setItem(SAVE_KEY, raw);
   }
