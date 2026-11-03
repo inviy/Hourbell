@@ -61,7 +61,9 @@
   // tapping the game screen itself also confirms (handy on the title screen)
   const screen = document.getElementById('screen');
   screen.addEventListener('touchstart', (e) => { e.preventDefault(); HB.onUserGesture && HB.onUserGesture(); HB.input.press('ok'); }, { passive: false });
-  screen.addEventListener('touchend', (e) => { e.preventDefault(); HB.input.release('ok'); }, { passive: false });
+  const screenUp = (e) => { e.preventDefault(); HB.input.release('ok'); };
+  screen.addEventListener('touchend', screenUp, { passive: false });
+  screen.addEventListener('touchcancel', screenUp, { passive: false });
 
   button('A', 'hb-a', 'ok');
   button('B', 'hb-b', 'cancel');

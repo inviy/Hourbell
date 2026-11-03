@@ -10,6 +10,17 @@ const step = (name) => console.log('- ' + name);
 
 try {
   await send('Runtime.enable'); await send('Page.enable');
+  // every save the game writes is kept in sessionStorage (it survives reloads) and checked at the end
+  await send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => {
+    const set = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (k, v) {
+      if (this === window.localStorage && k === 'hourbell.save1') {
+        const all = JSON.parse(sessionStorage.getItem('smoke.saves') || '[]');
+        if (all[all.length - 1] !== v) { all.push(v); set.call(sessionStorage, 'smoke.saves', JSON.stringify(all)); }
+      }
+      return set.call(this, k, v);
+    };
+  })()` });
   await send('Page.navigate', { url: URL_ });
   await sleep(2500);
   await ev('localStorage.clear()');
@@ -610,6 +621,18 @@ try {
   const thrown = errors.filter((e) => /smoke: boom/.test(e));
   assert.ok(thrown.length >= 3 && thrown.length <= 5, 'each error logged once, not every frame (' + thrown.length + ')');
   errors.splice(0, errors.length, ...errors.filter((e) => !/smoke: boom/.test(e)));
+
+  step('every save the run wrote, chapters 1-7, passes the load check');
+  const saves = await ev(`JSON.parse(sessionStorage.getItem('smoke.saves')).map((raw) => {
+    let d = null; try { d = JSON.parse(raw); } catch (e) { return { broken: true }; } // the damaged save above is written on purpose
+    const ok = !!HB.loadGame({ getItem: (k) => (k === 'hourbell.save1' ? raw : null) });
+    return { ok, map: d.map, frags: Object.keys(d.flags || {}).filter((f) => /^fragment[1-7]$/.test(f)).length };
+  })`);
+  const real = saves.filter((s) => !s.broken);
+  assert.equal(saves.length - real.length, 1, 'only the deliberately damaged save does not parse');
+  assert.deepEqual(real.filter((s) => !s.ok), [], 'no real save is refused');
+  for (let n = 0; n <= 7; n++) assert.ok(real.some((s) => s.frags === n), 'a save holding ' + n + ' fragments');
+  console.log('  ' + real.length + ' saves checked');
 
   assert.deepEqual(errors, [], 'no JS errors');
   console.log('ok, screenshots in ' + OUT);

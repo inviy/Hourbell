@@ -100,6 +100,41 @@ test('save round trip, bad data and newer versions', () => {
   assert.equal(HB.saveGame(full, { party: P }), false);
 });
 
+test('broken save fields: wrong shapes are refused, out-of-range numbers are clamped', () => {
+  const store = memStore();
+  const put = (party, extra) => { store.mem['hourbell.save1'] = JSON.stringify({ v: HB.SAVE_VERSION, party, flags: {}, map: 'town', x: 3, y: 4, ...extra }); };
+  for (const party of [{ items: null }, { lvl: -5, items: [] }, { hp: 'abc' }, { lvl: '3' }, { gold: null }, { items: { herb: 'x' } }, { equip: { weapon: 5 } }, { allies: {} }]) {
+    put(party);
+    assert.equal(HB.loadGame(store), null, 'refused: ' + JSON.stringify(party));
+  }
+  for (const extra of [{ x: -1 }, { y: null }, { x: '3' }, { map: 7 }, { flags: null }]) {
+    put({}, extra);
+    assert.equal(HB.loadGame(store), null, 'refused: ' + JSON.stringify(extra));
+  }
+  put({ lvl: -5, hp: 999, maxHp: 50, mp: -3, gold: -10, exp: -1, items: { herb: 2.7, water: -1, ether: 0 } });
+  const P = HB.loadGame(store).party;
+  assert.deepEqual([P.lvl, P.hp, P.mp, P.gold, P.exp], [1, 50, 0, 0, 0]);
+  assert.deepEqual({ ...P.items }, { herb: 2 });
+  // a refused code leaves the current save alone
+  const before = store.mem['hourbell.save1'];
+  const code = (o) => 'HB1-' + btoa(JSON.stringify({ v: HB.SAVE_VERSION, flags: {}, ...o }));
+  for (const party of [{ items: null }, { lvl: -5, items: null }, { hp: 'abc' }]) assert.equal(HB.useSaveCode(store, code({ party })), false);
+  assert.equal(store.mem['hourbell.save1'], before);
+  // a refused main save still falls back to the good backup
+  assert.ok(HB.saveGame(store, { party: partyAt(4, 1), flags: {}, map: 'town', x: 1, y: 1, dir: 'up' }));
+  store.mem['hourbell.save1'] = JSON.stringify({ v: HB.SAVE_VERSION, party: { items: null } });
+  assert.equal(HB.loadGame(store).party.lvl, 1, 'the clamped backup loads');
+  // the next save keeps the refused one aside (latest only) instead of dropping it
+  const refused = store.mem['hourbell.save1'], bak = store.mem['hourbell.save1.bak'];
+  assert.ok(HB.saveGame(store, { party: partyAt(5, 1), flags: {}, map: 'town', x: 1, y: 1, dir: 'up' }));
+  assert.equal(store.mem['hourbell.save1.rejected'], refused);
+  assert.equal(store.mem['hourbell.save1.bak'], bak, 'a refused save never becomes the backup');
+  store.mem['hourbell.save1'] = JSON.stringify({ v: HB.SAVE_VERSION, party: { hp: 'abc' } });
+  assert.ok(HB.saveGame(store, { party: partyAt(6, 1), flags: {}, map: 'town', x: 1, y: 1, dir: 'up' }));
+  assert.match(store.mem['hourbell.save1.rejected'], /"abc"/, 'only the latest refused save is kept');
+  assert.equal(HB.loadGame(store).party.lvl, 6);
+});
+
 test('save migration v1 -> current keeps effective stats', () => {
   const store = memStore();
   store.mem['hourbell.save1'] = JSON.stringify({ v: 1, party: { lvl: 4, atk: 15, def: 6, spd: 9, items: { herb: 1 } }, flags: {} });
